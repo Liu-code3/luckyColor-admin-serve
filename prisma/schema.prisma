@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  nickname  String?
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Menu {
+  id        Int      @id
+  parentId  Int?     @map("parent_id")
+  title     String
+  name      String
+  type      Int
+  path      String
+  menuKey   String   @map("menu_key")
+  icon      String?
+  layout    String?
+  isVisible Boolean  @default(true) @map("is_visible")
+  component String
+  redirect  String?
+  meta      Json?
+  sort      Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([parentId])
+  @@index([sort])
+  @@map("menus")
+}
+
+model Dictionary {
+  id         String   @id
+  parentId   String?  @map("parent_id")
+  weight     Int
+  name       String
+  tenantId   String?  @map("tenant_id")
+  dictLabel  String   @map("dict_label")
+  dictValue  String   @map("dict_value")
+  category   String
+  sortCode   Int      @map("sort_code")
+  deleteFlag String   @map("delete_flag")
+  createTime String?  @map("create_time")
+  createUser String?  @map("create_user")
+  updateTime String?  @map("update_time")
+  updateUser String?  @map("update_user")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([parentId])
+  @@index([dictValue])
+  @@index([sortCode])
+  @@map("dictionaries")
+}
