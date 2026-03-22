@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
+  AssignRoleMenusDto,
   CreateRoleDto,
   RoleListQueryDto,
   UpdateRoleDto
@@ -96,6 +98,69 @@ export class RolesService {
     return successResponse(true);
   }
 
+  async menus(id: string) {
+    const role = await this.prisma.role.findUnique({
+      where: { id },
+      include: {
+        menus: {
+          include: {
+            menu: true
+          }
+        }
+      }
+    });
+    if (!role) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.ROLE_NOT_FOUND);
+    }
+
+    return successResponse(
+      this.toRoleMenuAssignmentResponse(
+        role,
+        role.menus
+          .map((item) => item.menu)
+          .sort((left, right) => left.sort - right.sort || left.id - right.id)
+      )
+    );
+  }
+
+  async assignMenus(id: string, dto: AssignRoleMenusDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const role = await tx.role.findUnique({ where: { id } });
+      if (!role) {
+        throw new BusinessException(BUSINESS_ERROR_CODES.ROLE_NOT_FOUND);
+      }
+
+      const menus =
+        dto.menuIds.length > 0
+          ? await tx.menu.findMany({
+              where: {
+                id: { in: dto.menuIds }
+              },
+              orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+            })
+          : [];
+
+      if (menus.length !== dto.menuIds.length) {
+        throw new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND);
+      }
+
+      await tx.roleMenu.deleteMany({
+        where: { roleId: id }
+      });
+
+      if (dto.menuIds.length > 0) {
+        await tx.roleMenu.createMany({
+          data: dto.menuIds.map((menuId) => ({
+            roleId: id,
+            menuId
+          }))
+        });
+      }
+
+      return successResponse(this.toRoleMenuAssignmentResponse(role, menus));
+    });
+  }
+
   private async ensureRoleExists(id: string) {
     const role = await this.prisma.role.findUnique({ where: { id } });
     if (!role) {
@@ -136,6 +201,39 @@ export class RolesService {
       remark: role.remark,
       createdAt: role.createdAt,
       updatedAt: role.updatedAt
+    };
+  }
+
+  private toAssignedMenuResponse(
+    menu: Prisma.MenuGetPayload<Record<string, never>>
+  ) {
+    return {
+      id: menu.id,
+      pid: menu.parentId ?? 0,
+      title: menu.title,
+      name: menu.name,
+      type: menu.type,
+      path: menu.path,
+      key: menu.menuKey,
+      isVisible: menu.isVisible,
+      sort: menu.sort
+    };
+  }
+
+  private toRoleMenuAssignmentResponse(
+    role: {
+      id: string;
+      name: string;
+      code: string;
+    },
+    menus: Prisma.MenuGetPayload<Record<string, never>>[]
+  ) {
+    return {
+      roleId: role.id,
+      name: role.name,
+      code: role.code,
+      menuIds: menus.map((item) => item.id),
+      menus: menus.map((item) => this.toAssignedMenuResponse(item))
     };
   }
 }

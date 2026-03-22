@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query
 } from '@nestjs/common';
 import {
@@ -22,11 +23,16 @@ import {
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
 import {
+  AssignRoleMenusDto,
   CreateRoleDto,
   RoleListQueryDto,
   UpdateRoleDto
 } from './roles.dto';
-import { RoleItemResponseDto, RolePageResponseDto } from './roles.response.dto';
+import {
+  RoleItemResponseDto,
+  RoleMenuAssignmentResponseDto,
+  RolePageResponseDto
+} from './roles.response.dto';
 import { RolesService } from './roles.service';
 
 @ApiTags('系统管理 / 角色管理')
@@ -120,6 +126,60 @@ export class RolesController {
   @Get(':id')
   detail(@Param('id') id: string) {
     return this.rolesService.detail(id);
+  }
+
+  @ApiOperation({
+    summary: '角色已分配菜单',
+    description: '根据角色 ID 查询当前已分配的菜单 ID 列表和菜单明细。'
+  })
+  @ApiParam({ name: 'id', description: '角色 ID', example: 'clxrole1234567890' })
+  @ApiSuccessResponse({
+    type: RoleMenuAssignmentResponseDto,
+    description: '角色菜单分配详情响应',
+    dataExample: {
+      roleId: 'clxrole1234567890',
+      name: '超级管理员',
+      code: 'super_admin',
+      menuIds: [1, 2, 3, 11],
+      menus: [
+        {
+          id: 1,
+          pid: 0,
+          title: '系统管理',
+          name: 'SystemManage',
+          type: 1,
+          path: '/system',
+          key: 'system:root',
+          isVisible: true,
+          sort: 1
+        },
+        {
+          id: 11,
+          pid: 1,
+          title: '通知公告',
+          name: 'NoticeManage',
+          type: 2,
+          path: '/system/notices',
+          key: 'system:notice:list',
+          isVisible: true,
+          sort: 11
+        }
+      ]
+    }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '角色不存在',
+    examples: [
+      {
+        name: 'roleNotFound',
+        code: BUSINESS_ERROR_CODES.ROLE_NOT_FOUND
+      }
+    ]
+  })
+  @Get(':id/menus')
+  menus(@Param('id') id: string) {
+    return this.rolesService.menus(id);
   }
 
   @ApiOperation({
@@ -219,6 +279,75 @@ export class RolesController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateRoleDto) {
     return this.rolesService.update(id, dto);
+  }
+
+  @ApiOperation({
+    summary: '分配角色菜单',
+    description: '根据角色 ID 覆盖更新当前角色的菜单权限集合，传空数组表示清空全部菜单权限。'
+  })
+  @ApiParam({ name: 'id', description: '角色 ID', example: 'clxrole1234567890' })
+  @ApiBody({ type: AssignRoleMenusDto })
+  @ApiSuccessResponse({
+    type: RoleMenuAssignmentResponseDto,
+    description: '角色菜单分配结果响应',
+    dataExample: {
+      roleId: 'clxrole1234567890',
+      name: '超级管理员',
+      code: 'super_admin',
+      menuIds: [1, 2, 3, 11],
+      menus: [
+        {
+          id: 1,
+          pid: 0,
+          title: '系统管理',
+          name: 'SystemManage',
+          type: 1,
+          path: '/system',
+          key: 'system:root',
+          isVisible: true,
+          sort: 1
+        },
+        {
+          id: 11,
+          pid: 1,
+          title: '通知公告',
+          name: 'NoticeManage',
+          type: 2,
+          path: '/system/notices',
+          key: 'system:notice:list',
+          isVisible: true,
+          sort: 11
+        }
+      ]
+    }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '角色或菜单不存在',
+    examples: [
+      {
+        name: 'roleNotFound',
+        code: BUSINESS_ERROR_CODES.ROLE_NOT_FOUND
+      },
+      {
+        name: 'menuNotFound',
+        code: BUSINESS_ERROR_CODES.MENU_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '分配参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
+  @Put(':id/menus')
+  assignMenus(@Param('id') id: string, @Body() dto: AssignRoleMenusDto) {
+    return this.rolesService.assignMenus(id, dto);
   }
 
   @ApiOperation({

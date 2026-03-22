@@ -78,3 +78,92 @@ export class RolePageResponseDto {
   })
   records!: RoleItemResponseDto[];
 }
+
+export class RoleAssignedMenuResponseDto {
+  @ApiProperty({
+    description: '菜单 ID',
+    example: 1
+  })
+  id!: number;
+
+  @ApiProperty({
+    description: '父级菜单 ID，根节点为 0',
+    example: 0
+  })
+  pid!: number;
+
+  @ApiProperty({
+    description: '菜单标题',
+    example: '系统管理'
+  })
+  title!: string;
+
+  @ApiProperty({
+    description: '路由名称',
+    example: 'SystemManage'
+  })
+  name!: string;
+
+  @ApiProperty({
+    description: '菜单类型，1 目录，2 菜单，3 按钮',
+    example: 1
+  })
+  type!: number;
+
+  @ApiProperty({
+    description: '访问路径',
+    example: '/system'
+  })
+  path!: string;
+
+  @ApiProperty({
+    description: '权限标识',
+    example: 'system:root'
+  })
+  key!: string;
+
+  @ApiProperty({
+    description: '是否显示',
+    example: true
+  })
+  isVisible!: boolean;
+
+  @ApiProperty({
+    description: '排序值',
+    example: 1
+  })
+  sort!: number;
+}
+
+export class RoleMenuAssignmentResponseDto {
+  @ApiProperty({
+    description: '角色 ID',
+    example: 'clxrole1234567890'
+  })
+  roleId!: string;
+
+  @ApiProperty({
+    description: '角色名称',
+    example: '超级管理员'
+  })
+  name!: string;
+
+  @ApiProperty({
+    description: '角色编码',
+    example: 'super_admin'
+  })
+  code!: string;
+
+  @ApiProperty({
+    description: '已分配菜单 ID 列表',
+    type: [Number],
+    example: [1, 2, 3, 11]
+  })
+  menuIds!: number[];
+
+  @ApiProperty({
+    description: '已分配菜单明细',
+    type: [RoleAssignedMenuResponseDto]
+  })
+  menus!: RoleAssignedMenuResponseDto[];
+}

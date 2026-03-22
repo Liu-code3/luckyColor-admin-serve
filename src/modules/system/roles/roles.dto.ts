@@ -1,6 +1,8 @@
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsInt,
   IsNotEmpty,
@@ -125,4 +127,16 @@ export class UpdateRoleDto {
   @IsOptional()
   @IsString()
   remark?: string | null;
+}
+
+export class AssignRoleMenusDto {
+  @ApiProperty({
+    description: '菜单 ID 列表，传空数组表示清空当前角色所有菜单权限',
+    example: [1, 2, 3, 11]
+  })
+  @IsArray()
+  @ArrayUnique()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  menuIds!: number[];
 }
