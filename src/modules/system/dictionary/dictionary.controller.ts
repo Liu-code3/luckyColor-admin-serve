@@ -15,7 +15,11 @@ import {
   ApiQuery,
   ApiTags
 } from '@nestjs/swagger';
-import { ApiSuccessResponse } from '../../../shared/swagger/swagger-response';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import {
+  ApiErrorResponse,
+  ApiSuccessResponse
+} from '../../../shared/swagger/swagger-response';
 import {
   CreateDictionaryDto,
   DictionaryPageQueryDto,
@@ -134,6 +138,16 @@ export class DictionaryController {
       ]
     }
   })
+  @ApiErrorResponse({
+    status: 422,
+    description: '分页参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
   @Get('page')
   page(@Query() query: DictionaryPageQueryDto) {
     return this.dictionaryService.getPage(query);
@@ -164,6 +178,16 @@ export class DictionaryController {
       updateUser: 'admin'
     }
   })
+  @ApiErrorResponse({
+    status: 404,
+    description: '字典不存在',
+    examples: [
+      {
+        name: 'dictionaryNotFound',
+        code: BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND
+      }
+    ]
+  })
   @Get(':id')
   detail(@Param('id') id: string) {
     return this.dictionaryService.detail(id);
@@ -193,6 +217,16 @@ export class DictionaryController {
       updateTime: '2026-03-22 10:00:00',
       updateUser: 'admin'
     }
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '创建参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
   })
   @Post()
   create(@Body() dto: CreateDictionaryDto) {
@@ -225,6 +259,26 @@ export class DictionaryController {
       updateUser: 'admin'
     }
   })
+  @ApiErrorResponse({
+    status: 404,
+    description: '字典不存在',
+    examples: [
+      {
+        name: 'dictionaryNotFound',
+        code: BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '更新参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateDictionaryDto) {
     return this.dictionaryService.update(id, dto);
@@ -242,6 +296,16 @@ export class DictionaryController {
       example: true
     },
     dataExample: true
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '字典不存在',
+    examples: [
+      {
+        name: 'dictionaryNotFound',
+        code: BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND
+      }
+    ]
   })
   @Delete(':id')
   remove(@Param('id') id: string) {

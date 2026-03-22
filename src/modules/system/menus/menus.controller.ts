@@ -16,7 +16,11 @@ import {
   ApiQuery,
   ApiTags
 } from '@nestjs/swagger';
-import { ApiSuccessResponse } from '../../../shared/swagger/swagger-response';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import {
+  ApiErrorResponse,
+  ApiSuccessResponse
+} from '../../../shared/swagger/swagger-response';
 import { CreateMenuDto, MenuListQueryDto, UpdateMenuDto } from './menus.dto';
 import {
   MenuItemResponseDto,
@@ -78,6 +82,16 @@ export class MenusController {
         }
       ]
     }
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '分页参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
   })
   @Get()
   list(@Query() query: MenuListQueryDto) {
@@ -170,6 +184,16 @@ export class MenusController {
       updatedAt: '2026-03-22T14:30:00.000Z'
     }
   })
+  @ApiErrorResponse({
+    status: 404,
+    description: '菜单不存在',
+    examples: [
+      {
+        name: 'menuNotFound',
+        code: BUSINESS_ERROR_CODES.MENU_NOT_FOUND
+      }
+    ]
+  })
   @Get(':id')
   detail(@Param('id', ParseIntPipe) id: number) {
     return this.menusService.detail(id);
@@ -203,6 +227,16 @@ export class MenusController {
       createdAt: '2026-03-22T14:30:00.000Z',
       updatedAt: '2026-03-22T14:30:00.000Z'
     }
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '创建参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
   })
   @Post()
   create(@Body() dto: CreateMenuDto) {
@@ -240,6 +274,26 @@ export class MenusController {
       updatedAt: '2026-03-22T15:00:00.000Z'
     }
   })
+  @ApiErrorResponse({
+    status: 404,
+    description: '菜单不存在',
+    examples: [
+      {
+        name: 'menuNotFound',
+        code: BUSINESS_ERROR_CODES.MENU_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '更新参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateMenuDto) {
     return this.menusService.update(id, dto);
@@ -257,6 +311,16 @@ export class MenusController {
       example: true
     },
     dataExample: true
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '菜单不存在',
+    examples: [
+      {
+        name: 'menuNotFound',
+        code: BUSINESS_ERROR_CODES.MENU_NOT_FOUND
+      }
+    ]
   })
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {

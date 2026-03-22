@@ -5,7 +5,11 @@ import {
   ApiOperation,
   ApiTags
 } from '@nestjs/swagger';
-import { ApiSuccessResponse } from '../../../shared/swagger/swagger-response';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import {
+  ApiErrorResponse,
+  ApiSuccessResponse
+} from '../../../shared/swagger/swagger-response';
 import { AuthService } from './auth.service';
 import { LoginDto } from './auth.dto';
 import {
@@ -40,6 +44,27 @@ export class AuthController {
       }
     }
   })
+  @ApiErrorResponse({
+    status: 401,
+    description: '登录失败响应',
+    examples: [
+      {
+        name: 'loginFailed',
+        code: BUSINESS_ERROR_CODES.AUTH_LOGIN_FAILED,
+        summary: '用户名或密码错误'
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '登录参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
@@ -58,6 +83,22 @@ export class AuthController {
       username: 'admin',
       nickname: '系统管理员'
     }
+  })
+  @ApiErrorResponse({
+    status: 401,
+    description: '登录态异常响应',
+    examples: [
+      {
+        name: 'tokenExpired',
+        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+        summary: '登录已过期'
+      },
+      {
+        name: 'tokenInvalid',
+        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
+        summary: '登录状态无效'
+      }
+    ]
   })
   @UseGuards(JwtAuthGuard)
   @Get('profile')

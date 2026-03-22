@@ -22,7 +22,11 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { createReadStream } from 'node:fs';
 import { successResponse } from '../../../shared/api/api-response';
-import { ApiSuccessResponse } from '../../../shared/swagger/swagger-response';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import {
+  ApiErrorResponse,
+  ApiSuccessResponse
+} from '../../../shared/swagger/swagger-response';
 import { FileService } from './file.service';
 import { UploadedFileResponseDto, UploadFileBodyDto } from './file.response.dto';
 
@@ -45,6 +49,16 @@ export class FileController {
       filename: '1711096800000-avatar.png',
       url: '/api/file/1711096800000-avatar.png'
     }
+  })
+  @ApiErrorResponse({
+    status: 400,
+    description: '文件上传失败',
+    examples: [
+      {
+        name: 'uploadFailed',
+        code: BUSINESS_ERROR_CODES.FILE_UPLOAD_FAILED
+      }
+    ]
   })
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
@@ -69,6 +83,16 @@ export class FileController {
       example: true
     },
     dataExample: true
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '文件不存在',
+    examples: [
+      {
+        name: 'fileNotFound',
+        code: BUSINESS_ERROR_CODES.FILE_NOT_FOUND
+      }
+    ]
   })
   @Get('delete')
   async delete(@Query('filePath') filePath: string) {
@@ -95,6 +119,16 @@ export class FileController {
         }
       }
     }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '文件不存在',
+    examples: [
+      {
+        name: 'fileNotFound',
+        code: BUSINESS_ERROR_CODES.FILE_NOT_FOUND
+      }
+    ]
   })
   @Get(':filename')
   async read(

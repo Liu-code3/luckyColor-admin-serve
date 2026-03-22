@@ -15,7 +15,11 @@ import {
   ApiQuery,
   ApiTags
 } from '@nestjs/swagger';
-import { ApiSuccessResponse } from '../../../shared/swagger/swagger-response';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import {
+  ApiErrorResponse,
+  ApiSuccessResponse
+} from '../../../shared/swagger/swagger-response';
 import {
   CreateUserDto,
   UpdateUserDto,
@@ -64,6 +68,16 @@ export class UsersController {
       ]
     }
   })
+  @ApiErrorResponse({
+    status: 422,
+    description: '分页参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
   @Get()
   list(@Query() query: UserListQueryDto) {
     return this.usersService.list(query);
@@ -85,6 +99,16 @@ export class UsersController {
       updatedAt: '2026-03-22T14:30:00.000Z'
     }
   })
+  @ApiErrorResponse({
+    status: 404,
+    description: '用户不存在',
+    examples: [
+      {
+        name: 'userNotFound',
+        code: BUSINESS_ERROR_CODES.USER_NOT_FOUND
+      }
+    ]
+  })
   @Get(':id')
   detail(@Param('id') id: string) {
     return this.usersService.detail(id);
@@ -105,6 +129,16 @@ export class UsersController {
       createdAt: '2026-03-22T14:30:00.000Z',
       updatedAt: '2026-03-22T14:30:00.000Z'
     }
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '创建参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
   })
   @Post()
   create(@Body() dto: CreateUserDto) {
@@ -128,6 +162,26 @@ export class UsersController {
       updatedAt: '2026-03-22T15:00:00.000Z'
     }
   })
+  @ApiErrorResponse({
+    status: 404,
+    description: '用户不存在',
+    examples: [
+      {
+        name: 'userNotFound',
+        code: BUSINESS_ERROR_CODES.USER_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '更新参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
@@ -145,6 +199,16 @@ export class UsersController {
       example: true
     },
     dataExample: true
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '用户不存在',
+    examples: [
+      {
+        name: 'userNotFound',
+        code: BUSINESS_ERROR_CODES.USER_NOT_FOUND
+      }
+    ]
   })
   @Delete(':id')
   remove(@Param('id') id: string) {
