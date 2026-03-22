@@ -37,6 +37,18 @@ ALTER TABLE `tenant_audit_logs`
   MODIFY COLUMN `detail` JSON NULL COMMENT 'audit detail',
   MODIFY COLUMN `created_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at';
 
+ALTER TABLE `dashboard_visits`
+  COMMENT = 'dashboard visits',
+  MODIFY COLUMN `id` VARCHAR(191) NOT NULL COMMENT 'visit id',
+  MODIFY COLUMN `tenant_id` VARCHAR(191) NOT NULL COMMENT 'tenant id',
+  MODIFY COLUMN `user_id` VARCHAR(191) NOT NULL COMMENT 'user id',
+  MODIFY COLUMN `visitor_id` VARCHAR(191) NOT NULL COMMENT 'visitor id',
+  MODIFY COLUMN `session_id` VARCHAR(191) NOT NULL COMMENT 'session id',
+  MODIFY COLUMN `route_path` VARCHAR(191) NOT NULL COMMENT 'route path',
+  MODIFY COLUMN `route_title` VARCHAR(191) NOT NULL COMMENT 'route title',
+  MODIFY COLUMN `route_icon` VARCHAR(191) NULL COMMENT 'route icon',
+  MODIFY COLUMN `visited_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'visited at';
+
 ALTER TABLE `users`
   COMMENT = 'system users',
   MODIFY COLUMN `id` VARCHAR(191) NOT NULL COMMENT 'user id',

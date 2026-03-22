@@ -64,6 +64,25 @@ model TenantAuditLog {
   @@map("tenant_audit_logs")
 }
 
+model DashboardVisit {
+  id         String   @id @default(cuid())
+  tenantId   String   @map("tenant_id")
+  userId     String   @map("user_id")
+  visitorId  String   @map("visitor_id")
+  sessionId  String   @map("session_id")
+  routePath  String   @map("route_path")
+  routeTitle String   @map("route_title")
+  routeIcon  String?  @map("route_icon")
+  visitedAt  DateTime @default(now()) @map("visited_at") @db.Timestamp(3)
+
+  @@index([tenantId, visitedAt])
+  @@index([tenantId, userId, visitedAt])
+  @@index([tenantId, sessionId, visitedAt])
+  @@index([tenantId, visitorId, visitedAt])
+  @@index([tenantId, routePath, visitedAt])
+  @@map("dashboard_visits")
+}
+
 model User {
   id        String     @id @default(cuid())
   tenantId  String     @map("tenant_id")
