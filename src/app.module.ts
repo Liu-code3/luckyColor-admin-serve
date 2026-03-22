@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { RedisModule } from './infra/cache/redis/redis.module';
 import { PrismaModule } from './infra/database/prisma/prisma.module';
 import { AuthModule } from './modules/iam/auth/auth.module';
+import { FileModule } from './modules/platform/file/file.module';
 import { HealthModule } from './modules/platform/health/health.module';
 import { DictionaryModule } from './modules/system/dictionary/dictionary.module';
 import { MenusModule } from './modules/system/menus/menus.module';
@@ -17,6 +18,7 @@ import { UsersModule } from './modules/system/users/users.module';
     PrismaModule,
     AuthModule,
     DictionaryModule,
+    FileModule,
     HealthModule,
     UsersModule,
     MenusModule
