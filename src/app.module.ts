@@ -7,6 +7,7 @@ import { FileModule } from './modules/platform/file/file.module';
 import { HealthModule } from './modules/platform/health/health.module';
 import { DictionaryModule } from './modules/system/dictionary/dictionary.module';
 import { MenusModule } from './modules/system/menus/menus.module';
+import { RolesModule } from './modules/system/roles/roles.module';
 import { UsersModule } from './modules/system/users/users.module';
 
 @Module({
@@ -20,6 +21,7 @@ import { UsersModule } from './modules/system/users/users.module';
     DictionaryModule,
     FileModule,
     HealthModule,
+    RolesModule,
     UsersModule,
     MenusModule
   ]
