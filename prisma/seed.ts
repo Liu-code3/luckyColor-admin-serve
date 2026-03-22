@@ -1,6 +1,10 @@
 import { Prisma, PrismaClient } from '../src/generated/prisma';
+import { departmentSeedData } from './seed-data/department.data';
 import { dictTreeData } from './seed-data/dict-tree.data';
 import { menuSeedData } from './seed-data/menu.data';
+import { noticeSeedData } from './seed-data/notice.data';
+import { roleSeedData } from './seed-data/role.data';
+import { systemConfigSeedData } from './seed-data/system-config.data';
 
 interface DictionarySeedNode {
   id: string;
@@ -27,6 +31,10 @@ async function main() {
     dictTreeData.data as DictionarySeedNode[]
   );
 
+  await prisma.notice.deleteMany();
+  await prisma.systemConfig.deleteMany();
+  await prisma.department.deleteMany();
+  await prisma.role.deleteMany();
   await prisma.menu.deleteMany();
   await prisma.dictionary.deleteMany();
   await prisma.user.deleteMany();
@@ -37,6 +45,22 @@ async function main() {
       password: '123456',
       nickname: '系统管理员'
     }
+  });
+
+  await prisma.role.createMany({
+    data: roleSeedData
+  });
+
+  await prisma.department.createMany({
+    data: departmentSeedData
+  });
+
+  await prisma.systemConfig.createMany({
+    data: systemConfigSeedData
+  });
+
+  await prisma.notice.createMany({
+    data: noticeSeedData
   });
 
   await prisma.menu.createMany({

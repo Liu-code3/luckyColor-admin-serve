@@ -65,3 +65,69 @@ model Dictionary {
   @@index([sortCode])
   @@map("dictionaries")
 }
+
+model Role {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  sort      Int      @default(0)
+  status    Boolean  @default(true)
+  remark    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([name])
+  @@index([sort])
+  @@map("roles")
+}
+
+model Department {
+  id        Int      @id
+  parentId  Int?     @map("parent_id")
+  name      String
+  code      String   @unique
+  leader    String?
+  phone     String?
+  email     String?
+  sort      Int      @default(0)
+  status    Boolean  @default(true)
+  remark    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([parentId])
+  @@index([name])
+  @@index([sort])
+  @@map("departments")
+}
+
+model SystemConfig {
+  id          String   @id @default(cuid())
+  configKey   String   @unique @map("config_key")
+  configName  String   @map("config_name")
+  configValue String   @map("config_value")
+  valueType   String   @default("string") @map("value_type")
+  remark      String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([configName])
+  @@map("system_configs")
+}
+
+model Notice {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  type        String
+  status      Boolean  @default(false)
+  publisher   String?
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([title])
+  @@index([type])
+  @@index([publishedAt])
+  @@map("notices")
+}
