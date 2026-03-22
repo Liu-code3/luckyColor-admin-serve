@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { RedisModule } from './infra/cache/redis/redis.module';
 import { PrismaModule } from './infra/database/prisma/prisma.module';
 import { AuthModule } from './modules/iam/auth/auth.module';
 import { HealthModule } from './modules/platform/health/health.module';
@@ -12,6 +13,7 @@ import { UsersModule } from './modules/system/users/users.module';
     ConfigModule.forRoot({
       isGlobal: true
     }),
+    RedisModule,
     PrismaModule,
     AuthModule,
     DictionaryModule,
