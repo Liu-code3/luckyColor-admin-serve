@@ -53,7 +53,6 @@ export class UsersController {
             id: 'clx1234567890',
             username: 'admin',
             nickname: '系统管理员',
-            token: '8f9c8dbf9bbf4ce7a707e8a0937f4db0',
             createdAt: '2026-03-22T14:30:00.000Z',
             updatedAt: '2026-03-22T14:30:00.000Z'
           }
@@ -78,7 +77,6 @@ export class UsersController {
         id: 'clx1234567890',
         username: 'admin',
         nickname: '系统管理员',
-        token: '8f9c8dbf9bbf4ce7a707e8a0937f4db0',
         createdAt: '2026-03-22T14:30:00.000Z',
         updatedAt: '2026-03-22T14:30:00.000Z'
       },
@@ -101,7 +99,6 @@ export class UsersController {
         id: 'clx1234567890',
         username: 'admin',
         nickname: '系统管理员',
-        token: '8f9c8dbf9bbf4ce7a707e8a0937f4db0',
         createdAt: '2026-03-22T14:30:00.000Z',
         updatedAt: '2026-03-22T14:30:00.000Z'
       },
@@ -125,7 +122,6 @@ export class UsersController {
         id: 'clx1234567890',
         username: 'admin',
         nickname: '管理员',
-        token: 'd6c3fe120bb24da88f6b6d44d90fd8fa',
         createdAt: '2026-03-22T14:30:00.000Z',
         updatedAt: '2026-03-22T15:00:00.000Z'
       },

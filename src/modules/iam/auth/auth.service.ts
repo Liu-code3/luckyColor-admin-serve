@@ -1,13 +1,12 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import {
   errorResponse,
   successResponse
 } from '../../../shared/api/api-response';
-import { LoginDto, MenuListDto } from './auth.dto';
+import { LoginDto } from './auth.dto';
 import type { JwtPayload } from './jwt-payload.interface';
 
 @Injectable()
@@ -22,17 +21,7 @@ export class AuthService {
     const user = await this.validateUser(dto);
 
     if (!user) {
-      return errorResponse('鐧诲綍澶辫触');
-    }
-
-    return successResponse(user.token, '鐧诲綍鎴愬姛~');
-  }
-
-  async jwtLogin(dto: LoginDto) {
-    const user = await this.validateUser(dto);
-
-    if (!user) {
-      return errorResponse('鐧诲綍澶辫触');
+      return errorResponse('登录失败');
     }
 
     const payload: JwtPayload = {
@@ -52,28 +41,7 @@ export class AuthService {
           nickname: user.nickname
         }
       },
-      'JWT鐧诲綍鎴愬姛~'
-    );
-  }
-
-  async getMenuList(dto: MenuListDto) {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        token: dto.token
-      }
-    });
-
-    if (!user) {
-      return errorResponse('鑾峰彇鑿滃崟澶辫触');
-    }
-
-    const menus = await this.prisma.menu.findMany({
-      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
-    });
-
-    return successResponse(
-      menus.map((menu) => this.toMenuResponse(menu)),
-      '鑾峰彇鑿滃崟鎴愬姛~'
+      '登录成功'
     );
   }
 
@@ -85,7 +53,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('鐢ㄦ埛鐧诲綍鐘舵€佸凡澶辨晥');
+      throw new UnauthorizedException('用户登录状态已失效');
     }
 
     return successResponse({
@@ -98,7 +66,7 @@ export class AuthService {
   private async validateUser(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: {
-        username: dto.adminName
+        username: dto.username
       }
     });
 
@@ -107,23 +75,5 @@ export class AuthService {
     }
 
     return user;
-  }
-
-  private toMenuResponse(menu: Prisma.MenuGetPayload<Record<string, never>>) {
-    return {
-      pid: menu.parentId ?? 0,
-      id: menu.id,
-      title: menu.title,
-      name: menu.name,
-      type: menu.type,
-      path: menu.path,
-      key: menu.menuKey,
-      icon: menu.icon ?? '',
-      layout: menu.layout ?? '',
-      isVisible: menu.isVisible,
-      component: menu.component,
-      redirect: menu.redirect ?? undefined,
-      meta: (menu.meta as Record<string, unknown> | null) ?? undefined
-    };
   }
 }

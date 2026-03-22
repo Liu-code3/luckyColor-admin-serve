@@ -35,8 +35,7 @@ async function main() {
     data: {
       username: 'admin',
       password: '123456',
-      nickname: '超级管理员',
-      token: '111111111111111'
+      nickname: '系统管理员'
     }
   });
 

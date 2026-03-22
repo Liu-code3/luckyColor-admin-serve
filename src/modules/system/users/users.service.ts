@@ -1,12 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
-import {
-  CreateUserDto,
-  createUserToken,
-  UpdateUserDto,
-  UserListQueryDto
-} from './users.dto';
+import { CreateUserDto, UpdateUserDto, UserListQueryDto } from './users.dto';
 
 @Injectable()
 export class UsersService {
@@ -60,8 +55,7 @@ export class UsersService {
       data: {
         username: dto.username,
         password: dto.password,
-        nickname: dto.nickname?.trim() || dto.username,
-        token: createUserToken(dto.token)
+        nickname: dto.nickname?.trim() || dto.username
       }
     });
 
@@ -76,8 +70,7 @@ export class UsersService {
       data: {
         username: dto.username,
         password: dto.password,
-        nickname: dto.nickname,
-        token: dto.token ? createUserToken(dto.token) : undefined
+        nickname: dto.nickname
       }
     });
 
@@ -102,7 +95,6 @@ export class UsersService {
     id: string;
     username: string;
     nickname: string | null;
-    token: string;
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -110,7 +102,6 @@ export class UsersService {
       id: user.id,
       username: user.username,
       nickname: user.nickname,
-      token: user.token,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };

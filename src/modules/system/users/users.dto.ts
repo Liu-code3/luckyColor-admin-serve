@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
@@ -55,14 +54,6 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   nickname?: string;
-
-  @ApiPropertyOptional({
-    description: '登录 token，不传则自动生成',
-    example: '8f9c8dbf9bbf4ce7a707e8a0937f4db0'
-  })
-  @IsOptional()
-  @IsString()
-  token?: string;
 }
 
 export class UpdateUserDto {
@@ -89,16 +80,4 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   nickname?: string;
-
-  @ApiPropertyOptional({
-    description: '登录 token',
-    example: 'd6c3fe120bb24da88f6b6d44d90fd8fa'
-  })
-  @IsOptional()
-  @IsString()
-  token?: string;
-}
-
-export function createUserToken(token?: string) {
-  return token?.trim() || randomUUID().replace(/-/g, '');
 }

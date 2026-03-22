@@ -13,7 +13,6 @@ model User {
   username  String   @unique
   password  String
   nickname  String?
-  token     String   @unique
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

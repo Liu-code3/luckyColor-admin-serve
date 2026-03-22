@@ -8,7 +8,7 @@ export class LoginDto {
   })
   @IsString()
   @IsNotEmpty()
-  adminName!: string;
+  username!: string;
 
   @ApiProperty({
     description: '登录密码',
@@ -17,14 +17,4 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   password!: string;
-}
-
-export class MenuListDto {
-  @ApiProperty({
-    description: '旧版登录态 token',
-    example: '8f9c8dbf9bbf4ce7a707e8a0937f4db0'
-  })
-  @IsString()
-  @IsNotEmpty()
-  token!: string;
 }

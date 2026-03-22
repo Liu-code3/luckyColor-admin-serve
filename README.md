@@ -21,7 +21,7 @@ pnpm dev
 
 - `GET /api/health`
 - `POST /api/auth/login`
-- `POST /api/auth/menu-list`
+- `GET /api/auth/profile`
 - `GET /api/users`
 - `GET /api/users/:id`
 - `POST /api/users`

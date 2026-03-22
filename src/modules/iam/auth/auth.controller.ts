@@ -11,7 +11,7 @@ import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import type { JwtPayload } from './jwt-payload.interface';
-import { LoginDto, MenuListDto } from './auth.dto';
+import { LoginDto } from './auth.dto';
 
 @ApiTags('认证中心')
 @Controller('auth')
@@ -19,24 +19,8 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @ApiOperation({
-    summary: '旧版登录',
-    description: '返回历史 token，兼容旧前端登录流程'
-  })
-  @ApiBody({ type: LoginDto })
-  @ApiOkResponse(
-    buildSuccessResponseSchema(
-      '8f9c8dbf9bbf4ce7a707e8a0937f4db0',
-      '登录成功'
-    )
-  )
-  @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
-  }
-
-  @ApiOperation({
-    summary: 'JWT 登录',
-    description: '返回 Bearer Token，用于新鉴权链路'
+    summary: '登录',
+    description: '使用用户名和密码登录，返回 JWT Bearer Token'
   })
   @ApiBody({ type: LoginDto })
   @ApiOkResponse(
@@ -52,47 +36,12 @@ export class AuthController {
           nickname: '系统管理员'
         }
       },
-      'JWT登录成功'
+      '登录成功'
     )
   )
-  @Post('jwt-login')
-  jwtLogin(@Body() dto: LoginDto) {
-    return this.authService.jwtLogin(dto);
-  }
-
-  @ApiOperation({
-    summary: '旧版菜单列表',
-    description: '根据旧版 token 获取菜单列表，兼容存量前端'
-  })
-  @ApiBody({ type: MenuListDto })
-  @ApiOkResponse(
-    buildSuccessResponseSchema(
-      [
-        {
-          pid: 0,
-          id: 1001,
-          title: '用户管理',
-          name: 'UserManage',
-          type: 2,
-          path: '/system/users',
-          key: 'system:user:list',
-          icon: 'UserOutlined',
-          layout: 'default',
-          isVisible: true,
-          component: 'system/users/index',
-          redirect: '/system/users/list',
-          meta: {
-            title: '用户管理',
-            keepAlive: true
-          }
-        }
-      ],
-      '获取菜单成功'
-    )
-  )
-  @Post('menu-list')
-  menuList(@Body() dto: MenuListDto) {
-    return this.authService.getMenuList(dto);
+  @Post('login')
+  login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
   }
 
   @ApiOperation({
