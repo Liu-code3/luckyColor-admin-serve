@@ -27,6 +27,8 @@ interface DictionarySeedNode {
 const prisma = new PrismaClient();
 
 async function main() {
+  await prisma.$executeRawUnsafe("SET time_zone = '+08:00'");
+
   const dictionaryRows = flattenDictionaryNodes(
     dictTreeData.data as DictionarySeedNode[]
   );

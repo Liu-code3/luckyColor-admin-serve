@@ -15,6 +15,7 @@ export class PrismaService
 
   async onModuleInit() {
     await this.$connect();
+    await this.$executeRawUnsafe("SET time_zone = '+08:00'");
   }
 
   async onModuleDestroy() {
