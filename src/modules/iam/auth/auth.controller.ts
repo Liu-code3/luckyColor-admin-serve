@@ -15,6 +15,7 @@ import {
 import { AuthService } from './auth.service';
 import { LoginDto } from './auth.dto';
 import {
+  AuthAccessResponseDto,
   AuthUserResponseDto,
   LoginResultResponseDto
 } from './auth.response.dto';
@@ -30,7 +31,7 @@ export class AuthController {
 
   @ApiOperation({
     summary: '账号登录',
-    description: '使用用户名和密码登录，返回 Bearer Token 及当前用户信息。'
+    description: '使用用户名和密码登录，返回 Bearer Token 及当前用户权限摘要。'
   })
   @ApiBody({ type: LoginDto })
   @ApiSuccessResponse({
@@ -43,7 +44,10 @@ export class AuthController {
       user: {
         id: 'clx1234567890',
         username: 'admin',
-        nickname: '系统管理员'
+        nickname: '系统管理员',
+        roleCodes: ['super_admin'],
+        menuCodeList: ['main_system', 'main_system_users'],
+        buttonCodeList: ['system:user:create', 'system:user:update']
       }
     }
   })
@@ -75,7 +79,7 @@ export class AuthController {
 
   @ApiOperation({
     summary: '当前登录用户',
-    description: '基于 Bearer Token 返回当前登录用户资料。'
+    description: '基于 Bearer Token 返回当前登录用户资料及权限摘要。'
   })
   @ApiBearerAuth()
   @ApiSuccessResponse({
@@ -84,7 +88,10 @@ export class AuthController {
     dataExample: {
       id: 'clx1234567890',
       username: 'admin',
-      nickname: '系统管理员'
+      nickname: '系统管理员',
+      roleCodes: ['super_admin'],
+      menuCodeList: ['main_system', 'main_system_users'],
+      buttonCodeList: ['system:user:create', 'system:user:update']
     }
   })
   @ApiUnauthorizedErrorResponse({
@@ -106,5 +113,84 @@ export class AuthController {
   @Get('profile')
   profile(@CurrentUser() user: JwtPayload) {
     return this.authService.getProfile(user);
+  }
+
+  @ApiOperation({
+    summary: '当前用户访问快照',
+    description: '返回当前登录用户的角色明细、菜单树和按钮权限，便于前端初始化权限状态。'
+  })
+  @ApiBearerAuth()
+  @ApiSuccessResponse({
+    type: AuthAccessResponseDto,
+    description: '当前用户访问快照',
+    dataExample: {
+      user: {
+        id: 'clx1234567890',
+        username: 'admin',
+        nickname: '系统管理员',
+        roleCodes: ['super_admin'],
+        menuCodeList: ['main_system', 'main_system_users'],
+        buttonCodeList: ['system:user:create', 'system:user:update']
+      },
+      roles: [
+        {
+          id: 'clxrole1234567890',
+          name: '超级管理员',
+          code: 'super_admin'
+        }
+      ],
+      menuTree: [
+        {
+          pid: 0,
+          id: 4,
+          title: '系统管理',
+          name: 'system',
+          type: 1,
+          path: '/systemManagement',
+          key: 'main_system',
+          icon: 'material-symbols:folder-managed-sharp',
+          layout: '',
+          isVisible: true,
+          component: 'sys',
+          sort: 4,
+          children: [
+            {
+              pid: 4,
+              id: 5,
+              title: '用户管理',
+              name: 'systemUsers',
+              type: 2,
+              path: '/systemManagement/system/users',
+              key: 'main_system_users',
+              icon: 'mdi:user',
+              layout: '',
+              isVisible: true,
+              component: 'sys/user',
+              sort: 5
+            }
+          ]
+        }
+      ]
+    }
+  })
+  @ApiUnauthorizedErrorResponse({
+    description: '登录态异常响应',
+    examples: [
+      {
+        name: 'tokenExpired',
+        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+        summary: '登录已过期'
+      },
+      {
+        name: 'tokenInvalid',
+        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
+        summary: '登录状态无效'
+      }
+    ]
+  })
+  @UseGuards(JwtAuthGuard)
+  @Get('access')
+  access(@CurrentUser() user: JwtPayload) {
+    return this.authService.getAccess(user);
   }
 }
