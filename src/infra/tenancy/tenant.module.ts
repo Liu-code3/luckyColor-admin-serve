@@ -5,12 +5,14 @@ import {
   NestModule,
   RequestMethod
 } from '@nestjs/common';
+import { TenantsModule } from '../../modules/tenant/tenants/tenants.module';
 import { TenantContextMiddleware } from './tenant-context.middleware';
 import { TenantContextService } from './tenant-context.service';
 import { TenantPrismaScopeService } from './tenant-prisma-scope.service';
 
 @Global()
 @Module({
+  imports: [TenantsModule],
   providers: [
     TenantContextService,
     TenantPrismaScopeService,

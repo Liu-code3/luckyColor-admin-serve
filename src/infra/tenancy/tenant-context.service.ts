@@ -3,7 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 
 export interface TenantContextStore {
   tenantId: string | null;
-  source: 'header' | 'none';
+  source: 'header' | 'token' | 'default' | 'none';
 }
 
 @Injectable()
@@ -24,5 +24,22 @@ export class TenantContextService {
 
   hasTenant() {
     return !!this.getTenantId();
+  }
+
+  setTenant(
+    tenantId: string | null,
+    source: TenantContextStore['source'] = tenantId ? 'token' : 'none'
+  ) {
+    const store = this.storage.getStore();
+    if (store) {
+      store.tenantId = tenantId;
+      store.source = source;
+      return;
+    }
+
+    this.storage.enterWith({
+      tenantId,
+      source
+    });
   }
 }

@@ -2,6 +2,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class NoticeItemResponseDto {
   @ApiProperty({
+    description: '租户 ID',
+    example: 'tenant_001'
+  })
+  tenantId!: string;
+
+  @ApiProperty({
     description: '公告 ID',
     example: 'clxnotice1234567890'
   })
@@ -26,7 +32,7 @@ export class NoticeItemResponseDto {
   type!: string;
 
   @ApiProperty({
-    description: '发布状态，true 已发布，false 草稿',
+    description: '发布状态，true 为已发布，false 为草稿',
     example: false
   })
   status!: boolean;

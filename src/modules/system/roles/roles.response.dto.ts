@@ -3,6 +3,12 @@ import { ROLE_DATA_SCOPE_VALUES } from './roles.constants';
 
 export class RoleAssignedDepartmentResponseDto {
   @ApiProperty({
+    description: '租户 ID',
+    example: 'tenant_001'
+  })
+  tenantId!: string;
+
+  @ApiProperty({
     description: '部门 ID',
     example: 100
   })
@@ -29,6 +35,12 @@ export class RoleAssignedDepartmentResponseDto {
 
 export class RoleItemResponseDto {
   @ApiProperty({
+    description: '租户 ID',
+    example: 'tenant_001'
+  })
+  tenantId!: string;
+
+  @ApiProperty({
     description: '角色 ID',
     example: 'clxrole1234567890'
   })
@@ -53,7 +65,7 @@ export class RoleItemResponseDto {
   sort!: number;
 
   @ApiProperty({
-    description: '状态，true 启用，false 停用',
+    description: '状态，true 为启用，false 为停用',
     example: true
   })
   status!: boolean;
@@ -178,6 +190,12 @@ export class RoleAssignedMenuResponseDto {
 
 export class RoleMenuAssignmentResponseDto {
   @ApiProperty({
+    description: '租户 ID',
+    example: 'tenant_001'
+  })
+  tenantId!: string;
+
+  @ApiProperty({
     description: '角色 ID',
     example: 'clxrole1234567890'
   })
@@ -210,6 +228,12 @@ export class RoleMenuAssignmentResponseDto {
 }
 
 export class RoleDataScopeResponseDto {
+  @ApiProperty({
+    description: '租户 ID',
+    example: 'tenant_001'
+  })
+  tenantId!: string;
+
   @ApiProperty({
     description: '角色 ID',
     example: 'clxrole1234567890'

@@ -1,8 +1,14 @@
+import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
+  const createTenantScope = (tenantId = 'tenant_001') =>
+    new TenantPrismaScopeService({
+      getTenantId: jest.fn().mockReturnValue(tenantId)
+    } as never);
+
   const createMenu = (overrides: Partial<Record<string, unknown>> = {}) => ({
     id: 4,
     parentId: null,
@@ -25,6 +31,7 @@ describe('AuthService', () => {
 
   const createRole = (overrides: Partial<Record<string, unknown>> = {}) => ({
     id: 'role-1',
+    tenantId: 'tenant_001',
     name: '超级管理员',
     code: 'super_admin',
     sort: 1,
@@ -38,6 +45,7 @@ describe('AuthService', () => {
 
   const createUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
     id: 'user-1',
+    tenantId: 'tenant_001',
     username: 'admin',
     password: '123456',
     nickname: '系统管理员',
@@ -50,7 +58,8 @@ describe('AuthService', () => {
   function createService() {
     const prisma = {
       user: {
-        findUnique: jest.fn()
+        findFirst: jest.fn(),
+        update: jest.fn()
       }
     };
     const jwtService = {
@@ -59,24 +68,32 @@ describe('AuthService', () => {
     const configService = {
       get: jest.fn().mockReturnValue('2h')
     };
+    const passwordService = {
+      isHash: jest.fn().mockReturnValue(true),
+      hash: jest.fn().mockResolvedValue('hashed-password'),
+      verify: jest.fn().mockResolvedValue(true)
+    };
 
     const service = new AuthService(
       prisma as never,
       jwtService as never,
-      configService as never
+      configService as never,
+      createTenantScope(),
+      passwordService as never
     );
 
     return {
       service,
       prisma,
       jwtService,
-      configService
+      configService,
+      passwordService
     };
   }
 
   it('returns permission summary in login response', async () => {
-    const { service, prisma, jwtService } = createService();
-    prisma.user.findUnique.mockResolvedValue(
+    const { service, prisma, jwtService, passwordService } = createService();
+    prisma.user.findFirst.mockResolvedValue(
       createUser({
         roles: [
           {
@@ -120,10 +137,33 @@ describe('AuthService', () => {
       password: '123456'
     });
 
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant_001',
+        username: 'admin'
+      },
+      include: {
+        roles: {
+          include: {
+            role: {
+              include: {
+                menus: {
+                  include: {
+                    menu: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
     expect(jwtService.signAsync).toHaveBeenCalledWith({
       sub: 'user-1',
+      tenantId: 'tenant_001',
       username: 'admin'
     });
+    expect(passwordService.verify).toHaveBeenCalledWith('123456', '123456');
     expect(response).toEqual({
       code: 200,
       msg: 'success',
@@ -133,6 +173,7 @@ describe('AuthService', () => {
         expiresIn: '2h',
         user: {
           id: 'user-1',
+          tenantId: 'tenant_001',
           username: 'admin',
           nickname: '系统管理员',
           roleCodes: ['super_admin'],
@@ -171,7 +212,7 @@ describe('AuthService', () => {
       menus: [{ menu: rootMenu }, { menu: childMenu }, { menu: buttonMenu }]
     });
 
-    prisma.user.findUnique.mockResolvedValue(
+    prisma.user.findFirst.mockResolvedValue(
       createUser({
         roles: [{ role }, { role }]
       })
@@ -179,6 +220,7 @@ describe('AuthService', () => {
 
     const response = await service.getAccess({
       sub: 'user-1',
+      tenantId: 'tenant_001',
       username: 'admin'
     });
 
@@ -188,6 +230,7 @@ describe('AuthService', () => {
       data: {
         user: {
           id: 'user-1',
+          tenantId: 'tenant_001',
           username: 'admin',
           nickname: '系统管理员',
           roleCodes: ['super_admin'],
@@ -197,6 +240,7 @@ describe('AuthService', () => {
         roles: [
           {
             id: 'role-1',
+            tenantId: 'tenant_001',
             name: '超级管理员',
             code: 'super_admin'
           }
@@ -247,13 +291,68 @@ describe('AuthService', () => {
 
   it('throws token invalid when current user does not exist', async () => {
     const { service, prisma } = createService();
-    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.findFirst.mockResolvedValue(null);
 
     await expect(
       service.getProfile({
         sub: 'missing-user',
+        tenantId: 'tenant_001',
         username: 'admin'
       })
-    ).rejects.toThrow(new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID));
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID)
+    );
+  });
+
+  it('rejects login when password verification fails', async () => {
+    const { service, prisma, passwordService } = createService();
+    prisma.user.findFirst.mockResolvedValue(createUser());
+    passwordService.verify.mockResolvedValue(false);
+
+    await expect(
+      service.login({
+        username: 'admin',
+        password: 'wrong-password'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.AUTH_LOGIN_FAILED)
+    );
+
+    expect(passwordService.verify).toHaveBeenCalledWith(
+      '123456',
+      'wrong-password'
+    );
+  });
+
+  it('upgrades legacy plaintext password to hash after successful login', async () => {
+    const { service, prisma, passwordService, jwtService } = createService();
+    prisma.user.findFirst.mockResolvedValue(createUser());
+    prisma.user.update.mockResolvedValue({
+      id: 'user-1'
+    });
+    passwordService.isHash.mockReturnValue(false);
+    passwordService.hash.mockResolvedValue('argon2-hash-value');
+
+    const response = await service.login({
+      username: 'admin',
+      password: '123456'
+    });
+
+    expect(passwordService.verify).not.toHaveBeenCalled();
+    expect(passwordService.hash).toHaveBeenCalledWith('123456');
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: {
+        id: 'user-1'
+      },
+      data: {
+        password: 'argon2-hash-value'
+      }
+    });
+    expect(jwtService.signAsync).toHaveBeenCalledWith({
+      sub: 'user-1',
+      tenantId: 'tenant_001',
+      username: 'admin'
+    });
+    expect(response.code).toBe(200);
   });
 });

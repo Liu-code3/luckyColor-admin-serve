@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
+import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
@@ -11,17 +13,25 @@ import {
 
 @Injectable()
 export class DepartmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantScope: TenantPrismaScopeService
+  ) {}
 
   async list(query: DepartmentListQueryDto) {
     const current = query.page || 1;
     const size = query.size || 10;
     const keyword = query.keyword?.trim();
-    const where = keyword
-      ? {
-          OR: [{ name: { contains: keyword } }, { code: { contains: keyword } }]
-        }
-      : {};
+    const where = this.buildDepartmentWhere(
+      keyword
+        ? {
+            OR: [
+              { name: { contains: keyword } },
+              { code: { contains: keyword } }
+            ]
+          }
+        : undefined
+    );
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.department.count({ where }),
@@ -43,6 +53,7 @@ export class DepartmentsService {
 
   async tree() {
     const records = await this.prisma.department.findMany({
+      where: this.buildDepartmentWhere(),
       orderBy: [{ sort: 'asc' }, { id: 'asc' }]
     });
 
@@ -52,7 +63,9 @@ export class DepartmentsService {
   }
 
   async detail(id: number) {
-    const department = await this.prisma.department.findUnique({ where: { id } });
+    const department = await this.prisma.department.findFirst({
+      where: this.buildDepartmentWhere({ id })
+    });
     if (!department) {
       throw new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND);
     }
@@ -67,6 +80,7 @@ export class DepartmentsService {
     const department = await this.prisma.department.create({
       data: {
         id: nextId,
+        tenantId: this.tenantScope.resolveRequiredTenantValue(),
         parentId: dto.parentId ?? null,
         name: dto.name,
         code: dto.code,
@@ -109,6 +123,7 @@ export class DepartmentsService {
 
   async remove(id: number) {
     const records = await this.prisma.department.findMany({
+      where: this.buildDepartmentWhere(),
       orderBy: [{ sort: 'asc' }, { id: 'asc' }]
     });
     const target = records.find((item) => item.id === id);
@@ -118,12 +133,19 @@ export class DepartmentsService {
 
     const ids = this.collectDepartmentIds(id, records);
     await this.prisma.department.deleteMany({
-      where: {
+      where: this.buildDepartmentWhere({
         id: { in: ids }
-      }
+      })
     });
 
     return successResponse(true);
+  }
+
+  private buildDepartmentWhere(where: Prisma.DepartmentWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.DepartmentWhereInput;
   }
 
   private async getNextId() {
@@ -134,8 +156,8 @@ export class DepartmentsService {
   }
 
   private async ensureDepartmentExists(id: number) {
-    const department = await this.prisma.department.findUnique({
-      where: { id }
+    const department = await this.prisma.department.findFirst({
+      where: this.buildDepartmentWhere({ id })
     });
     if (!department) {
       throw new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND);
@@ -143,12 +165,15 @@ export class DepartmentsService {
     return department;
   }
 
-  private async ensureDepartmentCodeAvailable(code: string, excludeId?: number) {
+  private async ensureDepartmentCodeAvailable(
+    code: string,
+    excludeId?: number
+  ) {
     const department = await this.prisma.department.findFirst({
-      where: {
+      where: this.buildDepartmentWhere({
         code,
         id: excludeId ? { not: excludeId } : undefined
-      }
+      })
     });
 
     if (department) {
@@ -179,12 +204,16 @@ export class DepartmentsService {
     const map = new Map<
       number,
       ReturnType<DepartmentsService['toDepartmentResponse']> & {
-        children?: Array<ReturnType<DepartmentsService['toDepartmentResponse']>>;
+        children?: Array<
+          ReturnType<DepartmentsService['toDepartmentResponse']>
+        >;
       }
     >();
     const roots: Array<
       ReturnType<DepartmentsService['toDepartmentResponse']> & {
-        children?: Array<ReturnType<DepartmentsService['toDepartmentResponse']>>;
+        children?: Array<
+          ReturnType<DepartmentsService['toDepartmentResponse']>
+        >;
       }
     > = [];
 
@@ -218,6 +247,7 @@ export class DepartmentsService {
 
   private toDepartmentResponse(department: {
     id: number;
+    tenantId: string;
     parentId: number | null;
     name: string;
     code: string;
@@ -233,6 +263,7 @@ export class DepartmentsService {
     return {
       pid: department.parentId ?? 0,
       id: department.id,
+      tenantId: department.tenantId,
       name: department.name,
       code: department.code,
       leader: department.leader,

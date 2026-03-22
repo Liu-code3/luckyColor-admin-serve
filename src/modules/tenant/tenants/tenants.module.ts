@@ -1,0 +1,23 @@
+import { Module } from '@nestjs/common';
+import { TenantAccessService } from './tenant-access.service';
+import { TenantAuditService } from './tenant-audit.service';
+import { TenantBootstrapService } from './tenant-bootstrap.service';
+import { TenantsController } from './tenants.controller';
+import { TenantsService } from './tenants.service';
+
+@Module({
+  controllers: [TenantsController],
+  providers: [
+    TenantsService,
+    TenantAccessService,
+    TenantAuditService,
+    TenantBootstrapService
+  ],
+  exports: [
+    TenantsService,
+    TenantAccessService,
+    TenantAuditService,
+    TenantBootstrapService
+  ]
+})
+export class TenantsModule {}

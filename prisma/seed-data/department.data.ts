@@ -1,5 +1,6 @@
 export const departmentSeedData = [
   {
+    tenantId: 'tenant_001',
     id: 100,
     parentId: null,
     name: '总部',
@@ -9,9 +10,10 @@ export const departmentSeedData = [
     email: 'hq@luckycolor.local',
     sort: 1,
     status: true,
-    remark: '平台总部组织'
+    remark: '租户总部组织'
   },
   {
+    tenantId: 'tenant_001',
     id: 110,
     parentId: 100,
     name: '产品研发部',
@@ -21,9 +23,10 @@ export const departmentSeedData = [
     email: 'rd@luckycolor.local',
     sort: 10,
     status: true,
-    remark: '负责产品设计与研发'
+    remark: '负责产品设计与技术研发'
   },
   {
+    tenantId: 'tenant_001',
     id: 120,
     parentId: 100,
     name: '运营支持部',

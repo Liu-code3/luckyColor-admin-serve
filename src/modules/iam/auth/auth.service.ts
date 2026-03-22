@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
+import { PasswordService } from '../../../infra/security/password.service';
+import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
@@ -65,7 +67,9 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly tenantScope: TenantPrismaScopeService,
+    private readonly passwordService: PasswordService
   ) {}
 
   async login(dto: LoginDto) {
@@ -77,6 +81,7 @@ export class AuthService {
 
     const payload: JwtPayload = {
       sub: user.id,
+      tenantId: user.tenantId,
       username: user.username
     };
     const accessToken = await this.jwtService.signAsync(payload);
@@ -91,7 +96,7 @@ export class AuthService {
   }
 
   async getProfile(payload: JwtPayload) {
-    const user = await this.findUserWithAccess(payload.sub);
+    const user = await this.findUserWithAccess(payload);
 
     if (!user) {
       throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID);
@@ -101,7 +106,7 @@ export class AuthService {
   }
 
   async getAccess(payload: JwtPayload) {
-    const user = await this.findUserWithAccess(payload.sub);
+    const user = await this.findUserWithAccess(payload);
 
     if (!user) {
       throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID);
@@ -111,8 +116,11 @@ export class AuthService {
   }
 
   private async validateUser(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
+    const tenantId = this.tenantScope.requireTenantId();
+
+    const user = await this.prisma.user.findFirst({
       where: {
+        tenantId,
         username: dto.username
       },
       include: {
@@ -132,17 +140,48 @@ export class AuthService {
       }
     });
 
-    if (!user || user.password !== dto.password) {
+    if (!user) {
+      return null;
+    }
+
+    if (!this.passwordService.isHash(user.password)) {
+      if (user.password !== dto.password) {
+        return null;
+      }
+
+      const passwordHash = await this.passwordService.hash(dto.password);
+      await this.prisma.user.update({
+        where: {
+          id: user.id
+        },
+        data: {
+          password: passwordHash
+        }
+      });
+
+      return {
+        ...user,
+        password: passwordHash
+      };
+    }
+
+    const isPasswordValid = await this.passwordService.verify(
+      user.password,
+      dto.password
+    );
+
+    if (!isPasswordValid) {
       return null;
     }
 
     return user;
   }
 
-  private findUserWithAccess(id: string) {
-    return this.prisma.user.findUnique({
+  private findUserWithAccess(payload: JwtPayload) {
+    return this.prisma.user.findFirst({
       where: {
-        id
+        id: payload.sub,
+        tenantId: payload.tenantId
       },
       include: {
         roles: {
@@ -167,11 +206,14 @@ export class AuthService {
     const menus = this.collectMenus(
       roles.flatMap((role) => role.menus.map((item) => item.menu))
     );
-    const menuTree = this.buildMenuTree(menus.filter((item) => item.type !== 3));
+    const menuTree = this.buildMenuTree(
+      menus.filter((item) => item.type !== 3)
+    );
 
     return {
       user: {
         id: user.id,
+        tenantId: user.tenantId,
         username: user.username,
         nickname: user.nickname,
         roleCodes: roles.map((item) => item.code),
@@ -184,6 +226,7 @@ export class AuthService {
       },
       roles: roles.map((item) => ({
         id: item.id,
+        tenantId: item.tenantId,
         name: item.name,
         code: item.code
       })),
@@ -196,7 +239,10 @@ export class AuthService {
 
     roles
       .slice()
-      .sort((left, right) => left.sort - right.sort || left.code.localeCompare(right.code))
+      .sort(
+        (left, right) =>
+          left.sort - right.sort || left.code.localeCompare(right.code)
+      )
       .forEach((role) => {
         if (!uniqueRoles.has(role.id)) {
           uniqueRoles.set(role.id, role);
@@ -254,10 +300,11 @@ export class AuthService {
   private removeEmptyChildren(
     node: AuthMenuTreeNode
   ): AuthMenuTreeNode | AuthMenuNode {
-    const children: Array<AuthMenuTreeNode | AuthMenuNode> | undefined = node.children
-      ?.slice()
-      .sort((left, right) => left.sort - right.sort || left.id - right.id)
-      .map((item) => this.removeEmptyChildren(item));
+    const children: Array<AuthMenuTreeNode | AuthMenuNode> | undefined =
+      node.children
+        ?.slice()
+        .sort((left, right) => left.sort - right.sort || left.id - right.id)
+        .map((item) => this.removeEmptyChildren(item));
 
     if (!children?.length) {
       const { children: _children, ...rest } = node;

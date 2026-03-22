@@ -1,0 +1,132 @@
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { PasswordService } from '../../../infra/security/password.service';
+import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
+import { BusinessException } from '../../../shared/api/business.exception';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { AuthService } from '../../iam/auth/auth.service';
+import { JwtStrategy } from '../../iam/auth/jwt.strategy';
+import { UsersService } from '../../system/users/users.service';
+
+describe('Tenant isolation regression', () => {
+  const createTenantScope = (tenantId = 'tenant_001') =>
+    new TenantPrismaScopeService({
+      getTenantId: jest.fn().mockReturnValue(tenantId)
+    } as never);
+
+  it('allows the same username under different tenants by binding login to current tenant scope', async () => {
+    const prisma = {
+      user: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'user-2',
+          tenantId: 'tenant_002',
+          username: 'admin',
+          password: '123456',
+          nickname: 'Tenant 2 Admin',
+          roles: []
+        })
+      }
+    };
+    const service = new AuthService(
+      prisma as never,
+      {
+        signAsync: jest.fn().mockResolvedValue('tenant-2-token')
+      } as unknown as JwtService,
+      {
+        get: jest.fn().mockReturnValue('2h')
+      } as unknown as ConfigService,
+      createTenantScope('tenant_002'),
+      {
+        isHash: jest.fn().mockReturnValue(true),
+        hash: jest.fn(),
+        verify: jest.fn().mockResolvedValue(true)
+      } as unknown as PasswordService
+    );
+
+    const response = await service.login({
+      username: 'admin',
+      password: '123456'
+    });
+
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant_002',
+        username: 'admin'
+      },
+      include: {
+        roles: {
+          include: {
+            role: {
+              include: {
+                menus: {
+                  include: {
+                    menu: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+    expect(response.data.user).toEqual({
+      id: 'user-2',
+      tenantId: 'tenant_002',
+      username: 'admin',
+      nickname: 'Tenant 2 Admin',
+      roleCodes: [],
+      menuCodeList: [],
+      buttonCodeList: []
+    });
+  });
+
+  it('blocks cross-tenant user reads by enforcing tenantId on service queries', async () => {
+    const prisma = {
+      user: {
+        findFirst: jest.fn().mockResolvedValue(null)
+      }
+    };
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope('tenant_001'),
+      {
+        hash: jest.fn()
+      } as unknown as PasswordService
+    );
+
+    await expect(service.detail('user-from-tenant-002')).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.USER_NOT_FOUND)
+    );
+
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({
+      where: {
+        AND: [{ id: 'user-from-tenant-002' }, { tenantId: 'tenant_001' }]
+      }
+    });
+  });
+
+  it('does not allow admin-style tenant bypass when header tenant and token tenant differ', async () => {
+    const strategy = new JwtStrategy(
+      {
+        get: jest.fn().mockReturnValue('jwt-secret')
+      } as unknown as ConfigService,
+      {
+        getTenantId: jest.fn().mockReturnValue('tenant_002'),
+        setTenant: jest.fn()
+      } as never,
+      {
+        assertActiveTenant: jest.fn()
+      } as never
+    );
+
+    await expect(
+      strategy.validate({
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.TENANT_ACCESS_DENIED)
+    );
+  });
+});

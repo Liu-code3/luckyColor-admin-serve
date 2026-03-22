@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
+import { PasswordService } from '../../../infra/security/password.service';
+import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
@@ -13,20 +15,26 @@ import {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantScope: TenantPrismaScopeService,
+    private readonly passwordService: PasswordService
+  ) {}
 
   async list(query: UserListQueryDto) {
     const current = query.page || 1;
     const size = query.size || 10;
     const keyword = query.keyword?.trim();
-    const where = keyword
-      ? {
-          OR: [
-            { username: { contains: keyword } },
-            { nickname: { contains: keyword } }
-          ]
-        }
-      : {};
+    const where = this.buildUserWhere(
+      keyword
+        ? {
+            OR: [
+              { username: { contains: keyword } },
+              { nickname: { contains: keyword } }
+            ]
+          }
+        : undefined
+    );
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.user.count({ where }),
@@ -47,7 +55,9 @@ export class UsersService {
   }
 
   async detail(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.user.findFirst({
+      where: this.buildUserWhere({ id })
+    });
     if (!user) {
       throw new BusinessException(BUSINESS_ERROR_CODES.USER_NOT_FOUND);
     }
@@ -56,10 +66,13 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto) {
+    await this.ensureUsernameAvailable(dto.username);
+
     const user = await this.prisma.user.create({
       data: {
+        tenantId: this.tenantScope.resolveRequiredTenantValue(),
         username: dto.username,
-        password: dto.password,
+        password: await this.passwordService.hash(dto.password),
         nickname: dto.nickname?.trim() || dto.username
       }
     });
@@ -70,11 +83,17 @@ export class UsersService {
   async update(id: string, dto: UpdateUserDto) {
     await this.ensureUserExists(id);
 
+    if (dto.username) {
+      await this.ensureUsernameAvailable(dto.username, id);
+    }
+
     const user = await this.prisma.user.update({
       where: { id },
       data: {
         username: dto.username,
-        password: dto.password,
+        password: dto.password
+          ? await this.passwordService.hash(dto.password)
+          : undefined,
         nickname: dto.nickname
       }
     });
@@ -89,8 +108,8 @@ export class UsersService {
   }
 
   async roles(id: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
+    const user = await this.prisma.user.findFirst({
+      where: this.buildUserWhere({ id }),
       include: {
         roles: {
           include: {
@@ -114,8 +133,12 @@ export class UsersService {
   }
 
   async assignRoles(id: string, dto: AssignUserRolesDto) {
+    const tenantId = this.tenantScope.requireTenantId();
+
     return this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({ where: { id } });
+      const user = await tx.user.findFirst({
+        where: this.buildUserWhere({ id })
+      });
       if (!user) {
         throw new BusinessException(BUSINESS_ERROR_CODES.USER_NOT_FOUND);
       }
@@ -123,9 +146,9 @@ export class UsersService {
       const roles =
         dto.roleIds.length > 0
           ? await tx.role.findMany({
-              where: {
+              where: this.buildRoleWhere({
                 id: { in: dto.roleIds }
-              },
+              }),
               orderBy: [{ sort: 'asc' }, { createdAt: 'desc' }]
             })
           : [];
@@ -135,14 +158,18 @@ export class UsersService {
       }
 
       await tx.userRole.deleteMany({
-        where: { userId: id }
+        where: {
+          userId: id,
+          tenantId
+        }
       });
 
       if (dto.roleIds.length > 0) {
         await tx.userRole.createMany({
           data: dto.roleIds.map((roleId) => ({
             userId: id,
-            roleId
+            roleId,
+            tenantId
           }))
         });
       }
@@ -151,16 +178,46 @@ export class UsersService {
     });
   }
 
+  private buildUserWhere(where: Prisma.UserWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.UserWhereInput;
+  }
+
+  private buildRoleWhere(where: Prisma.RoleWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.RoleWhereInput;
+  }
+
   private async ensureUserExists(id: string) {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.user.findFirst({
+      where: this.buildUserWhere({ id })
+    });
     if (!user) {
       throw new BusinessException(BUSINESS_ERROR_CODES.USER_NOT_FOUND);
     }
     return user;
   }
 
+  private async ensureUsernameAvailable(username: string, excludeId?: string) {
+    const user = await this.prisma.user.findFirst({
+      where: this.buildUserWhere({
+        username,
+        id: excludeId ? { not: excludeId } : undefined
+      })
+    });
+
+    if (user) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS);
+    }
+  }
+
   private toUserResponse(user: {
     id: string;
+    tenantId: string;
     username: string;
     nickname: string | null;
     createdAt: Date;
@@ -168,6 +225,7 @@ export class UsersService {
   }) {
     return {
       id: user.id,
+      tenantId: user.tenantId,
       username: user.username,
       nickname: user.nickname,
       createdAt: user.createdAt,
@@ -180,6 +238,7 @@ export class UsersService {
   ) {
     return {
       id: role.id,
+      tenantId: role.tenantId,
       name: role.name,
       code: role.code,
       sort: role.sort,
@@ -190,6 +249,7 @@ export class UsersService {
   private toUserRoleAssignmentResponse(
     user: {
       id: string;
+      tenantId: string;
       username: string;
       nickname: string | null;
     },
@@ -197,6 +257,7 @@ export class UsersService {
   ) {
     return {
       userId: user.id,
+      tenantId: user.tenantId,
       username: user.username,
       nickname: user.nickname,
       roleIds: roles.map((item) => item.id),

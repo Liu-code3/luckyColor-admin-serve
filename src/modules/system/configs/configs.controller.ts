@@ -26,7 +26,11 @@ import {
   CreateConfigDto,
   UpdateConfigDto
 } from './configs.dto';
-import { ConfigItemResponseDto, ConfigPageResponseDto } from './configs.response.dto';
+import {
+  ConfigCacheRefreshResponseDto,
+  ConfigItemResponseDto,
+  ConfigPageResponseDto
+} from './configs.response.dto';
 import { ConfigsService } from './configs.service';
 
 @ApiTags('系统管理 / 系统配置')
@@ -66,6 +70,7 @@ export class ConfigsController {
           configName: '默认语言',
           configValue: 'zh-CN',
           valueType: 'string',
+          status: true,
           remark: '系统默认国际化语言',
           createdAt: '2026-03-22T14:30:00.000Z',
           updatedAt: '2026-03-22T14:30:00.000Z'
@@ -102,6 +107,7 @@ export class ConfigsController {
       configName: '默认语言',
       configValue: 'zh-CN',
       valueType: 'string',
+      status: true,
       remark: '系统默认国际化语言',
       createdAt: '2026-03-22T14:30:00.000Z',
       updatedAt: '2026-03-22T14:30:00.000Z'
@@ -136,6 +142,7 @@ export class ConfigsController {
       configName: '默认语言',
       configValue: 'zh-CN',
       valueType: 'string',
+      status: true,
       remark: '系统默认国际化语言',
       createdAt: '2026-03-22T14:30:00.000Z',
       updatedAt: '2026-03-22T14:30:00.000Z'
@@ -167,6 +174,24 @@ export class ConfigsController {
   }
 
   @ApiOperation({
+    summary: '刷新配置缓存',
+    description: '将当前启用的系统配置重新写入 Redis 缓存。'
+  })
+  @ApiSuccessResponse({
+    type: ConfigCacheRefreshResponseDto,
+    description: '配置缓存刷新结果',
+    dataExample: {
+      cacheKey: 'system:configs:cache',
+      count: 3,
+      refreshedAt: '2026-03-22T16:00:00.000Z'
+    }
+  })
+  @Post('refresh-cache')
+  refreshCache() {
+    return this.configsService.refreshCache();
+  }
+
+  @ApiOperation({
     summary: '更新配置',
     description: '根据配置 ID 更新系统配置。'
   })
@@ -181,6 +206,7 @@ export class ConfigsController {
       configName: '默认语言',
       configValue: 'en-US',
       valueType: 'string',
+      status: false,
       remark: '更新后的系统默认语言',
       createdAt: '2026-03-22T14:30:00.000Z',
       updatedAt: '2026-03-22T15:00:00.000Z'

@@ -2,51 +2,57 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ConfigItemResponseDto {
   @ApiProperty({
-    description: '配置 ID',
+    description: 'config id',
     example: 'clxconfig1234567890'
   })
   id!: string;
 
   @ApiProperty({
-    description: '配置键',
+    description: 'config key',
     example: 'sys.default_locale'
   })
   configKey!: string;
 
   @ApiProperty({
-    description: '配置名称',
+    description: 'config name',
     example: '默认语言'
   })
   configName!: string;
 
   @ApiProperty({
-    description: '配置值',
+    description: 'config value',
     example: 'zh-CN'
   })
   configValue!: string;
 
   @ApiProperty({
-    description: '值类型',
+    description: 'value type',
     example: 'string'
   })
   valueType!: string;
 
+  @ApiProperty({
+    description: 'status, true for enabled and false for disabled',
+    example: true
+  })
+  status!: boolean;
+
   @ApiPropertyOptional({
-    description: '备注',
+    description: 'remark',
     example: '系统默认国际化语言',
     nullable: true
   })
   remark?: string | null;
 
   @ApiProperty({
-    description: '创建时间',
+    description: 'created at',
     format: 'date-time',
     example: '2026-03-22T14:30:00.000Z'
   })
   createdAt!: string;
 
   @ApiProperty({
-    description: '更新时间',
+    description: 'updated at',
     format: 'date-time',
     example: '2026-03-22T15:00:00.000Z'
   })
@@ -55,26 +61,47 @@ export class ConfigItemResponseDto {
 
 export class ConfigPageResponseDto {
   @ApiProperty({
-    description: '总记录数',
+    description: 'total records',
     example: 3
   })
   total!: number;
 
   @ApiProperty({
-    description: '当前页码',
+    description: 'current page',
     example: 1
   })
   current!: number;
 
   @ApiProperty({
-    description: '每页条数',
+    description: 'page size',
     example: 10
   })
   size!: number;
 
   @ApiProperty({
-    description: '分页数据',
+    description: 'page records',
     type: [ConfigItemResponseDto]
   })
   records!: ConfigItemResponseDto[];
+}
+
+export class ConfigCacheRefreshResponseDto {
+  @ApiProperty({
+    description: 'redis cache key',
+    example: 'system:configs:cache'
+  })
+  cacheKey!: string;
+
+  @ApiProperty({
+    description: 'enabled config count written into cache',
+    example: 3
+  })
+  count!: number;
+
+  @ApiProperty({
+    description: 'cache refresh time',
+    format: 'date-time',
+    example: '2026-03-22T16:00:00.000Z'
+  })
+  refreshedAt!: string;
 }

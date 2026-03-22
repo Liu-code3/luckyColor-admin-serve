@@ -2,6 +2,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class DepartmentItemResponseDto {
   @ApiProperty({
+    description: '租户 ID',
+    example: 'tenant_001'
+  })
+  tenantId!: string;
+
+  @ApiProperty({
     description: '父级部门 ID，根节点为 0',
     example: 0
   })
@@ -53,7 +59,7 @@ export class DepartmentItemResponseDto {
   sort!: number;
 
   @ApiProperty({
-    description: '状态，true 启用，false 停用',
+    description: '状态，true 为启用，false 为停用',
     example: true
   })
   status!: boolean;
@@ -82,7 +88,7 @@ export class DepartmentItemResponseDto {
 
 export class DepartmentTreeItemResponseDto extends DepartmentItemResponseDto {
   @ApiPropertyOptional({
-    description: '子部门节点',
+    description: '子级部门节点',
     type: () => [DepartmentTreeItemResponseDto]
   })
   children?: DepartmentTreeItemResponseDto[];

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { RedisService } from '../../../infra/cache/redis/redis.service';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
@@ -9,9 +10,14 @@ import {
   UpdateConfigDto
 } from './configs.dto';
 
+const CONFIG_CACHE_KEY = 'system:configs:cache';
+
 @Injectable()
 export class ConfigsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redisService: RedisService
+  ) {}
 
   async list(query: ConfigListQueryDto) {
     const current = query.page || 1;
@@ -40,7 +46,7 @@ export class ConfigsService {
       total,
       current,
       size,
-      records: records.map((item) => this.toConfigResponse(item))
+      records: records.map(item => this.toConfigResponse(item))
     });
   }
 
@@ -62,6 +68,7 @@ export class ConfigsService {
         configName: dto.configName,
         configValue: dto.configValue,
         valueType: dto.valueType ?? 'string',
+        status: dto.status ?? true,
         remark: dto.remark ?? null
       }
     });
@@ -83,6 +90,7 @@ export class ConfigsService {
         configName: dto.configName,
         configValue: dto.configValue,
         valueType: dto.valueType,
+        status: dto.status,
         remark: dto.remark
       }
     });
@@ -94,6 +102,53 @@ export class ConfigsService {
     await this.ensureConfigExists(id);
     await this.prisma.systemConfig.delete({ where: { id } });
     return successResponse(true);
+  }
+
+  async refreshCache() {
+    const records = await this.prisma.systemConfig.findMany({
+      where: { status: true },
+      orderBy: { configKey: 'asc' }
+    });
+
+    const refreshedAt = new Date().toISOString();
+    const snapshot = {
+      refreshedAt,
+      records: records.map(item => ({
+        configKey: item.configKey,
+        configName: item.configName,
+        configValue: item.configValue,
+        valueType: item.valueType,
+        remark: item.remark
+      })),
+      recordMap: Object.fromEntries(
+        records.map(item => [
+          item.configKey,
+          {
+            configName: item.configName,
+            configValue: item.configValue,
+            valueType: item.valueType,
+            remark: item.remark
+          }
+        ])
+      )
+    };
+
+    const client = await this.ensureRedisClient();
+    await client.set(CONFIG_CACHE_KEY, JSON.stringify(snapshot));
+
+    return successResponse({
+      cacheKey: CONFIG_CACHE_KEY,
+      count: records.length,
+      refreshedAt
+    });
+  }
+
+  private async ensureRedisClient() {
+    const client = this.redisService.getClient();
+    if (client.status === 'wait') {
+      await client.connect();
+    }
+    return client;
   }
 
   private async ensureConfigExists(id: string) {
@@ -123,6 +178,7 @@ export class ConfigsService {
     configName: string;
     configValue: string;
     valueType: string;
+    status: boolean;
     remark: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -133,6 +189,7 @@ export class ConfigsService {
       configName: config.configName,
       configValue: config.configValue,
       valueType: config.valueType,
+      status: config.status,
       remark: config.remark,
       createdAt: config.createdAt,
       updatedAt: config.updatedAt

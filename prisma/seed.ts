@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient } from '../src/generated/prisma';
+import { hashPassword } from '../src/infra/security/password.util';
 import { buildSetDatabaseTimeZoneSql } from '../src/shared/time/database-timezone';
 import { departmentSeedData } from './seed-data/department.data';
 import { dictTreeData } from './seed-data/dict-tree.data';
@@ -6,6 +7,9 @@ import { menuSeedData } from './seed-data/menu.data';
 import { noticeSeedData } from './seed-data/notice.data';
 import { roleSeedData } from './seed-data/role.data';
 import { systemConfigSeedData } from './seed-data/system-config.data';
+import { tenantPackageSeedData } from './seed-data/tenant-package.data';
+import { tenantAuditLogSeedData } from './seed-data/tenant-audit-log.data';
+import { tenantSeedData } from './seed-data/tenant.data';
 
 interface DictionarySeedNode {
   id: string;
@@ -37,6 +41,7 @@ async function main() {
   await prisma.roleDepartmentScope.deleteMany();
   await prisma.roleMenu.deleteMany();
   await prisma.userRole.deleteMany();
+  await prisma.tenantAuditLog.deleteMany();
   await prisma.notice.deleteMany();
   await prisma.systemConfig.deleteMany();
   await prisma.department.deleteMany();
@@ -44,11 +49,32 @@ async function main() {
   await prisma.menu.deleteMany();
   await prisma.dictionary.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.tenant.deleteMany();
+  await prisma.tenantPackage.deleteMany();
+
+  await prisma.tenantPackage.createMany({
+    data: tenantPackageSeedData.map((item) => ({
+      ...item,
+      featureFlags: item.featureFlags as Prisma.InputJsonValue
+    }))
+  });
+
+  await prisma.tenant.createMany({
+    data: tenantSeedData
+  });
+
+  await prisma.tenantAuditLog.createMany({
+    data: tenantAuditLogSeedData.map((item) => ({
+      ...item,
+      detail: item.detail as Prisma.InputJsonValue
+    }))
+  });
 
   const adminUser = await prisma.user.create({
     data: {
+      tenantId: 'tenant_001',
       username: 'admin',
-      password: '123456',
+      password: await hashPassword('123456'),
       nickname: '系统管理员'
     }
   });
@@ -104,6 +130,7 @@ async function main() {
     await prisma.userRole.create({
       data: {
         userId: adminUser.id,
+        tenantId: 'tenant_001',
         roleId: superAdminRole.id
       }
     });
@@ -132,6 +159,7 @@ async function main() {
     .flatMap((item) =>
       item.menuIds.map((menuId) => ({
         roleId: item.role!.id,
+        tenantId: 'tenant_001',
         menuId
       }))
     );
@@ -146,6 +174,7 @@ async function main() {
     await prisma.roleDepartmentScope.createMany({
       data: tenantAdminDataScopeDepartmentIds.map((departmentId) => ({
         roleId: tenantAdminRole.id,
+        tenantId: 'tenant_001',
         departmentId
       }))
     });

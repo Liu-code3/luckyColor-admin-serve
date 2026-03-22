@@ -1,10 +1,16 @@
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Min
+} from 'class-validator';
 
 export class ConfigListQueryDto {
   @ApiPropertyOptional({
-    description: '页码',
+    description: 'page number',
     example: 1,
     default: 1
   })
@@ -13,7 +19,7 @@ export class ConfigListQueryDto {
   page = 1;
 
   @ApiPropertyOptional({
-    description: '每页条数',
+    description: 'page size',
     example: 10,
     default: 10
   })
@@ -22,7 +28,7 @@ export class ConfigListQueryDto {
   size = 10;
 
   @ApiPropertyOptional({
-    description: '配置名称或配置键关键字',
+    description: 'keyword for config name or key',
     example: 'locale'
   })
   @IsOptional()
@@ -32,7 +38,7 @@ export class ConfigListQueryDto {
 
 export class CreateConfigDto {
   @ApiProperty({
-    description: '配置键',
+    description: 'config key',
     example: 'sys.default_locale'
   })
   @IsString()
@@ -40,7 +46,7 @@ export class CreateConfigDto {
   configKey!: string;
 
   @ApiProperty({
-    description: '配置名称',
+    description: 'config name',
     example: '默认语言'
   })
   @IsString()
@@ -48,7 +54,7 @@ export class CreateConfigDto {
   configName!: string;
 
   @ApiProperty({
-    description: '配置值',
+    description: 'config value',
     example: 'zh-CN'
   })
   @IsString()
@@ -56,7 +62,7 @@ export class CreateConfigDto {
   configValue!: string;
 
   @ApiPropertyOptional({
-    description: '值类型',
+    description: 'value type',
     example: 'string',
     default: 'string'
   })
@@ -65,7 +71,17 @@ export class CreateConfigDto {
   valueType?: string;
 
   @ApiPropertyOptional({
-    description: '备注',
+    description: 'status, true for enabled and false for disabled',
+    example: true,
+    default: true
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  status?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'remark',
     example: '系统默认国际化语言'
   })
   @IsOptional()
@@ -75,7 +91,7 @@ export class CreateConfigDto {
 
 export class UpdateConfigDto {
   @ApiPropertyOptional({
-    description: '配置键',
+    description: 'config key',
     example: 'sys.default_locale'
   })
   @IsOptional()
@@ -83,7 +99,7 @@ export class UpdateConfigDto {
   configKey?: string;
 
   @ApiPropertyOptional({
-    description: '配置名称',
+    description: 'config name',
     example: '默认语言'
   })
   @IsOptional()
@@ -91,7 +107,7 @@ export class UpdateConfigDto {
   configName?: string;
 
   @ApiPropertyOptional({
-    description: '配置值',
+    description: 'config value',
     example: 'en-US'
   })
   @IsOptional()
@@ -99,7 +115,7 @@ export class UpdateConfigDto {
   configValue?: string;
 
   @ApiPropertyOptional({
-    description: '值类型',
+    description: 'value type',
     example: 'string'
   })
   @IsOptional()
@@ -107,7 +123,16 @@ export class UpdateConfigDto {
   valueType?: string;
 
   @ApiPropertyOptional({
-    description: '备注',
+    description: 'status, true for enabled and false for disabled',
+    example: true
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  status?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'remark',
     example: '更新后的系统默认语言'
   })
   @IsOptional()

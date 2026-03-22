@@ -1,10 +1,17 @@
+import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { RolesService } from './roles.service';
 
 describe('RolesService', () => {
+  const createTenantScope = (tenantId = 'tenant_001') =>
+    new TenantPrismaScopeService({
+      getTenantId: jest.fn().mockReturnValue(tenantId)
+    } as never);
+
   const createRole = (overrides: Partial<Record<string, unknown>> = {}) => ({
     id: 'role-1',
+    tenantId: 'tenant_001',
     name: '超级管理员',
     code: 'super_admin',
     sort: 1,
@@ -40,6 +47,7 @@ describe('RolesService', () => {
     overrides: Partial<Record<string, unknown>> = {}
   ) => ({
     id: 100,
+    tenantId: 'tenant_001',
     parentId: null,
     name: '总部',
     code: 'headquarters',
@@ -57,7 +65,6 @@ describe('RolesService', () => {
   function createPrismaMock() {
     const prisma = {
       role: {
-        findUnique: jest.fn(),
         findFirst: jest.fn(),
         findMany: jest.fn(),
         update: jest.fn(),
@@ -81,7 +88,8 @@ describe('RolesService', () => {
     };
 
     prisma.$transaction.mockImplementation(
-      async (callback: (tx: typeof prisma) => Promise<unknown>) => callback(prisma)
+      async (callback: (tx: typeof prisma) => Promise<unknown>) =>
+        callback(prisma)
     );
 
     return prisma;
@@ -89,8 +97,8 @@ describe('RolesService', () => {
 
   it('returns assigned menus for a role', async () => {
     const prisma = createPrismaMock();
-    const service = new RolesService(prisma as never);
-    prisma.role.findUnique.mockResolvedValue({
+    const service = new RolesService(prisma as never, createTenantScope());
+    prisma.role.findFirst.mockResolvedValue({
       ...createRole(),
       menus: [
         {
@@ -118,6 +126,7 @@ describe('RolesService', () => {
       msg: 'success',
       data: {
         roleId: 'role-1',
+        tenantId: 'tenant_001',
         name: '超级管理员',
         code: 'super_admin',
         menuIds: [1, 11],
@@ -151,8 +160,8 @@ describe('RolesService', () => {
 
   it('returns data scope details for a role', async () => {
     const prisma = createPrismaMock();
-    const service = new RolesService(prisma as never);
-    prisma.role.findUnique.mockResolvedValue({
+    const service = new RolesService(prisma as never, createTenantScope());
+    prisma.role.findFirst.mockResolvedValue({
       ...createRole({
         name: '租户管理员',
         code: 'tenant_admin',
@@ -183,6 +192,7 @@ describe('RolesService', () => {
       msg: 'success',
       data: {
         roleId: 'role-1',
+        tenantId: 'tenant_001',
         name: '租户管理员',
         code: 'tenant_admin',
         dataScope: 'CUSTOM',
@@ -190,12 +200,14 @@ describe('RolesService', () => {
         departments: [
           {
             id: 100,
+            tenantId: 'tenant_001',
             pid: 0,
             name: '总部',
             code: 'headquarters'
           },
           {
             id: 120,
+            tenantId: 'tenant_001',
             pid: 100,
             name: '运营支持部',
             code: 'operations_support'
@@ -207,8 +219,8 @@ describe('RolesService', () => {
 
   it('throws when custom data scope has no departments', async () => {
     const prisma = createPrismaMock();
-    const service = new RolesService(prisma as never);
-    prisma.role.findUnique.mockResolvedValue(createRole());
+    const service = new RolesService(prisma as never, createTenantScope());
+    prisma.role.findFirst.mockResolvedValue(createRole());
     prisma.role.update.mockResolvedValue(createRole({ dataScope: 'CUSTOM' }));
 
     await expect(
@@ -225,8 +237,8 @@ describe('RolesService', () => {
 
   it('throws when custom data scope contains missing departments', async () => {
     const prisma = createPrismaMock();
-    const service = new RolesService(prisma as never);
-    prisma.role.findUnique.mockResolvedValue(createRole());
+    const service = new RolesService(prisma as never, createTenantScope());
+    prisma.role.findFirst.mockResolvedValue(createRole());
     prisma.role.update.mockResolvedValue(createRole({ dataScope: 'CUSTOM' }));
     prisma.department.findMany.mockResolvedValue([createDepartment()]);
 
@@ -244,7 +256,7 @@ describe('RolesService', () => {
 
   it('updates custom data scope departments', async () => {
     const prisma = createPrismaMock();
-    const service = new RolesService(prisma as never);
+    const service = new RolesService(prisma as never, createTenantScope());
     const role = createRole({
       name: '租户管理员',
       code: 'tenant_admin',
@@ -261,16 +273,14 @@ describe('RolesService', () => {
       })
     ];
 
-    prisma.role.findUnique
-      .mockResolvedValueOnce(role)
-      .mockResolvedValueOnce({
-        ...role,
-        dataScope: 'CUSTOM',
-        dataScopeDepartments: departments.map((department) => ({
-          departmentId: department.id as number,
-          department
-        }))
-      });
+    prisma.role.findFirst.mockResolvedValueOnce(role).mockResolvedValueOnce({
+      ...role,
+      dataScope: 'CUSTOM',
+      dataScopeDepartments: departments.map((department) => ({
+        departmentId: department.id as number,
+        department
+      }))
+    });
     prisma.role.update.mockResolvedValue({
       ...role,
       dataScope: 'CUSTOM'
@@ -285,12 +295,12 @@ describe('RolesService', () => {
     });
 
     expect(prisma.roleDepartmentScope.deleteMany).toHaveBeenCalledWith({
-      where: { roleId: 'role-1' }
+      where: { roleId: 'role-1', tenantId: 'tenant_001' }
     });
     expect(prisma.roleDepartmentScope.createMany).toHaveBeenCalledWith({
       data: [
-        { roleId: 'role-1', departmentId: 100 },
-        { roleId: 'role-1', departmentId: 120 }
+        { roleId: 'role-1', departmentId: 100, tenantId: 'tenant_001' },
+        { roleId: 'role-1', departmentId: 120, tenantId: 'tenant_001' }
       ]
     });
     expect(response.data.departmentIds).toEqual([100, 120]);
@@ -298,20 +308,18 @@ describe('RolesService', () => {
 
   it('clears department bindings when switching to non-custom data scope', async () => {
     const prisma = createPrismaMock();
-    const service = new RolesService(prisma as never);
+    const service = new RolesService(prisma as never, createTenantScope());
     const role = createRole({
       name: '租户管理员',
       code: 'tenant_admin',
       dataScope: 'DEPARTMENT_AND_CHILDREN'
     });
 
-    prisma.role.findUnique
-      .mockResolvedValueOnce(role)
-      .mockResolvedValueOnce({
-        ...role,
-        dataScope: 'DEPARTMENT_AND_CHILDREN',
-        dataScopeDepartments: []
-      });
+    prisma.role.findFirst.mockResolvedValueOnce(role).mockResolvedValueOnce({
+      ...role,
+      dataScope: 'DEPARTMENT_AND_CHILDREN',
+      dataScopeDepartments: []
+    });
     prisma.role.update.mockResolvedValue({
       ...role,
       dataScope: 'DEPARTMENT_AND_CHILDREN'
@@ -330,6 +338,7 @@ describe('RolesService', () => {
       msg: 'success',
       data: {
         roleId: 'role-1',
+        tenantId: 'tenant_001',
         name: '租户管理员',
         code: 'tenant_admin',
         dataScope: 'DEPARTMENT_AND_CHILDREN',
@@ -341,12 +350,14 @@ describe('RolesService', () => {
 
   it('throws when assigning menus to a missing role', async () => {
     const prisma = createPrismaMock();
-    const service = new RolesService(prisma as never);
-    prisma.role.findUnique.mockResolvedValue(null);
+    const service = new RolesService(prisma as never, createTenantScope());
+    prisma.role.findFirst.mockResolvedValue(null);
 
     await expect(
       service.assignMenus('missing-role', { menuIds: [1] })
-    ).rejects.toThrow(new BusinessException(BUSINESS_ERROR_CODES.ROLE_NOT_FOUND));
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.ROLE_NOT_FOUND)
+    );
 
     expect(prisma.menu.findMany).not.toHaveBeenCalled();
     expect(prisma.roleMenu.deleteMany).not.toHaveBeenCalled();
@@ -354,13 +365,15 @@ describe('RolesService', () => {
 
   it('throws when any assigned menu does not exist', async () => {
     const prisma = createPrismaMock();
-    const service = new RolesService(prisma as never);
-    prisma.role.findUnique.mockResolvedValue(createRole());
+    const service = new RolesService(prisma as never, createTenantScope());
+    prisma.role.findFirst.mockResolvedValue(createRole());
     prisma.menu.findMany.mockResolvedValue([createMenu()]);
 
     await expect(
       service.assignMenus('role-1', { menuIds: [1, 2] })
-    ).rejects.toThrow(new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND));
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND)
+    );
 
     expect(prisma.roleMenu.deleteMany).not.toHaveBeenCalled();
     expect(prisma.roleMenu.createMany).not.toHaveBeenCalled();
@@ -368,7 +381,7 @@ describe('RolesService', () => {
 
   it('replaces role menus and returns the latest assignment result', async () => {
     const prisma = createPrismaMock();
-    const service = new RolesService(prisma as never);
+    const service = new RolesService(prisma as never, createTenantScope());
     const role = createRole();
     const menus = [
       createMenu(),
@@ -384,20 +397,29 @@ describe('RolesService', () => {
       })
     ];
 
-    prisma.role.findUnique.mockResolvedValue(role);
+    prisma.role.findFirst.mockResolvedValue(role);
     prisma.menu.findMany.mockResolvedValue(menus);
     prisma.roleMenu.deleteMany.mockResolvedValue({ count: 3 });
     prisma.roleMenu.createMany.mockResolvedValue({ count: 2 });
 
     const response = await service.assignMenus('role-1', { menuIds: [1, 11] });
 
+    expect(prisma.roleMenu.deleteMany).toHaveBeenCalledWith({
+      where: { roleId: 'role-1', tenantId: 'tenant_001' }
+    });
+    expect(prisma.roleMenu.createMany).toHaveBeenCalledWith({
+      data: [
+        { roleId: 'role-1', menuId: 1, tenantId: 'tenant_001' },
+        { roleId: 'role-1', menuId: 11, tenantId: 'tenant_001' }
+      ]
+    });
     expect(response.data.menuIds).toEqual([1, 11]);
   });
 
   it('supports clearing all assigned menus', async () => {
     const prisma = createPrismaMock();
-    const service = new RolesService(prisma as never);
-    prisma.role.findUnique.mockResolvedValue(createRole());
+    const service = new RolesService(prisma as never, createTenantScope());
+    prisma.role.findFirst.mockResolvedValue(createRole());
     prisma.roleMenu.deleteMany.mockResolvedValue({ count: 2 });
 
     const response = await service.assignMenus('role-1', { menuIds: [] });
@@ -409,6 +431,7 @@ describe('RolesService', () => {
       msg: 'success',
       data: {
         roleId: 'role-1',
+        tenantId: 'tenant_001',
         name: '超级管理员',
         code: 'super_admin',
         menuIds: [],

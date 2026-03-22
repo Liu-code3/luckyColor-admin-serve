@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
+import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
@@ -11,17 +13,22 @@ import {
 
 @Injectable()
 export class NoticesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantScope: TenantPrismaScopeService
+  ) {}
 
   async list(query: NoticeListQueryDto) {
     const current = query.page || 1;
     const size = query.size || 10;
     const keyword = query.keyword?.trim();
-    const where = keyword
-      ? {
-          title: { contains: keyword }
-        }
-      : {};
+    const where = this.buildNoticeWhere(
+      keyword
+        ? {
+            title: { contains: keyword }
+          }
+        : undefined
+    );
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.notice.count({ where }),
@@ -42,7 +49,9 @@ export class NoticesService {
   }
 
   async detail(id: string) {
-    const notice = await this.prisma.notice.findUnique({ where: { id } });
+    const notice = await this.prisma.notice.findFirst({
+      where: this.buildNoticeWhere({ id })
+    });
     if (!notice) {
       throw new BusinessException(BUSINESS_ERROR_CODES.NOTICE_NOT_FOUND);
     }
@@ -54,6 +63,7 @@ export class NoticesService {
     const isPublished = dto.status ?? false;
     const notice = await this.prisma.notice.create({
       data: {
+        tenantId: this.tenantScope.resolveRequiredTenantValue(),
         title: dto.title,
         content: dto.content,
         type: dto.type,
@@ -71,7 +81,7 @@ export class NoticesService {
     const nextStatus = dto.status ?? existing.status;
     const publishedAt =
       dto.publishedAt === undefined
-        ? existing.publishedAt ?? (nextStatus ? new Date() : null)
+        ? (existing.publishedAt ?? (nextStatus ? new Date() : null))
         : this.resolvePublishedAt(dto.publishedAt, nextStatus);
 
     const notice = await this.prisma.notice.update({
@@ -96,11 +106,20 @@ export class NoticesService {
   }
 
   private async ensureNoticeExists(id: string) {
-    const notice = await this.prisma.notice.findUnique({ where: { id } });
+    const notice = await this.prisma.notice.findFirst({
+      where: this.buildNoticeWhere({ id })
+    });
     if (!notice) {
       throw new BusinessException(BUSINESS_ERROR_CODES.NOTICE_NOT_FOUND);
     }
     return notice;
+  }
+
+  private buildNoticeWhere(where: Prisma.NoticeWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.NoticeWhereInput;
   }
 
   private resolvePublishedAt(
@@ -120,6 +139,7 @@ export class NoticesService {
 
   private toNoticeResponse(notice: {
     id: string;
+    tenantId: string;
     title: string;
     content: string;
     type: string;
@@ -131,6 +151,7 @@ export class NoticesService {
   }) {
     return {
       id: notice.id,
+      tenantId: notice.tenantId,
       title: notice.title,
       content: notice.content,
       type: notice.type,

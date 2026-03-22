@@ -2,6 +2,12 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UserItemResponseDto {
   @ApiProperty({
+    description: '租户 ID',
+    example: 'tenant_001'
+  })
+  tenantId!: string;
+
+  @ApiProperty({
     description: '用户 ID',
     example: 'clx1234567890'
   })
@@ -63,6 +69,12 @@ export class UserPageResponseDto {
 
 export class UserAssignedRoleResponseDto {
   @ApiProperty({
+    description: '租户 ID',
+    example: 'tenant_001'
+  })
+  tenantId!: string;
+
+  @ApiProperty({
     description: '角色 ID',
     example: 'clxrole1234567890'
   })
@@ -87,13 +99,19 @@ export class UserAssignedRoleResponseDto {
   sort!: number;
 
   @ApiProperty({
-    description: '角色状态，true 启用，false 停用',
+    description: '角色状态，true 为启用，false 为停用',
     example: true
   })
   status!: boolean;
 }
 
 export class UserRoleAssignmentResponseDto {
+  @ApiProperty({
+    description: '租户 ID',
+    example: 'tenant_001'
+  })
+  tenantId!: string;
+
   @ApiProperty({
     description: '用户 ID',
     example: 'clx1234567890'

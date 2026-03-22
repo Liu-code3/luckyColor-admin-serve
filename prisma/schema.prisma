@@ -8,15 +8,74 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model TenantPackage {
+  id           String   @id
+  name         String
+  code         String   @unique
+  status       Boolean  @default(true)
+  maxUsers     Int?     @map("max_users")
+  maxRoles     Int?     @map("max_roles")
+  maxMenus     Int?     @map("max_menus")
+  featureFlags Json?    @map("feature_flags")
+  remark       String?
+  tenants      Tenant[]
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamp(3)
+
+  @@index([status])
+  @@map("tenant_packages")
+}
+
+model Tenant {
+  id            String           @id
+  code          String           @unique
+  name          String
+  status        String           @default("ACTIVE")
+  expiresAt     DateTime?        @map("expires_at") @db.DateTime(3)
+  contactName   String?          @map("contact_name")
+  contactPhone  String?          @map("contact_phone")
+  contactEmail  String?          @map("contact_email")
+  packageId     String?          @map("package_id")
+  tenantPackage TenantPackage?   @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  remark        String?
+  auditLogs     TenantAuditLog[]
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamp(3)
+
+  @@index([status])
+  @@index([packageId])
+  @@map("tenants")
+}
+
+model TenantAuditLog {
+  id               String   @id @default(cuid())
+  tenantId         String   @map("tenant_id")
+  action           String
+  operatorTenantId String?  @map("operator_tenant_id")
+  operatorUserId   String?  @map("operator_user_id")
+  detail           Json?
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(3)
+
+  @@index([tenantId, createdAt])
+  @@index([action])
+  @@index([operatorTenantId])
+  @@index([operatorUserId])
+  @@map("tenant_audit_logs")
+}
+
 model User {
   id        String     @id @default(cuid())
-  username  String     @unique
+  tenantId  String     @map("tenant_id")
+  username  String
   password  String
   nickname  String?
   roles     UserRole[]
-  createdAt DateTime   @default(now()) @db.Timestamp(3) @map("created_at")
-  updatedAt DateTime   @updatedAt @db.Timestamp(3) @map("updated_at")
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamp(3)
 
+  @@unique([tenantId, username])
+  @@index([tenantId])
   @@map("users")
 }
 
@@ -27,7 +86,7 @@ model Menu {
   name      String
   type      Int
   path      String
-  menuKey   String   @map("menu_key")
+  menuKey   String     @map("menu_key")
   icon      String?
   layout    String?
   isVisible Boolean    @default(true) @map("is_visible")
@@ -36,8 +95,8 @@ model Menu {
   meta      Json?
   sort      Int        @default(0)
   roles     RoleMenu[]
-  createdAt DateTime   @default(now()) @db.Timestamp(3) @map("created_at")
-  updatedAt DateTime   @updatedAt @db.Timestamp(3) @map("updated_at")
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamp(3)
 
   @@index([parentId])
   @@index([sort])
@@ -59,8 +118,8 @@ model Dictionary {
   createUser String?  @map("create_user")
   updateTime String?  @map("update_time")
   updateUser String?  @map("update_user")
-  createdAt  DateTime @default(now()) @db.Timestamp(3) @map("created_at")
-  updatedAt  DateTime @updatedAt @db.Timestamp(3) @map("updated_at")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamp(3)
 
   @@index([parentId])
   @@index([dictValue])
@@ -70,8 +129,9 @@ model Dictionary {
 
 model Role {
   id                   String                @id @default(cuid())
+  tenantId             String                @map("tenant_id")
   name                 String
-  code                 String              @unique
+  code                 String
   sort                 Int                   @default(0)
   status               Boolean               @default(true)
   dataScope            String                @default("ALL") @map("data_scope")
@@ -79,29 +139,34 @@ model Role {
   users                UserRole[]
   menus                RoleMenu[]
   dataScopeDepartments RoleDepartmentScope[]
-  createdAt            DateTime              @default(now()) @db.Timestamp(3) @map("created_at")
-  updatedAt            DateTime              @updatedAt @db.Timestamp(3) @map("updated_at")
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamp(3)
 
+  @@unique([tenantId, code])
+  @@index([tenantId])
   @@index([name])
   @@index([sort])
   @@map("roles")
 }
 
 model Department {
-  id              Int                  @id
-  parentId        Int?                 @map("parent_id")
-  name            String
-  code            String               @unique
-  leader          String?
-  phone           String?
-  email           String?
-  sort            Int                  @default(0)
-  status          Boolean              @default(true)
-  remark          String?
-  dataScopeRoles  RoleDepartmentScope[]
-  createdAt       DateTime             @default(now()) @db.Timestamp(3) @map("created_at")
-  updatedAt       DateTime             @updatedAt @db.Timestamp(3) @map("updated_at")
+  id             Int                   @id
+  tenantId       String                @map("tenant_id")
+  parentId       Int?                  @map("parent_id")
+  name           String
+  code           String
+  leader         String?
+  phone          String?
+  email          String?
+  sort           Int                   @default(0)
+  status         Boolean               @default(true)
+  remark         String?
+  dataScopeRoles RoleDepartmentScope[]
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamp(3)
 
+  @@unique([tenantId, code])
+  @@index([tenantId])
   @@index([parentId])
   @@index([name])
   @@index([sort])
@@ -109,37 +174,43 @@ model Department {
 }
 
 model UserRole {
+  tenantId   String   @map("tenant_id")
   userId     String   @map("user_id")
   roleId     String   @map("role_id")
-  assignedAt DateTime @default(now()) @db.Timestamp(3) @map("assigned_at")
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamp(3)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
+  @@index([tenantId])
   @@index([roleId])
   @@map("user_roles")
 }
 
 model RoleMenu {
+  tenantId   String   @map("tenant_id")
   roleId     String   @map("role_id")
   menuId     Int      @map("menu_id")
-  assignedAt DateTime @default(now()) @db.Timestamp(3) @map("assigned_at")
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamp(3)
   role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
   menu       Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
 
   @@id([roleId, menuId])
+  @@index([tenantId])
   @@index([menuId])
   @@map("role_menus")
 }
 
 model RoleDepartmentScope {
+  tenantId     String     @map("tenant_id")
   roleId       String     @map("role_id")
   departmentId Int        @map("department_id")
-  assignedAt   DateTime   @default(now()) @db.Timestamp(3) @map("assigned_at")
+  assignedAt   DateTime   @default(now()) @map("assigned_at") @db.Timestamp(3)
   role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
 
   @@id([roleId, departmentId])
+  @@index([tenantId])
   @@index([departmentId])
   @@map("role_department_scopes")
 }
@@ -150,25 +221,28 @@ model SystemConfig {
   configName  String   @map("config_name")
   configValue String   @map("config_value")
   valueType   String   @default("string") @map("value_type")
+  status      Boolean  @default(true)
   remark      String?
-  createdAt   DateTime @default(now()) @db.Timestamp(3) @map("created_at")
-  updatedAt   DateTime @updatedAt @db.Timestamp(3) @map("updated_at")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamp(3)
 
   @@index([configName])
   @@map("system_configs")
 }
 
 model Notice {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
   title       String
   content     String
   type        String
-  status      Boolean  @default(false)
+  status      Boolean   @default(false)
   publisher   String?
-  publishedAt DateTime? @db.Timestamp(3) @map("published_at")
-  createdAt   DateTime @default(now()) @db.Timestamp(3) @map("created_at")
-  updatedAt   DateTime @updatedAt @db.Timestamp(3) @map("updated_at")
+  publishedAt DateTime? @map("published_at") @db.Timestamp(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp(3)
 
+  @@index([tenantId])
   @@index([title])
   @@index([type])
   @@index([publishedAt])
