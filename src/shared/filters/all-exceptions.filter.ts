@@ -3,11 +3,18 @@ import {
   Catch,
   ExceptionFilter,
   HttpException,
-  HttpStatus
+  HttpStatus,
+  Logger
 } from '@nestjs/common';
+import {
+  DEFAULT_ERROR_CODE,
+  errorResponse
+} from '../api/api-response';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(AllExceptionsFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse();
@@ -17,30 +24,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
+    const normalizedStatus = status || DEFAULT_ERROR_CODE;
 
-    let msg = '服务端异常';
+    this.logger.error(
+      `Request failed: ${request.method} ${request.url} -> ${normalizedStatus}`,
+      exception instanceof Error ? exception.stack : JSON.stringify(exception)
+    );
 
-    if (exception instanceof HttpException) {
-      const exceptionResponse = exception.getResponse();
-      if (typeof exceptionResponse === 'string') {
-        msg = exceptionResponse;
-      } else if (
-        typeof exceptionResponse === 'object' &&
-        exceptionResponse &&
-        'message' in exceptionResponse
-      ) {
-        const message = (exceptionResponse as { message?: string | string[] })
-          .message;
-        msg = Array.isArray(message) ? message.join(', ') : message || msg;
-      }
-    }
-
-    response.status(status).json({
-      code: status,
-      msg,
-      data: null,
-      path: request.url,
-      timestamp: new Date().toISOString()
-    });
+    response.status(normalizedStatus).json(errorResponse(normalizedStatus));
   }
 }

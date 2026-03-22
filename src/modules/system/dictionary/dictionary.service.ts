@@ -23,7 +23,7 @@ export class DictionaryService {
 
   async getTree() {
     const tree = await this.getDictionaryTree();
-    return successResponse(tree, '操作成功');
+    return successResponse(tree);
   }
 
   async getPage(query: DictionaryPageQueryDto) {
@@ -49,15 +49,12 @@ export class DictionaryService {
 
     const records = recordsAll.slice((current - 1) * size, current * size);
 
-    return successResponse(
-      {
-        total: recordsAll.length,
-        size,
-        current,
-        records
-      },
-      '获取字典分页成功'
-    );
+    return successResponse({
+      total: recordsAll.length,
+      size,
+      current,
+      records
+    });
   }
 
   async detail(id: string) {
@@ -66,7 +63,7 @@ export class DictionaryService {
       throw new NotFoundException('字典不存在');
     }
 
-    return successResponse(this.toNode(record), '获取字典详情成功');
+    return successResponse(this.toNode(record));
   }
 
   async create(dto: CreateDictionaryDto) {
@@ -89,7 +86,7 @@ export class DictionaryService {
       }
     });
 
-    return successResponse(this.toNode(record), '创建字典成功');
+    return successResponse(this.toNode(record));
   }
 
   async update(id: string, dto: UpdateDictionaryDto) {
@@ -119,7 +116,7 @@ export class DictionaryService {
       }
     });
 
-    return successResponse(this.toNode(record), '更新字典成功');
+    return successResponse(this.toNode(record));
   }
 
   async remove(id: string) {
@@ -139,7 +136,7 @@ export class DictionaryService {
       }
     });
 
-    return successResponse(true, '删除字典成功');
+    return successResponse(true);
   }
 
   private async getDictionaryTree() {

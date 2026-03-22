@@ -4,7 +4,7 @@ describe('api-response helpers', () => {
   it('builds a success response', () => {
     expect(successResponse({ ok: true }, 'done')).toEqual({
       code: 200,
-      msg: 'done',
+      msg: 'success',
       data: { ok: true }
     });
   });
@@ -12,7 +12,7 @@ describe('api-response helpers', () => {
   it('builds an error response', () => {
     expect(errorResponse('failed', 400)).toEqual({
       code: 400,
-      msg: 'failed',
+      msg: '发出的请求有错误，服务器没有进行新建或修改数据的操作。',
       data: null
     });
   });

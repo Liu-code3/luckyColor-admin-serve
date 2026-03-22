@@ -25,6 +25,6 @@ export class HealthController {
   )
   @Get()
   async check() {
-    return successResponse(await this.healthService.check(), '健康检查成功');
+    return successResponse(await this.healthService.check());
   }
 }

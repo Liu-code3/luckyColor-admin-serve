@@ -2,10 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
-import {
-  errorResponse,
-  successResponse
-} from '../../../shared/api/api-response';
+import { successResponse } from '../../../shared/api/api-response';
 import { LoginDto } from './auth.dto';
 import type { JwtPayload } from './jwt-payload.interface';
 
@@ -21,7 +18,7 @@ export class AuthService {
     const user = await this.validateUser(dto);
 
     if (!user) {
-      return errorResponse('登录失败');
+      throw new UnauthorizedException();
     }
 
     const payload: JwtPayload = {
@@ -30,19 +27,16 @@ export class AuthService {
     };
     const accessToken = await this.jwtService.signAsync(payload);
 
-    return successResponse(
-      {
-        accessToken,
-        tokenType: 'Bearer',
-        expiresIn: this.configService.get<string>('JWT_EXPIRES_IN') || '2h',
-        user: {
-          id: user.id,
-          username: user.username,
-          nickname: user.nickname
-        }
-      },
-      '登录成功'
-    );
+    return successResponse({
+      accessToken,
+      tokenType: 'Bearer',
+      expiresIn: this.configService.get<string>('JWT_EXPIRES_IN') || '2h',
+      user: {
+        id: user.id,
+        username: user.username,
+        nickname: user.nickname
+      }
+    });
   }
 
   async getProfile(payload: JwtPayload) {

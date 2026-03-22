@@ -28,15 +28,12 @@ export class MenusService {
       })
     ]);
 
-    return successResponse(
-      {
-        total,
-        current,
-        size,
-        records: records.map((item) => this.toMenuResponse(item))
-      },
-      '获取菜单列表成功'
-    );
+    return successResponse({
+      total,
+      current,
+      size,
+      records: records.map((item) => this.toMenuResponse(item))
+    });
   }
 
   async tree() {
@@ -44,10 +41,7 @@ export class MenusService {
       orderBy: [{ sort: 'asc' }, { id: 'asc' }]
     });
 
-    return successResponse(
-      this.buildTree(menus.map((item) => this.toMenuResponse(item))),
-      '获取菜单树成功'
-    );
+    return successResponse(this.buildTree(menus.map((item) => this.toMenuResponse(item))));
   }
 
   async detail(id: number) {
@@ -56,7 +50,7 @@ export class MenusService {
       throw new NotFoundException('菜单不存在');
     }
 
-    return successResponse(this.toMenuResponse(menu), '获取菜单详情成功');
+    return successResponse(this.toMenuResponse(menu));
   }
 
   async create(dto: CreateMenuDto) {
@@ -80,7 +74,7 @@ export class MenusService {
       }
     });
 
-    return successResponse(this.toMenuResponse(menu), '创建菜单成功');
+    return successResponse(this.toMenuResponse(menu));
   }
 
   async update(id: number, dto: UpdateMenuDto) {
@@ -110,7 +104,7 @@ export class MenusService {
       }
     });
 
-    return successResponse(this.toMenuResponse(menu), '更新菜单成功');
+    return successResponse(this.toMenuResponse(menu));
   }
 
   async remove(id: number) {
@@ -127,7 +121,7 @@ export class MenusService {
       }
     });
 
-    return successResponse(true, '删除菜单成功');
+    return successResponse(true);
   }
 
   private async getNextId() {

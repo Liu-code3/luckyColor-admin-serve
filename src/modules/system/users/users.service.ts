@@ -30,15 +30,12 @@ export class UsersService {
       })
     ]);
 
-    return successResponse(
-      {
-        total,
-        current,
-        size,
-        records: records.map((item) => this.toUserResponse(item))
-      },
-      '获取用户列表成功'
-    );
+    return successResponse({
+      total,
+      current,
+      size,
+      records: records.map((item) => this.toUserResponse(item))
+    });
   }
 
   async detail(id: string) {
@@ -47,7 +44,7 @@ export class UsersService {
       throw new NotFoundException('用户不存在');
     }
 
-    return successResponse(this.toUserResponse(user), '获取用户详情成功');
+    return successResponse(this.toUserResponse(user));
   }
 
   async create(dto: CreateUserDto) {
@@ -59,7 +56,7 @@ export class UsersService {
       }
     });
 
-    return successResponse(this.toUserResponse(user), '创建用户成功');
+    return successResponse(this.toUserResponse(user));
   }
 
   async update(id: string, dto: UpdateUserDto) {
@@ -74,13 +71,13 @@ export class UsersService {
       }
     });
 
-    return successResponse(this.toUserResponse(user), '更新用户成功');
+    return successResponse(this.toUserResponse(user));
   }
 
   async remove(id: string) {
     await this.ensureUserExists(id);
     await this.prisma.user.delete({ where: { id } });
-    return successResponse(true, '删除用户成功');
+    return successResponse(true);
   }
 
   private async ensureUserExists(id: string) {
