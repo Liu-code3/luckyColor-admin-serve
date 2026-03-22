@@ -10,10 +10,10 @@ describe('api-response helpers', () => {
     });
   });
 
-  it('builds an error response', () => {
+  it('builds an http error response', () => {
     expect(errorResponse(400)).toEqual({
       code: 400,
-      msg: '发出的请求有错误，服务器没有进行新建或修改数据的操作。',
+      msg: '请求参数错误',
       data: null
     });
   });
@@ -21,7 +21,7 @@ describe('api-response helpers', () => {
   it('builds a business error response', () => {
     expect(errorResponse(BUSINESS_ERROR_CODES.AUTH_LOGIN_FAILED)).toEqual({
       code: BUSINESS_ERROR_CODES.AUTH_LOGIN_FAILED,
-      msg: '用户名或密码错误。',
+      msg: '用户名或密码错误',
       data: null
     });
   });
