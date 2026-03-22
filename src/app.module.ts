@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AuthModule } from './auth/auth.module';
-import { DictionaryModule } from './dictionary/dictionary.module';
-import { HealthModule } from './health/health.module';
-import { MenusModule } from './menus/menus.module';
-import { PrismaModule } from './prisma/prisma.module';
-import { UsersModule } from './users/users.module';
+import { PrismaModule } from './infra/database/prisma/prisma.module';
+import { AuthModule } from './modules/iam/auth/auth.module';
+import { HealthModule } from './modules/platform/health/health.module';
+import { DictionaryModule } from './modules/system/dictionary/dictionary.module';
+import { MenusModule } from './modules/system/menus/menus.module';
+import { UsersModule } from './modules/system/users/users.module';
 
 @Module({
   imports: [

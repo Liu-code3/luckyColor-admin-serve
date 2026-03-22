@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { successResponse } from '../common/api-response';
+import { successResponse } from '../../../shared/api/api-response';
 import { HealthService } from './health.service';
 
 @Controller('health')
