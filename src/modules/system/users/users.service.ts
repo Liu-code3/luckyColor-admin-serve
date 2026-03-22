@@ -1,7 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
-import { CreateUserDto, createUserToken, UpdateUserDto, UserListQueryDto } from './users.dto';
+import {
+  CreateUserDto,
+  createUserToken,
+  UpdateUserDto,
+  UserListQueryDto
+} from './users.dto';
 
 @Injectable()
 export class UsersService {
@@ -30,12 +35,15 @@ export class UsersService {
       })
     ]);
 
-    return successResponse({
-      total,
-      current,
-      size,
-      records: records.map(item => this.toUserResponse(item))
-    }, '获取用户列表成功');
+    return successResponse(
+      {
+        total,
+        current,
+        size,
+        records: records.map((item) => this.toUserResponse(item))
+      },
+      '获取用户列表成功'
+    );
   }
 
   async detail(id: string) {

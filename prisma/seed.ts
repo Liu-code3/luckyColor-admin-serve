@@ -23,7 +23,9 @@ interface DictionarySeedNode {
 const prisma = new PrismaClient();
 
 async function main() {
-  const dictionaryRows = flattenDictionaryNodes(dictTreeData.data as DictionarySeedNode[]);
+  const dictionaryRows = flattenDictionaryNodes(
+    dictTreeData.data as DictionarySeedNode[]
+  );
 
   await prisma.menu.deleteMany();
   await prisma.dictionary.deleteMany();
@@ -39,7 +41,7 @@ async function main() {
   });
 
   await prisma.menu.createMany({
-    data: menuSeedData.map(item => ({
+    data: menuSeedData.map((item) => ({
       id: item.id,
       parentId: item.parentId,
       title: item.title,

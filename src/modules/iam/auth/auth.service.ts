@@ -3,7 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
-import { errorResponse, successResponse } from '../../../shared/api/api-response';
+import {
+  errorResponse,
+  successResponse
+} from '../../../shared/api/api-response';
 import { LoginDto, MenuListDto } from './auth.dto';
 import type { JwtPayload } from './jwt-payload.interface';
 
@@ -38,16 +41,19 @@ export class AuthService {
     };
     const accessToken = await this.jwtService.signAsync(payload);
 
-    return successResponse({
-      accessToken,
-      tokenType: 'Bearer',
-      expiresIn: this.configService.get<string>('JWT_EXPIRES_IN') || '2h',
-      user: {
-        id: user.id,
-        username: user.username,
-        nickname: user.nickname
-      }
-    }, 'JWT鐧诲綍鎴愬姛~');
+    return successResponse(
+      {
+        accessToken,
+        tokenType: 'Bearer',
+        expiresIn: this.configService.get<string>('JWT_EXPIRES_IN') || '2h',
+        user: {
+          id: user.id,
+          username: user.username,
+          nickname: user.nickname
+        }
+      },
+      'JWT鐧诲綍鎴愬姛~'
+    );
   }
 
   async getMenuList(dto: MenuListDto) {
@@ -62,14 +68,11 @@ export class AuthService {
     }
 
     const menus = await this.prisma.menu.findMany({
-      orderBy: [
-        { sort: 'asc' },
-        { id: 'asc' }
-      ]
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
     });
 
     return successResponse(
-      menus.map(menu => this.toMenuResponse(menu)),
+      menus.map((menu) => this.toMenuResponse(menu)),
       '鑾峰彇鑿滃崟鎴愬姛~'
     );
   }

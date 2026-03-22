@@ -1,5 +1,18 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { CreateDictionaryDto, DictionaryPageQueryDto, UpdateDictionaryDto } from './dictionary.dto';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query
+} from '@nestjs/common';
+import {
+  CreateDictionaryDto,
+  DictionaryPageQueryDto,
+  UpdateDictionaryDto
+} from './dictionary.dto';
 import { DictionaryService } from './dictionary.service';
 
 @Controller('dict')

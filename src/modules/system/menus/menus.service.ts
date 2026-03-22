@@ -22,32 +22,32 @@ export class MenusService {
       this.prisma.menu.count({ where }),
       this.prisma.menu.findMany({
         where,
-        orderBy: [
-          { sort: 'asc' },
-          { id: 'asc' }
-        ],
+        orderBy: [{ sort: 'asc' }, { id: 'asc' }],
         skip: (current - 1) * size,
         take: size
       })
     ]);
 
-    return successResponse({
-      total,
-      current,
-      size,
-      records: records.map(item => this.toMenuResponse(item))
-    }, '获取菜单列表成功');
+    return successResponse(
+      {
+        total,
+        current,
+        size,
+        records: records.map((item) => this.toMenuResponse(item))
+      },
+      '获取菜单列表成功'
+    );
   }
 
   async tree() {
     const menus = await this.prisma.menu.findMany({
-      orderBy: [
-        { sort: 'asc' },
-        { id: 'asc' }
-      ]
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
     });
 
-    return successResponse(this.buildTree(menus.map(item => this.toMenuResponse(item))), '获取菜单树成功');
+    return successResponse(
+      this.buildTree(menus.map((item) => this.toMenuResponse(item))),
+      '获取菜单树成功'
+    );
   }
 
   async detail(id: number) {
@@ -60,7 +60,7 @@ export class MenusService {
   }
 
   async create(dto: CreateMenuDto) {
-    const nextId = dto.id ?? await this.getNextId();
+    const nextId = dto.id ?? (await this.getNextId());
     const menu = await this.prisma.menu.create({
       data: {
         id: nextId,
@@ -100,9 +100,12 @@ export class MenusService {
         isVisible: dto.isVisible,
         component: dto.component,
         redirect: dto.redirect === undefined ? undefined : dto.redirect,
-        meta: dto.meta === undefined
-          ? undefined
-          : (dto.meta as Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput),
+        meta:
+          dto.meta === undefined
+            ? undefined
+            : (dto.meta as
+                | Prisma.InputJsonValue
+                | Prisma.NullableJsonNullValueInput),
         sort: dto.sort
       }
     });
@@ -112,7 +115,7 @@ export class MenusService {
 
   async remove(id: number) {
     const menus = await this.prisma.menu.findMany();
-    const target = menus.find(item => item.id === id);
+    const target = menus.find((item) => item.id === id);
     if (!target) {
       throw new NotFoundException('菜单不存在');
     }
@@ -142,11 +145,14 @@ export class MenusService {
     return menu;
   }
 
-  private collectMenuIds(rootId: number, menus: Array<{ id: number; parentId: number | null }>) {
+  private collectMenuIds(
+    rootId: number,
+    menus: Array<{ id: number; parentId: number | null }>
+  ) {
     const ids = [rootId];
     const loop = (parentId: number) => {
       menus
-        .filter(item => item.parentId === parentId)
+        .filter((item) => item.parentId === parentId)
         .forEach((item) => {
           ids.push(item.id);
           loop(item.id);
@@ -157,8 +163,17 @@ export class MenusService {
   }
 
   private buildTree(items: Array<ReturnType<MenusService['toMenuResponse']>>) {
-    const map = new Map<number, ReturnType<MenusService['toMenuResponse']> & { children?: Array<ReturnType<MenusService['toMenuResponse']>> }>();
-    const roots: Array<ReturnType<MenusService['toMenuResponse']> & { children?: Array<ReturnType<MenusService['toMenuResponse']>> }> = [];
+    const map = new Map<
+      number,
+      ReturnType<MenusService['toMenuResponse']> & {
+        children?: Array<ReturnType<MenusService['toMenuResponse']>>;
+      }
+    >();
+    const roots: Array<
+      ReturnType<MenusService['toMenuResponse']> & {
+        children?: Array<ReturnType<MenusService['toMenuResponse']>>;
+      }
+    > = [];
 
     items.forEach((item) => {
       map.set(item.id, { ...item, children: [] });
@@ -174,15 +189,14 @@ export class MenusService {
       if (parent) {
         parent.children = parent.children || [];
         parent.children.push(item);
-      }
-      else {
+      } else {
         roots.push(item);
       }
     });
 
     return roots.map((item) => {
       if (!item.children?.length) {
-        const { children, ...rest } = item;
+        const { children: _children, ...rest } = item;
         return rest;
       }
       return item;

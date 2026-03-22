@@ -9,7 +9,10 @@ import {
   UpdateDictionaryDto
 } from './dictionary.dto';
 
-type DictionaryNode = Omit<Dictionary, 'parentId' | 'createdAt' | 'updatedAt'> & {
+type DictionaryNode = Omit<
+  Dictionary,
+  'parentId' | 'createdAt' | 'updatedAt'
+> & {
   parentId: string;
   children?: DictionaryNode[];
 };
@@ -46,12 +49,15 @@ export class DictionaryService {
 
     const records = recordsAll.slice((current - 1) * size, current * size);
 
-    return successResponse({
-      total: recordsAll.length,
-      size,
-      current,
-      records
-    }, '获取字典分页成功');
+    return successResponse(
+      {
+        total: recordsAll.length,
+        size,
+        current,
+        records
+      },
+      '获取字典分页成功'
+    );
   }
 
   async detail(id: string) {
@@ -92,9 +98,12 @@ export class DictionaryService {
     const record = await this.prisma.dictionary.update({
       where: { id },
       data: {
-        parentId: dto.parentId === undefined
-          ? undefined
-          : (dto.parentId && dto.parentId !== '0' ? dto.parentId : null),
+        parentId:
+          dto.parentId === undefined
+            ? undefined
+            : dto.parentId && dto.parentId !== '0'
+              ? dto.parentId
+              : null,
         weight: dto.weight,
         name: dto.name,
         tenantId: dto.tenantId,
@@ -115,12 +124,15 @@ export class DictionaryService {
 
   async remove(id: string) {
     const rows = await this.prisma.dictionary.findMany();
-    const target = rows.find(item => item.id === id);
+    const target = rows.find((item) => item.id === id);
     if (!target) {
       throw new NotFoundException('字典不存在');
     }
 
-    const ids = this.collectDictionaryIds(id, rows.map(item => this.toNode(item)));
+    const ids = this.collectDictionaryIds(
+      id,
+      rows.map((item) => this.toNode(item))
+    );
     await this.prisma.dictionary.deleteMany({
       where: {
         id: { in: ids }
@@ -132,13 +144,10 @@ export class DictionaryService {
 
   private async getDictionaryTree() {
     const rows = await this.prisma.dictionary.findMany({
-      orderBy: [
-        { sortCode: 'asc' },
-        { name: 'asc' }
-      ]
+      orderBy: [{ sortCode: 'asc' }, { name: 'asc' }]
     });
 
-    return this.buildTree(rows.map(row => this.toNode(row)));
+    return this.buildTree(rows.map((row) => this.toNode(row)));
   }
 
   private async ensureDictionaryExists(id: string) {
@@ -150,7 +159,12 @@ export class DictionaryService {
   }
 
   private toNode(row: Dictionary): DictionaryNode {
-    const { createdAt: _createdAt, updatedAt: _updatedAt, parentId, ...rest } = row;
+    const {
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      parentId,
+      ...rest
+    } = row;
     return {
       ...rest,
       parentId: parentId ?? '0'
@@ -178,17 +192,18 @@ export class DictionaryService {
       if (parent) {
         parent.children = parent.children || [];
         parent.children.push(item);
-      }
-      else {
+      } else {
         roots.push(item);
       }
     });
 
-    return roots.map(item => this.pruneEmptyChildren(item));
+    return roots.map((item) => this.pruneEmptyChildren(item));
   }
 
   private pruneEmptyChildren(node: DictionaryNode): DictionaryNode {
-    const children = (node.children || []).map(child => this.pruneEmptyChildren(child));
+    const children = (node.children || []).map((child) =>
+      this.pruneEmptyChildren(child)
+    );
     if (!children.length) {
       const { children: _children, ...rest } = node;
       return rest;
@@ -278,7 +293,11 @@ export class DictionaryService {
     return result;
   }
 
-  private filterDataById(id: string, searchKey: string, list: DictionaryNode[]) {
+  private filterDataById(
+    id: string,
+    searchKey: string,
+    list: DictionaryNode[]
+  ) {
     const dataArr: DictionaryNode[] = [];
 
     const walk = (nodes: DictionaryNode[]) => {
@@ -314,7 +333,7 @@ export class DictionaryService {
     const ids = [rootId];
     const walk = (parentId: string) => {
       rows
-        .filter(item => item.parentId === parentId)
+        .filter((item) => item.parentId === parentId)
         .forEach((item) => {
           ids.push(item.id);
           walk(item.id);

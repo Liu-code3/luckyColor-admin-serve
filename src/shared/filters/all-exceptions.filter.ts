@@ -13,9 +13,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse();
     const request = ctx.getRequest();
 
-    const status = exception instanceof HttpException
-      ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
+    const status =
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : HttpStatus.INTERNAL_SERVER_ERROR;
 
     let msg = '服务端异常';
 
@@ -23,14 +24,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const exceptionResponse = exception.getResponse();
       if (typeof exceptionResponse === 'string') {
         msg = exceptionResponse;
-      }
-      else if (
-        typeof exceptionResponse === 'object'
-        && exceptionResponse
-        && 'message' in exceptionResponse
+      } else if (
+        typeof exceptionResponse === 'object' &&
+        exceptionResponse &&
+        'message' in exceptionResponse
       ) {
-        const message = (exceptionResponse as { message?: string | string[] }).message;
-        msg = Array.isArray(message) ? message.join(', ') : (message || msg);
+        const message = (exceptionResponse as { message?: string | string[] })
+          .message;
+        msg = Array.isArray(message) ? message.join(', ') : message || msg;
       }
     }
 
