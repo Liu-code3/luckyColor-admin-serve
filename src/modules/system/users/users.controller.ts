@@ -18,6 +18,7 @@ import {
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
   ApiErrorResponse,
+  ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
 import {
@@ -29,6 +30,7 @@ import { UserItemResponseDto, UserPageResponseDto } from './users.response.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('系统管理 / 用户管理')
+@ApiServerErrorResponse()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

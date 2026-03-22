@@ -19,6 +19,7 @@ import {
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
   ApiErrorResponse,
+  ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
 import { CreateMenuDto, MenuListQueryDto, UpdateMenuDto } from './menus.dto';
@@ -30,6 +31,7 @@ import {
 import { MenusService } from './menus.service';
 
 @ApiTags('系统管理 / 菜单管理')
+@ApiServerErrorResponse()
 @Controller('menus')
 export class MenusController {
   constructor(private readonly menusService: MenusService) {}

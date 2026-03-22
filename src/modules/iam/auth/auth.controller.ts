@@ -8,7 +8,9 @@ import {
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
   ApiErrorResponse,
-  ApiSuccessResponse
+  ApiServerErrorResponse,
+  ApiSuccessResponse,
+  ApiUnauthorizedErrorResponse
 } from '../../../shared/swagger/swagger-response';
 import { AuthService } from './auth.service';
 import { LoginDto } from './auth.dto';
@@ -21,6 +23,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import type { JwtPayload } from './jwt-payload.interface';
 
 @ApiTags('认证中心 / 登录认证')
+@ApiServerErrorResponse()
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -84,8 +87,7 @@ export class AuthController {
       nickname: '系统管理员'
     }
   })
-  @ApiErrorResponse({
-    status: 401,
+  @ApiUnauthorizedErrorResponse({
     description: '登录态异常响应',
     examples: [
       {

@@ -78,6 +78,11 @@ interface ApiErrorResponseOptions {
   examples: ApiErrorExampleOption[];
 }
 
+interface ApiUnauthorizedResponseOptions {
+  description?: string;
+  examples?: ApiErrorExampleOption[];
+}
+
 function buildDataSchema(options: ApiSuccessResponseOptions): SwaggerSchema {
   if (options.dataSchema) {
     return options.dataSchema;
@@ -174,4 +179,34 @@ export function ApiErrorResponse(options: ApiErrorResponseOptions) {
       }
     })
   );
+}
+
+export function ApiServerErrorResponse(description = '服务器内部错误') {
+  return ApiErrorResponse({
+    status: 500,
+    description,
+    examples: [
+      {
+        name: 'internalServerError',
+        code: 500,
+        summary: getErrorMessageByCode(500)
+      }
+    ]
+  });
+}
+
+export function ApiUnauthorizedErrorResponse(
+  options: ApiUnauthorizedResponseOptions = {}
+) {
+  return ApiErrorResponse({
+    status: 401,
+    description: options.description ?? '未授权访问',
+    examples: options.examples ?? [
+      {
+        name: 'unauthorized',
+        code: 401,
+        summary: getErrorMessageByCode(401)
+      }
+    ]
+  });
 }

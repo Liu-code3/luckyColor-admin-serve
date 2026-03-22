@@ -25,12 +25,14 @@ import { successResponse } from '../../../shared/api/api-response';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
   ApiErrorResponse,
+  ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
 import { FileService } from './file.service';
 import { UploadedFileResponseDto, UploadFileBodyDto } from './file.response.dto';
 
 @ApiTags('平台能力 / 文件服务')
+@ApiServerErrorResponse()
 @Controller('file')
 export class FileController {
   constructor(private readonly fileService: FileService) {}

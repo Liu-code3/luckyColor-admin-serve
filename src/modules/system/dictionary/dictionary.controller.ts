@@ -18,6 +18,7 @@ import {
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
   ApiErrorResponse,
+  ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
 import {
@@ -33,6 +34,7 @@ import {
 import { DictionaryService } from './dictionary.service';
 
 @ApiTags('系统管理 / 字典管理')
+@ApiServerErrorResponse()
 @Controller('dict')
 export class DictionaryController {
   constructor(private readonly dictionaryService: DictionaryService) {}

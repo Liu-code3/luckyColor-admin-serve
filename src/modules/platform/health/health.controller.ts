@@ -1,11 +1,15 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { successResponse } from '../../../shared/api/api-response';
-import { ApiSuccessResponse } from '../../../shared/swagger/swagger-response';
+import {
+  ApiServerErrorResponse,
+  ApiSuccessResponse
+} from '../../../shared/swagger/swagger-response';
 import { HealthStatusResponseDto } from './health.response.dto';
 import { HealthService } from './health.service';
 
 @ApiTags('平台能力 / 健康检查')
+@ApiServerErrorResponse()
 @Controller('health')
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
