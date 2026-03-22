@@ -1,7 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { successResponse } from '../../../shared/api/api-response';
-import { buildSuccessResponseSchema } from '../../../shared/swagger/swagger-response';
+import { ApiSuccessResponse } from '../../../shared/swagger/swagger-response';
+import { HealthStatusResponseDto } from './health.response.dto';
 import { HealthService } from './health.service';
 
 @ApiTags('平台能力 / 健康检查')
@@ -11,18 +12,17 @@ export class HealthController {
 
   @ApiOperation({
     summary: '健康检查',
-    description: '检查服务与数据库连接状态'
+    description: '检查服务与数据库连接状态。'
   })
-  @ApiOkResponse(
-    buildSuccessResponseSchema(
-      {
-        status: 'ok',
-        timestamp: '2026-03-22T14:30:00.000Z',
-        database: 'up'
-      },
-      '健康检查成功'
-    )
-  )
+  @ApiSuccessResponse({
+    type: HealthStatusResponseDto,
+    description: '健康检查响应',
+    dataExample: {
+      status: 'ok',
+      timestamp: '2026-03-22T14:30:00.000Z',
+      database: 'up'
+    }
+  })
   @Get()
   async check() {
     return successResponse(await this.healthService.check());

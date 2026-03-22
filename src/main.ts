@@ -24,16 +24,20 @@ async function bootstrap() {
   const swaggerConfig = new DocumentBuilder()
     .setTitle('LuckyColor Admin Serve API')
     .setDescription(
-      'LuckyColor 多租户后台服务接口文档。当前统一前缀为 /api，后续如需增量升级，可在现有模块基础上扩展版本路由。'
+      'LuckyColor 多租户后台管理服务接口文档。所有接口统一以前缀 /api 暴露，便于后续按模块或版本进行增量演进。'
     )
     .setVersion('1.0.0')
-    .addServer('/api', '当前 API 基准前缀')
+    .addServer('/api', '当前 API 基础前缀')
     .addBearerAuth()
     .build();
-  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig, {
+    deepScanRoutes: true
+  });
   SwaggerModule.setup('docs', app, swaggerDocument, {
     swaggerOptions: {
-      persistAuthorization: true
+      persistAuthorization: true,
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha'
     }
   });
 

@@ -3,7 +3,7 @@ import { IsNotEmpty, IsString } from 'class-validator';
 
 export class LoginDto {
   @ApiProperty({
-    description: '登录账号',
+    description: '登录用户名',
     example: 'admin'
   })
   @IsString()

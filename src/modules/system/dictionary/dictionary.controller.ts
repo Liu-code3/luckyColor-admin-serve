@@ -10,18 +10,22 @@ import {
 } from '@nestjs/common';
 import {
   ApiBody,
-  ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiQuery,
   ApiTags
 } from '@nestjs/swagger';
-import { buildSuccessResponseSchema } from '../../../shared/swagger/swagger-response';
+import { ApiSuccessResponse } from '../../../shared/swagger/swagger-response';
 import {
   CreateDictionaryDto,
   DictionaryPageQueryDto,
   UpdateDictionaryDto
 } from './dictionary.dto';
+import {
+  DictionaryItemResponseDto,
+  DictionaryPageResponseDto,
+  DictionaryTreeItemResponseDto
+} from './dictionary.response.dto';
 import { DictionaryService } from './dictionary.service';
 
 @ApiTags('系统管理 / 字典管理')
@@ -31,49 +35,50 @@ export class DictionaryController {
 
   @ApiOperation({
     summary: '字典树',
-    description: '返回树形字典结构'
+    description: '返回树形字典结构。'
   })
-  @ApiOkResponse(
-    buildSuccessResponseSchema(
-      [
-        {
-          id: 'dict_root',
-          parentId: '0',
-          weight: 10,
-          name: '状态字典',
-          tenantId: 'tenant_001',
-          dictLabel: '启用',
-          dictValue: 'enabled',
-          category: 'system_status',
-          sortCode: 100,
-          deleteFlag: '0',
-          createTime: '2026-03-22 10:00:00',
-          createUser: 'admin',
-          updateTime: '2026-03-22 10:00:00',
-          updateUser: 'admin',
-          children: [
-            {
-              id: 'dict_status_disabled',
-              parentId: 'dict_root',
-              weight: 20,
-              name: '状态字典',
-              tenantId: 'tenant_001',
-              dictLabel: '停用',
-              dictValue: 'disabled',
-              category: 'system_status',
-              sortCode: 200,
-              deleteFlag: '0',
-              createTime: '2026-03-22 10:00:00',
-              createUser: 'admin',
-              updateTime: '2026-03-22 10:00:00',
-              updateUser: 'admin'
-            }
-          ]
-        }
-      ],
-      '操作成功'
-    )
-  )
+  @ApiSuccessResponse({
+    type: DictionaryTreeItemResponseDto,
+    isArray: true,
+    extraModels: [DictionaryItemResponseDto],
+    description: '字典树结构响应',
+    dataExample: [
+      {
+        id: 'dict_root',
+        parentId: '0',
+        weight: 10,
+        name: '状态字典',
+        tenantId: 'tenant_001',
+        dictLabel: '启用',
+        dictValue: 'enabled',
+        category: 'system_status',
+        sortCode: 100,
+        deleteFlag: '0',
+        createTime: '2026-03-22 10:00:00',
+        createUser: 'admin',
+        updateTime: '2026-03-22 10:00:00',
+        updateUser: 'admin',
+        children: [
+          {
+            id: 'dict_status_disabled',
+            parentId: 'dict_root',
+            weight: 20,
+            name: '状态字典',
+            tenantId: 'tenant_001',
+            dictLabel: '停用',
+            dictValue: 'disabled',
+            category: 'system_status',
+            sortCode: 200,
+            deleteFlag: '0',
+            createTime: '2026-03-22 10:00:00',
+            createUser: 'admin',
+            updateTime: '2026-03-22 10:00:00',
+            updateUser: 'admin'
+          }
+        ]
+      }
+    ]
+  })
   @Get('tree')
   tree() {
     return this.dictionaryService.getTree();
@@ -81,7 +86,7 @@ export class DictionaryController {
 
   @ApiOperation({
     summary: '字典分页',
-    description: '分页查询字典节点，可按节点 ID 和关键字筛选'
+    description: '分页查询字典节点，可按节点 ID 和关键字筛选。'
   })
   @ApiQuery({ name: 'page', required: false, example: 1, description: '页码' })
   @ApiQuery({
@@ -102,34 +107,33 @@ export class DictionaryController {
     example: '状态',
     description: '字典标签关键字'
   })
-  @ApiOkResponse(
-    buildSuccessResponseSchema(
-      {
-        total: 2,
-        size: 10,
-        current: 1,
-        records: [
-          {
-            id: 'dict_root',
-            parentId: '0',
-            weight: 10,
-            name: '状态字典',
-            tenantId: 'tenant_001',
-            dictLabel: '启用',
-            dictValue: 'enabled',
-            category: 'system_status',
-            sortCode: 100,
-            deleteFlag: '0',
-            createTime: '2026-03-22 10:00:00',
-            createUser: 'admin',
-            updateTime: '2026-03-22 10:00:00',
-            updateUser: 'admin'
-          }
-        ]
-      },
-      '获取字典分页成功'
-    )
-  )
+  @ApiSuccessResponse({
+    type: DictionaryPageResponseDto,
+    description: '字典分页响应',
+    dataExample: {
+      total: 2,
+      size: 10,
+      current: 1,
+      records: [
+        {
+          id: 'dict_root',
+          parentId: '0',
+          weight: 10,
+          name: '状态字典',
+          tenantId: 'tenant_001',
+          dictLabel: '启用',
+          dictValue: 'enabled',
+          category: 'system_status',
+          sortCode: 100,
+          deleteFlag: '0',
+          createTime: '2026-03-22 10:00:00',
+          createUser: 'admin',
+          updateTime: '2026-03-22 10:00:00',
+          updateUser: 'admin'
+        }
+      ]
+    }
+  })
   @Get('page')
   page(@Query() query: DictionaryPageQueryDto) {
     return this.dictionaryService.getPage(query);
@@ -137,30 +141,29 @@ export class DictionaryController {
 
   @ApiOperation({
     summary: '字典详情',
-    description: '根据字典 ID 查询字典详情'
+    description: '根据字典 ID 查询字典详情。'
   })
   @ApiParam({ name: 'id', description: '字典 ID', example: 'dict_root' })
-  @ApiOkResponse(
-    buildSuccessResponseSchema(
-      {
-        id: 'dict_root',
-        parentId: '0',
-        weight: 10,
-        name: '状态字典',
-        tenantId: 'tenant_001',
-        dictLabel: '启用',
-        dictValue: 'enabled',
-        category: 'system_status',
-        sortCode: 100,
-        deleteFlag: '0',
-        createTime: '2026-03-22 10:00:00',
-        createUser: 'admin',
-        updateTime: '2026-03-22 10:00:00',
-        updateUser: 'admin'
-      },
-      '获取字典详情成功'
-    )
-  )
+  @ApiSuccessResponse({
+    type: DictionaryItemResponseDto,
+    description: '字典详情响应',
+    dataExample: {
+      id: 'dict_root',
+      parentId: '0',
+      weight: 10,
+      name: '状态字典',
+      tenantId: 'tenant_001',
+      dictLabel: '启用',
+      dictValue: 'enabled',
+      category: 'system_status',
+      sortCode: 100,
+      deleteFlag: '0',
+      createTime: '2026-03-22 10:00:00',
+      createUser: 'admin',
+      updateTime: '2026-03-22 10:00:00',
+      updateUser: 'admin'
+    }
+  })
   @Get(':id')
   detail(@Param('id') id: string) {
     return this.dictionaryService.detail(id);
@@ -168,30 +171,29 @@ export class DictionaryController {
 
   @ApiOperation({
     summary: '创建字典',
-    description: '新增字典节点'
+    description: '新增字典节点。'
   })
   @ApiBody({ type: CreateDictionaryDto })
-  @ApiOkResponse(
-    buildSuccessResponseSchema(
-      {
-        id: 'dict_root',
-        parentId: '0',
-        weight: 10,
-        name: '状态字典',
-        tenantId: 'tenant_001',
-        dictLabel: '启用',
-        dictValue: 'enabled',
-        category: 'system_status',
-        sortCode: 100,
-        deleteFlag: '0',
-        createTime: '2026-03-22 10:00:00',
-        createUser: 'admin',
-        updateTime: '2026-03-22 10:00:00',
-        updateUser: 'admin'
-      },
-      '创建字典成功'
-    )
-  )
+  @ApiSuccessResponse({
+    type: DictionaryItemResponseDto,
+    description: '字典创建成功响应',
+    dataExample: {
+      id: 'dict_root',
+      parentId: '0',
+      weight: 10,
+      name: '状态字典',
+      tenantId: 'tenant_001',
+      dictLabel: '启用',
+      dictValue: 'enabled',
+      category: 'system_status',
+      sortCode: 100,
+      deleteFlag: '0',
+      createTime: '2026-03-22 10:00:00',
+      createUser: 'admin',
+      updateTime: '2026-03-22 10:00:00',
+      updateUser: 'admin'
+    }
+  })
   @Post()
   create(@Body() dto: CreateDictionaryDto) {
     return this.dictionaryService.create(dto);
@@ -199,31 +201,30 @@ export class DictionaryController {
 
   @ApiOperation({
     summary: '更新字典',
-    description: '根据字典 ID 更新字典信息'
+    description: '根据字典 ID 更新字典信息。'
   })
   @ApiParam({ name: 'id', description: '字典 ID', example: 'dict_root' })
   @ApiBody({ type: UpdateDictionaryDto })
-  @ApiOkResponse(
-    buildSuccessResponseSchema(
-      {
-        id: 'dict_root',
-        parentId: '0',
-        weight: 20,
-        name: '状态字典',
-        tenantId: 'tenant_001',
-        dictLabel: '停用',
-        dictValue: 'disabled',
-        category: 'system_status',
-        sortCode: 200,
-        deleteFlag: '0',
-        createTime: '2026-03-22 10:00:00',
-        createUser: 'admin',
-        updateTime: '2026-03-22 11:00:00',
-        updateUser: 'admin'
-      },
-      '更新字典成功'
-    )
-  )
+  @ApiSuccessResponse({
+    type: DictionaryItemResponseDto,
+    description: '字典更新成功响应',
+    dataExample: {
+      id: 'dict_root',
+      parentId: '0',
+      weight: 20,
+      name: '状态字典',
+      tenantId: 'tenant_001',
+      dictLabel: '停用',
+      dictValue: 'disabled',
+      category: 'system_status',
+      sortCode: 200,
+      deleteFlag: '0',
+      createTime: '2026-03-22 10:00:00',
+      createUser: 'admin',
+      updateTime: '2026-03-22 11:00:00',
+      updateUser: 'admin'
+    }
+  })
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateDictionaryDto) {
     return this.dictionaryService.update(id, dto);
@@ -231,10 +232,17 @@ export class DictionaryController {
 
   @ApiOperation({
     summary: '删除字典',
-    description: '根据字典 ID 删除字典及子节点'
+    description: '根据字典 ID 删除字典及其子节点。'
   })
   @ApiParam({ name: 'id', description: '字典 ID', example: 'dict_root' })
-  @ApiOkResponse(buildSuccessResponseSchema(true, '删除字典成功'))
+  @ApiSuccessResponse({
+    description: '字典删除结果',
+    dataSchema: {
+      type: 'boolean',
+      example: true
+    },
+    dataExample: true
+  })
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.dictionaryService.remove(id);

@@ -87,14 +87,14 @@ export class CreateMenuDto {
   path!: string;
 
   @ApiProperty({
-    description: '菜单权限标识',
+    description: '权限标识',
     example: 'system:user:list'
   })
   @IsString()
   menuKey!: string;
 
   @ApiPropertyOptional({
-    description: '图标',
+    description: '图标名称',
     example: 'UserOutlined'
   })
   @IsOptional()
@@ -199,7 +199,7 @@ export class UpdateMenuDto {
   path?: string;
 
   @ApiPropertyOptional({
-    description: '菜单权限标识',
+    description: '权限标识',
     example: 'system:user:list'
   })
   @IsOptional()
@@ -207,7 +207,7 @@ export class UpdateMenuDto {
   menuKey?: string;
 
   @ApiPropertyOptional({
-    description: '图标',
+    description: '图标名称',
     example: 'UserOutlined'
   })
   @IsOptional()

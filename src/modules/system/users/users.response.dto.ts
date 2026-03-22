@@ -1,0 +1,62 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class UserItemResponseDto {
+  @ApiProperty({
+    description: '用户 ID',
+    example: 'clx1234567890'
+  })
+  id!: string;
+
+  @ApiProperty({
+    description: '用户名',
+    example: 'admin'
+  })
+  username!: string;
+
+  @ApiPropertyOptional({
+    description: '用户昵称',
+    example: '系统管理员',
+    nullable: true
+  })
+  nickname?: string | null;
+
+  @ApiProperty({
+    description: '创建时间',
+    format: 'date-time',
+    example: '2026-03-22T14:30:00.000Z'
+  })
+  createdAt!: string;
+
+  @ApiProperty({
+    description: '更新时间',
+    format: 'date-time',
+    example: '2026-03-22T15:00:00.000Z'
+  })
+  updatedAt!: string;
+}
+
+export class UserPageResponseDto {
+  @ApiProperty({
+    description: '总记录数',
+    example: 1
+  })
+  total!: number;
+
+  @ApiProperty({
+    description: '当前页码',
+    example: 1
+  })
+  current!: number;
+
+  @ApiProperty({
+    description: '每页条数',
+    example: 10
+  })
+  size!: number;
+
+  @ApiProperty({
+    description: '分页数据',
+    type: [UserItemResponseDto]
+  })
+  records!: UserItemResponseDto[];
+}

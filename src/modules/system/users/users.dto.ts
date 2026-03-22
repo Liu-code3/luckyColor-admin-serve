@@ -48,7 +48,7 @@ export class CreateUserDto {
   password!: string;
 
   @ApiPropertyOptional({
-    description: '昵称',
+    description: '用户昵称',
     example: '系统管理员'
   })
   @IsOptional()
@@ -74,7 +74,7 @@ export class UpdateUserDto {
   password?: string;
 
   @ApiPropertyOptional({
-    description: '昵称',
+    description: '用户昵称',
     example: '管理员'
   })
   @IsOptional()
