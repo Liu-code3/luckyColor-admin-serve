@@ -9,19 +9,20 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
+  id        String     @id @default(cuid())
+  username  String     @unique
   password  String
   nickname  String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  roles     UserRole[]
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
 
   @@map("users")
 }
 
 model Menu {
-  id        Int      @id
-  parentId  Int?     @map("parent_id")
+  id        Int        @id
+  parentId  Int?       @map("parent_id")
   title     String
   name      String
   type      Int
@@ -29,13 +30,14 @@ model Menu {
   menuKey   String   @map("menu_key")
   icon      String?
   layout    String?
-  isVisible Boolean  @default(true) @map("is_visible")
+  isVisible Boolean    @default(true) @map("is_visible")
   component String
   redirect  String?
   meta      Json?
-  sort      Int      @default(0)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  sort      Int        @default(0)
+  roles     RoleMenu[]
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
 
   @@index([parentId])
   @@index([sort])
@@ -67,14 +69,16 @@ model Dictionary {
 }
 
 model Role {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   name      String
   code      String   @unique
-  sort      Int      @default(0)
-  status    Boolean  @default(true)
+  sort      Int        @default(0)
+  status    Boolean    @default(true)
   remark    String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  users     UserRole[]
+  menus     RoleMenu[]
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
 
   @@index([name])
   @@index([sort])
@@ -99,6 +103,30 @@ model Department {
   @@index([name])
   @@index([sort])
   @@map("departments")
+}
+
+model UserRole {
+  userId     String   @map("user_id")
+  roleId     String   @map("role_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model RoleMenu {
+  roleId     String   @map("role_id")
+  menuId     Int      @map("menu_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  menu       Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, menuId])
+  @@index([menuId])
+  @@map("role_menus")
 }
 
 model SystemConfig {

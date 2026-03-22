@@ -31,6 +31,8 @@ async function main() {
     dictTreeData.data as DictionarySeedNode[]
   );
 
+  await prisma.roleMenu.deleteMany();
+  await prisma.userRole.deleteMany();
   await prisma.notice.deleteMany();
   await prisma.systemConfig.deleteMany();
   await prisma.department.deleteMany();
@@ -39,7 +41,7 @@ async function main() {
   await prisma.dictionary.deleteMany();
   await prisma.user.deleteMany();
 
-  await prisma.user.create({
+  const adminUser = await prisma.user.create({
     data: {
       username: 'admin',
       password: '123456',
@@ -49,6 +51,10 @@ async function main() {
 
   await prisma.role.createMany({
     data: roleSeedData
+  });
+
+  const roles = await prisma.role.findMany({
+    orderBy: { sort: 'asc' }
   });
 
   await prisma.department.createMany({
@@ -85,6 +91,51 @@ async function main() {
   await prisma.dictionary.createMany({
     data: dictionaryRows
   });
+
+  const superAdminRole = roles.find((item) => item.code === 'super_admin');
+  const tenantAdminRole = roles.find((item) => item.code === 'tenant_admin');
+  const tenantMemberRole = roles.find((item) => item.code === 'tenant_member');
+
+  if (superAdminRole) {
+    await prisma.userRole.create({
+      data: {
+        userId: adminUser.id,
+        roleId: superAdminRole.id
+      }
+    });
+  }
+
+  const allMenuIds = menuSeedData.map((item) => item.id);
+  const tenantAdminMenuIds = [1, 2, 3, 4, 5, 6, 7, 8, 11];
+  const tenantMemberMenuIds = [1, 2, 3, 11];
+
+  const roleMenuAssignments = [
+    {
+      role: superAdminRole,
+      menuIds: allMenuIds
+    },
+    {
+      role: tenantAdminRole,
+      menuIds: tenantAdminMenuIds
+    },
+    {
+      role: tenantMemberRole,
+      menuIds: tenantMemberMenuIds
+    }
+  ]
+    .filter((item) => item.role)
+    .flatMap((item) =>
+      item.menuIds.map((menuId) => ({
+        roleId: item.role!.id,
+        menuId
+      }))
+    );
+
+  if (roleMenuAssignments.length) {
+    await prisma.roleMenu.createMany({
+      data: roleMenuAssignments
+    });
+  }
 }
 
 function flattenDictionaryNodes(nodes: DictionarySeedNode[]) {
