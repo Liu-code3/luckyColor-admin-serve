@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query
 } from '@nestjs/common';
 import {
@@ -22,11 +23,16 @@ import {
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
 import {
+  AssignUserRolesDto,
   CreateUserDto,
   UpdateUserDto,
   UserListQueryDto
 } from './users.dto';
-import { UserItemResponseDto, UserPageResponseDto } from './users.response.dto';
+import {
+  UserItemResponseDto,
+  UserPageResponseDto,
+  UserRoleAssignmentResponseDto
+} from './users.response.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('系统管理 / 用户管理')
@@ -117,6 +123,45 @@ export class UsersController {
   }
 
   @ApiOperation({
+    summary: '用户已分配角色',
+    description: '根据用户 ID 查询当前已分配的角色 ID 列表和角色明细。'
+  })
+  @ApiParam({ name: 'id', description: '用户 ID', example: 'clx1234567890' })
+  @ApiSuccessResponse({
+    type: UserRoleAssignmentResponseDto,
+    description: '用户角色分配详情响应',
+    dataExample: {
+      userId: 'clx1234567890',
+      username: 'admin',
+      nickname: '系统管理员',
+      roleIds: ['clxrole1234567890'],
+      roles: [
+        {
+          id: 'clxrole1234567890',
+          name: '超级管理员',
+          code: 'super_admin',
+          sort: 1,
+          status: true
+        }
+      ]
+    }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '用户不存在',
+    examples: [
+      {
+        name: 'userNotFound',
+        code: BUSINESS_ERROR_CODES.USER_NOT_FOUND
+      }
+    ]
+  })
+  @Get(':id/roles')
+  roles(@Param('id') id: string) {
+    return this.usersService.roles(id);
+  }
+
+  @ApiOperation({
     summary: '创建用户',
     description: '新增后台管理用户。'
   })
@@ -187,6 +232,67 @@ export class UsersController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
+  }
+
+  @ApiOperation({
+    summary: '分配用户角色',
+    description: '根据用户 ID 覆盖更新当前用户的角色集合，传空数组表示清空全部角色。'
+  })
+  @ApiParam({ name: 'id', description: '用户 ID', example: 'clx1234567890' })
+  @ApiBody({ type: AssignUserRolesDto })
+  @ApiSuccessResponse({
+    type: UserRoleAssignmentResponseDto,
+    description: '用户角色分配结果响应',
+    dataExample: {
+      userId: 'clx1234567890',
+      username: 'admin',
+      nickname: '系统管理员',
+      roleIds: ['clxrole1234567890', 'clxrole0987654321'],
+      roles: [
+        {
+          id: 'clxrole1234567890',
+          name: '超级管理员',
+          code: 'super_admin',
+          sort: 1,
+          status: true
+        },
+        {
+          id: 'clxrole0987654321',
+          name: '租户管理员',
+          code: 'tenant_admin',
+          sort: 10,
+          status: true
+        }
+      ]
+    }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '用户或角色不存在',
+    examples: [
+      {
+        name: 'userNotFound',
+        code: BUSINESS_ERROR_CODES.USER_NOT_FOUND
+      },
+      {
+        name: 'roleNotFound',
+        code: BUSINESS_ERROR_CODES.ROLE_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '分配参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
+  @Put(':id/roles')
+  assignRoles(@Param('id') id: string, @Body() dto: AssignUserRolesDto) {
+    return this.usersService.assignRoles(id, dto);
   }
 
   @ApiOperation({

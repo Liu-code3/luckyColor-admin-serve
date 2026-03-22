@@ -1,6 +1,13 @@
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import {
+  ArrayUnique,
+  IsArray,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Min
+} from 'class-validator';
 
 export class UserListQueryDto {
   @ApiPropertyOptional({
@@ -80,4 +87,15 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   nickname?: string;
+}
+
+export class AssignUserRolesDto {
+  @ApiProperty({
+    description: '角色 ID 列表，传空数组表示清空当前用户所有角色',
+    example: ['clxrole1234567890', 'clxrole0987654321']
+  })
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  roleIds!: string[];
 }

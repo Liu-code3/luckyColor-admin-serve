@@ -1,9 +1,15 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
-import { CreateUserDto, UpdateUserDto, UserListQueryDto } from './users.dto';
+import {
+  AssignUserRolesDto,
+  CreateUserDto,
+  UpdateUserDto,
+  UserListQueryDto
+} from './users.dto';
 
 @Injectable()
 export class UsersService {
@@ -82,6 +88,69 @@ export class UsersService {
     return successResponse(true);
   }
 
+  async roles(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        roles: {
+          include: {
+            role: true
+          }
+        }
+      }
+    });
+    if (!user) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.USER_NOT_FOUND);
+    }
+
+    return successResponse(
+      this.toUserRoleAssignmentResponse(
+        user,
+        user.roles
+          .map((item) => item.role)
+          .sort((left, right) => left.sort - right.sort)
+      )
+    );
+  }
+
+  async assignRoles(id: string, dto: AssignUserRolesDto) {
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({ where: { id } });
+      if (!user) {
+        throw new BusinessException(BUSINESS_ERROR_CODES.USER_NOT_FOUND);
+      }
+
+      const roles =
+        dto.roleIds.length > 0
+          ? await tx.role.findMany({
+              where: {
+                id: { in: dto.roleIds }
+              },
+              orderBy: [{ sort: 'asc' }, { createdAt: 'desc' }]
+            })
+          : [];
+
+      if (roles.length !== dto.roleIds.length) {
+        throw new BusinessException(BUSINESS_ERROR_CODES.ROLE_NOT_FOUND);
+      }
+
+      await tx.userRole.deleteMany({
+        where: { userId: id }
+      });
+
+      if (dto.roleIds.length > 0) {
+        await tx.userRole.createMany({
+          data: dto.roleIds.map((roleId) => ({
+            userId: id,
+            roleId
+          }))
+        });
+      }
+
+      return successResponse(this.toUserRoleAssignmentResponse(user, roles));
+    });
+  }
+
   private async ensureUserExists(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
@@ -103,6 +172,35 @@ export class UsersService {
       nickname: user.nickname,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
+    };
+  }
+
+  private toAssignedRoleResponse(
+    role: Prisma.RoleGetPayload<Record<string, never>>
+  ) {
+    return {
+      id: role.id,
+      name: role.name,
+      code: role.code,
+      sort: role.sort,
+      status: role.status
+    };
+  }
+
+  private toUserRoleAssignmentResponse(
+    user: {
+      id: string;
+      username: string;
+      nickname: string | null;
+    },
+    roles: Prisma.RoleGetPayload<Record<string, never>>[]
+  ) {
+    return {
+      userId: user.id,
+      username: user.username,
+      nickname: user.nickname,
+      roleIds: roles.map((item) => item.id),
+      roles: roles.map((item) => this.toAssignedRoleResponse(item))
     };
   }
 }
