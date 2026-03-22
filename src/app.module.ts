@@ -9,6 +9,7 @@ import { DictionaryModule } from './modules/system/dictionary/dictionary.module'
 import { ConfigsModule } from './modules/system/configs/configs.module';
 import { DepartmentsModule } from './modules/system/departments/departments.module';
 import { MenusModule } from './modules/system/menus/menus.module';
+import { NoticesModule } from './modules/system/notices/notices.module';
 import { RolesModule } from './modules/system/roles/roles.module';
 import { UsersModule } from './modules/system/users/users.module';
 
@@ -25,6 +26,7 @@ import { UsersModule } from './modules/system/users/users.module';
     DictionaryModule,
     FileModule,
     HealthModule,
+    NoticesModule,
     RolesModule,
     UsersModule,
     MenusModule
