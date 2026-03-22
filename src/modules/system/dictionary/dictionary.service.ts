@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { Dictionary } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
+import { BusinessException } from '../../../shared/api/business.exception';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
   createDictionaryId,
   CreateDictionaryDto,
@@ -60,7 +62,7 @@ export class DictionaryService {
   async detail(id: string) {
     const record = await this.prisma.dictionary.findUnique({ where: { id } });
     if (!record) {
-      throw new NotFoundException('字典不存在');
+      throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
     }
 
     return successResponse(this.toNode(record));
@@ -123,7 +125,7 @@ export class DictionaryService {
     const rows = await this.prisma.dictionary.findMany();
     const target = rows.find((item) => item.id === id);
     if (!target) {
-      throw new NotFoundException('字典不存在');
+      throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
     }
 
     const ids = this.collectDictionaryIds(
@@ -150,7 +152,7 @@ export class DictionaryService {
   private async ensureDictionaryExists(id: string) {
     const record = await this.prisma.dictionary.findUnique({ where: { id } });
     if (!record) {
-      throw new NotFoundException('字典不存在');
+      throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
     }
     return record;
   }

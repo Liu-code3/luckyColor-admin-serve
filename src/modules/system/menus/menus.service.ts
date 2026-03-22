@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
+import { BusinessException } from '../../../shared/api/business.exception';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { CreateMenuDto, MenuListQueryDto, UpdateMenuDto } from './menus.dto';
 
 @Injectable()
@@ -41,13 +43,15 @@ export class MenusService {
       orderBy: [{ sort: 'asc' }, { id: 'asc' }]
     });
 
-    return successResponse(this.buildTree(menus.map((item) => this.toMenuResponse(item))));
+    return successResponse(
+      this.buildTree(menus.map((item) => this.toMenuResponse(item)))
+    );
   }
 
   async detail(id: number) {
     const menu = await this.prisma.menu.findUnique({ where: { id } });
     if (!menu) {
-      throw new NotFoundException('菜单不存在');
+      throw new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND);
     }
 
     return successResponse(this.toMenuResponse(menu));
@@ -111,7 +115,7 @@ export class MenusService {
     const menus = await this.prisma.menu.findMany();
     const target = menus.find((item) => item.id === id);
     if (!target) {
-      throw new NotFoundException('菜单不存在');
+      throw new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND);
     }
 
     const ids = this.collectMenuIds(id, menus);
@@ -134,7 +138,7 @@ export class MenusService {
   private async ensureMenuExists(id: number) {
     const menu = await this.prisma.menu.findUnique({ where: { id } });
     if (!menu) {
-      throw new NotFoundException('菜单不存在');
+      throw new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND);
     }
     return menu;
   }

@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { mkdir, rm, access, writeFile } from 'node:fs/promises';
+import { Injectable } from '@nestjs/common';
 import { constants as fsConstants } from 'node:fs';
+import { access, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { BusinessException } from '../../../shared/api/business.exception';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 
 @Injectable()
 export class FileService {
@@ -60,8 +62,7 @@ export class FileService {
     try {
       const url = new URL(decodedPath, 'http://127.0.0.1');
       return path.basename(url.pathname);
-    }
-    catch {
+    } catch {
       return path.basename(decodedPath);
     }
   }
@@ -69,9 +70,8 @@ export class FileService {
   private async assertFileExists(filePath: string) {
     try {
       await access(filePath, fsConstants.F_OK);
-    }
-    catch {
-      throw new NotFoundException('文件不存在');
+    } catch {
+      throw new BusinessException(BUSINESS_ERROR_CODES.FILE_NOT_FOUND);
     }
   }
 }

@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
+import { BusinessException } from '../../../shared/api/business.exception';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { CreateUserDto, UpdateUserDto, UserListQueryDto } from './users.dto';
 
 @Injectable()
@@ -41,7 +43,7 @@ export class UsersService {
   async detail(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
-      throw new NotFoundException('用户不存在');
+      throw new BusinessException(BUSINESS_ERROR_CODES.USER_NOT_FOUND);
     }
 
     return successResponse(this.toUserResponse(user));
@@ -83,7 +85,7 @@ export class UsersService {
   private async ensureUserExists(id: string) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
-      throw new NotFoundException('用户不存在');
+      throw new BusinessException(BUSINESS_ERROR_CODES.USER_NOT_FOUND);
     }
     return user;
   }
