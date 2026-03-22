@@ -16,6 +16,7 @@
     "test:watch": "jest --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma:generate": "prisma generate",
+    "prisma:db:backfill-timezone": "prisma db execute --file prisma/mysql-timezone-backfill.sql --schema prisma/schema.prisma",
     "prisma:db:metadata": "prisma db execute --file prisma/mysql-metadata.sql --schema prisma/schema.prisma",
     "prisma:db:push": "prisma db push && pnpm prisma:db:metadata",
     "prisma:seed": "prisma db seed",
