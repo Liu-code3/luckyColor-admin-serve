@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import type { Dictionary } from '../../../generated/prisma';
+import { Prisma, type Dictionary } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
+import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
@@ -21,7 +22,10 @@ type DictionaryNode = Omit<
 
 @Injectable()
 export class DictionaryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tenantScope: TenantPrismaScopeService
+  ) {}
 
   async getTree() {
     const tree = await this.getDictionaryTree();
@@ -60,7 +64,9 @@ export class DictionaryService {
   }
 
   async detail(id: string) {
-    const record = await this.prisma.dictionary.findUnique({ where: { id } });
+    const record = await this.prisma.dictionary.findFirst({
+      where: this.buildDictionaryWhere({ id })
+    });
     if (!record) {
       throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
     }
@@ -75,7 +81,7 @@ export class DictionaryService {
         parentId: dto.parentId && dto.parentId !== '0' ? dto.parentId : null,
         weight: dto.weight,
         name: dto.name,
-        tenantId: dto.tenantId ?? null,
+        tenantId: this.tenantScope.resolveTenantValue(dto.tenantId),
         dictLabel: dto.dictLabel,
         dictValue: dto.dictValue,
         category: dto.category,
@@ -105,7 +111,7 @@ export class DictionaryService {
               : null,
         weight: dto.weight,
         name: dto.name,
-        tenantId: dto.tenantId,
+        tenantId: this.tenantScope.resolveTenantValue(dto.tenantId),
         dictLabel: dto.dictLabel,
         dictValue: dto.dictValue,
         category: dto.category,
@@ -122,7 +128,9 @@ export class DictionaryService {
   }
 
   async remove(id: string) {
-    const rows = await this.prisma.dictionary.findMany();
+    const rows = await this.prisma.dictionary.findMany({
+      where: this.buildDictionaryWhere()
+    });
     const target = rows.find((item) => item.id === id);
     if (!target) {
       throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
@@ -143,6 +151,7 @@ export class DictionaryService {
 
   private async getDictionaryTree() {
     const rows = await this.prisma.dictionary.findMany({
+      where: this.buildDictionaryWhere(),
       orderBy: [{ sortCode: 'asc' }, { name: 'asc' }]
     });
 
@@ -150,11 +159,19 @@ export class DictionaryService {
   }
 
   private async ensureDictionaryExists(id: string) {
-    const record = await this.prisma.dictionary.findUnique({ where: { id } });
+    const record = await this.prisma.dictionary.findFirst({
+      where: this.buildDictionaryWhere({ id })
+    });
     if (!record) {
       throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
     }
     return record;
+  }
+
+  private buildDictionaryWhere(where: Prisma.DictionaryWhereInput = {}) {
+    return this.tenantScope.buildWhere(where, 'tenantId', {
+      includeGlobal: true
+    }) as Prisma.DictionaryWhereInput;
   }
 
   private toNode(row: Dictionary): DictionaryNode {

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { RedisModule } from './infra/cache/redis/redis.module';
 import { PrismaModule } from './infra/database/prisma/prisma.module';
+import { TenantModule } from './infra/tenancy/tenant.module';
 import { AuthModule } from './modules/iam/auth/auth.module';
 import { FileModule } from './modules/platform/file/file.module';
 import { HealthModule } from './modules/platform/health/health.module';
@@ -20,6 +21,7 @@ import { UsersModule } from './modules/system/users/users.module';
     }),
     RedisModule,
     PrismaModule,
+    TenantModule,
     AuthModule,
     ConfigsModule,
     DepartmentsModule,
