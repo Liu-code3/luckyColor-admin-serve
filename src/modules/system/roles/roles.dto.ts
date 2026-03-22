@@ -4,12 +4,14 @@ import {
   ArrayUnique,
   IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Min
 } from 'class-validator';
+import { ROLE_DATA_SCOPE_VALUES, type RoleDataScope } from './roles.constants';
 
 export class RoleListQueryDto {
   @ApiPropertyOptional({
@@ -77,6 +79,28 @@ export class CreateRoleDto {
   status?: boolean;
 
   @ApiPropertyOptional({
+    description: '数据权限范围',
+    enum: ROLE_DATA_SCOPE_VALUES,
+    example: 'CUSTOM',
+    default: 'ALL'
+  })
+  @IsOptional()
+  @IsIn(ROLE_DATA_SCOPE_VALUES)
+  dataScope?: RoleDataScope;
+
+  @ApiPropertyOptional({
+    description: '自定义数据权限部门 ID 列表，仅当 dataScope = CUSTOM 时生效',
+    type: [Number],
+    example: [100, 120]
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  dataScopeDeptIds?: number[];
+
+  @ApiPropertyOptional({
     description: '备注',
     example: '负责租户内的管理工作'
   })
@@ -121,6 +145,27 @@ export class UpdateRoleDto {
   status?: boolean;
 
   @ApiPropertyOptional({
+    description: '数据权限范围',
+    enum: ROLE_DATA_SCOPE_VALUES,
+    example: 'DEPARTMENT_AND_CHILDREN'
+  })
+  @IsOptional()
+  @IsIn(ROLE_DATA_SCOPE_VALUES)
+  dataScope?: RoleDataScope;
+
+  @ApiPropertyOptional({
+    description: '自定义数据权限部门 ID 列表，仅当 dataScope = CUSTOM 时生效',
+    type: [Number],
+    example: [100, 110]
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  dataScopeDeptIds?: number[];
+
+  @ApiPropertyOptional({
     description: '备注',
     example: '更新后的角色备注'
   })
@@ -139,4 +184,26 @@ export class AssignRoleMenusDto {
   @Type(() => Number)
   @IsInt({ each: true })
   menuIds!: number[];
+}
+
+export class AssignRoleDataScopeDto {
+  @ApiProperty({
+    description: '数据权限范围',
+    enum: ROLE_DATA_SCOPE_VALUES,
+    example: 'CUSTOM'
+  })
+  @IsIn(ROLE_DATA_SCOPE_VALUES)
+  dataScope!: RoleDataScope;
+
+  @ApiPropertyOptional({
+    description: '自定义数据权限部门 ID 列表，仅当 dataScope = CUSTOM 时必填',
+    type: [Number],
+    example: [100, 120]
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @Type(() => Number)
+  @IsInt({ each: true })
+  departmentIds?: number[];
 }

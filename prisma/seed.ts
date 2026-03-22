@@ -31,6 +31,7 @@ async function main() {
     dictTreeData.data as DictionarySeedNode[]
   );
 
+  await prisma.roleDepartmentScope.deleteMany();
   await prisma.roleMenu.deleteMany();
   await prisma.userRole.deleteMany();
   await prisma.notice.deleteMany();
@@ -108,6 +109,7 @@ async function main() {
   const allMenuIds = menuSeedData.map((item) => item.id);
   const tenantAdminMenuIds = [1, 2, 3, 4, 5, 6, 7, 8, 11];
   const tenantMemberMenuIds = [1, 2, 3, 11];
+  const tenantAdminDataScopeDepartmentIds = [100, 120];
 
   const roleMenuAssignments = [
     {
@@ -134,6 +136,15 @@ async function main() {
   if (roleMenuAssignments.length) {
     await prisma.roleMenu.createMany({
       data: roleMenuAssignments
+    });
+  }
+
+  if (tenantAdminRole) {
+    await prisma.roleDepartmentScope.createMany({
+      data: tenantAdminDataScopeDepartmentIds.map((departmentId) => ({
+        roleId: tenantAdminRole.id,
+        departmentId
+      }))
     });
   }
 }

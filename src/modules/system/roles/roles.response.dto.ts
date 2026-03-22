@@ -1,4 +1,31 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ROLE_DATA_SCOPE_VALUES } from './roles.constants';
+
+export class RoleAssignedDepartmentResponseDto {
+  @ApiProperty({
+    description: '部门 ID',
+    example: 100
+  })
+  id!: number;
+
+  @ApiProperty({
+    description: '父级部门 ID，根节点为 0',
+    example: 0
+  })
+  pid!: number;
+
+  @ApiProperty({
+    description: '部门名称',
+    example: '总部'
+  })
+  name!: string;
+
+  @ApiProperty({
+    description: '部门编码',
+    example: 'headquarters'
+  })
+  code!: string;
+}
 
 export class RoleItemResponseDto {
   @ApiProperty({
@@ -30,6 +57,20 @@ export class RoleItemResponseDto {
     example: true
   })
   status!: boolean;
+
+  @ApiProperty({
+    description: '数据权限范围',
+    enum: ROLE_DATA_SCOPE_VALUES,
+    example: 'CUSTOM'
+  })
+  dataScope!: string;
+
+  @ApiProperty({
+    description: '自定义数据权限部门 ID 列表',
+    type: [Number],
+    example: [100, 120]
+  })
+  dataScopeDeptIds!: number[];
 
   @ApiPropertyOptional({
     description: '备注',
@@ -166,4 +207,44 @@ export class RoleMenuAssignmentResponseDto {
     type: [RoleAssignedMenuResponseDto]
   })
   menus!: RoleAssignedMenuResponseDto[];
+}
+
+export class RoleDataScopeResponseDto {
+  @ApiProperty({
+    description: '角色 ID',
+    example: 'clxrole1234567890'
+  })
+  roleId!: string;
+
+  @ApiProperty({
+    description: '角色名称',
+    example: '租户管理员'
+  })
+  name!: string;
+
+  @ApiProperty({
+    description: '角色编码',
+    example: 'tenant_admin'
+  })
+  code!: string;
+
+  @ApiProperty({
+    description: '数据权限范围',
+    enum: ROLE_DATA_SCOPE_VALUES,
+    example: 'CUSTOM'
+  })
+  dataScope!: string;
+
+  @ApiProperty({
+    description: '自定义数据权限部门 ID 列表',
+    type: [Number],
+    example: [100, 120]
+  })
+  departmentIds!: number[];
+
+  @ApiProperty({
+    description: '自定义数据权限部门明细',
+    type: [RoleAssignedDepartmentResponseDto]
+  })
+  departments!: RoleAssignedDepartmentResponseDto[];
 }

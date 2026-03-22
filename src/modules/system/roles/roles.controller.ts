@@ -23,12 +23,14 @@ import {
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
 import {
+  AssignRoleDataScopeDto,
   AssignRoleMenusDto,
   CreateRoleDto,
   RoleListQueryDto,
   UpdateRoleDto
 } from './roles.dto';
 import {
+  RoleDataScopeResponseDto,
   RoleItemResponseDto,
   RoleMenuAssignmentResponseDto,
   RolePageResponseDto
@@ -72,6 +74,8 @@ export class RolesController {
           code: 'tenant_admin',
           sort: 10,
           status: true,
+          dataScope: 'CUSTOM',
+          dataScopeDeptIds: [100, 120],
           remark: '负责租户内的管理工作',
           createdAt: '2026-03-22T14:30:00.000Z',
           updatedAt: '2026-03-22T14:30:00.000Z'
@@ -108,6 +112,8 @@ export class RolesController {
       code: 'tenant_admin',
       sort: 10,
       status: true,
+      dataScope: 'CUSTOM',
+      dataScopeDeptIds: [100, 120],
       remark: '负责租户内的管理工作',
       createdAt: '2026-03-22T14:30:00.000Z',
       updatedAt: '2026-03-22T14:30:00.000Z'
@@ -126,6 +132,51 @@ export class RolesController {
   @Get(':id')
   detail(@Param('id') id: string) {
     return this.rolesService.detail(id);
+  }
+
+  @ApiOperation({
+    summary: '角色数据权限范围',
+    description: '根据角色 ID 查询当前角色的数据权限范围及自定义部门。'
+  })
+  @ApiParam({ name: 'id', description: '角色 ID', example: 'clxrole1234567890' })
+  @ApiSuccessResponse({
+    type: RoleDataScopeResponseDto,
+    description: '角色数据权限范围响应',
+    dataExample: {
+      roleId: 'clxrole1234567890',
+      name: '租户管理员',
+      code: 'tenant_admin',
+      dataScope: 'CUSTOM',
+      departmentIds: [100, 120],
+      departments: [
+        {
+          id: 100,
+          pid: 0,
+          name: '总部',
+          code: 'headquarters'
+        },
+        {
+          id: 120,
+          pid: 100,
+          name: '运营支持部',
+          code: 'operations_support'
+        }
+      ]
+    }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '角色不存在',
+    examples: [
+      {
+        name: 'roleNotFound',
+        code: BUSINESS_ERROR_CODES.ROLE_NOT_FOUND
+      }
+    ]
+  })
+  @Get(':id/data-scope')
+  dataScope(@Param('id') id: string) {
+    return this.rolesService.dataScope(id);
   }
 
   @ApiOperation({
@@ -184,7 +235,7 @@ export class RolesController {
 
   @ApiOperation({
     summary: '创建角色',
-    description: '新增系统角色。'
+    description: '新增系统角色，并可同时初始化数据权限范围。'
   })
   @ApiBody({ type: CreateRoleDto })
   @ApiSuccessResponse({
@@ -196,10 +247,32 @@ export class RolesController {
       code: 'tenant_admin',
       sort: 10,
       status: true,
+      dataScope: 'CUSTOM',
+      dataScopeDeptIds: [100, 120],
       remark: '负责租户内的管理工作',
       createdAt: '2026-03-22T14:30:00.000Z',
       updatedAt: '2026-03-22T14:30:00.000Z'
     }
+  })
+  @ApiErrorResponse({
+    status: 400,
+    description: '数据权限配置不合法',
+    examples: [
+      {
+        name: 'invalidDataScopeConfig',
+        code: BUSINESS_ERROR_CODES.DATA_SCOPE_CONFIG_INVALID
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '自定义数据权限部门不存在',
+    examples: [
+      {
+        name: 'departmentNotFound',
+        code: BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND
+      }
+    ]
   })
   @ApiErrorResponse({
     status: 409,
@@ -228,7 +301,7 @@ export class RolesController {
 
   @ApiOperation({
     summary: '更新角色',
-    description: '根据角色 ID 更新角色信息。'
+    description: '根据角色 ID 更新角色信息，并可同步更新数据权限范围。'
   })
   @ApiParam({ name: 'id', description: '角色 ID', example: 'clxrole1234567890' })
   @ApiBody({ type: UpdateRoleDto })
@@ -241,18 +314,34 @@ export class RolesController {
       code: 'tenant_admin',
       sort: 20,
       status: true,
+      dataScope: 'DEPARTMENT_AND_CHILDREN',
+      dataScopeDeptIds: [],
       remark: '更新后的角色备注',
       createdAt: '2026-03-22T14:30:00.000Z',
       updatedAt: '2026-03-22T15:00:00.000Z'
     }
   })
   @ApiErrorResponse({
+    status: 400,
+    description: '数据权限配置不合法',
+    examples: [
+      {
+        name: 'invalidDataScopeConfig',
+        code: BUSINESS_ERROR_CODES.DATA_SCOPE_CONFIG_INVALID
+      }
+    ]
+  })
+  @ApiErrorResponse({
     status: 404,
-    description: '角色不存在',
+    description: '角色或部门不存在',
     examples: [
       {
         name: 'roleNotFound',
         code: BUSINESS_ERROR_CODES.ROLE_NOT_FOUND
+      },
+      {
+        name: 'departmentNotFound',
+        code: BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND
       }
     ]
   })
@@ -279,6 +368,76 @@ export class RolesController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateRoleDto) {
     return this.rolesService.update(id, dto);
+  }
+
+  @ApiOperation({
+    summary: '分配角色数据权限',
+    description: '根据角色 ID 单独配置当前角色的数据权限范围。'
+  })
+  @ApiParam({ name: 'id', description: '角色 ID', example: 'clxrole1234567890' })
+  @ApiBody({ type: AssignRoleDataScopeDto })
+  @ApiSuccessResponse({
+    type: RoleDataScopeResponseDto,
+    description: '角色数据权限分配结果响应',
+    dataExample: {
+      roleId: 'clxrole1234567890',
+      name: '租户管理员',
+      code: 'tenant_admin',
+      dataScope: 'CUSTOM',
+      departmentIds: [100, 120],
+      departments: [
+        {
+          id: 100,
+          pid: 0,
+          name: '总部',
+          code: 'headquarters'
+        },
+        {
+          id: 120,
+          pid: 100,
+          name: '运营支持部',
+          code: 'operations_support'
+        }
+      ]
+    }
+  })
+  @ApiErrorResponse({
+    status: 400,
+    description: '数据权限配置不合法',
+    examples: [
+      {
+        name: 'invalidDataScopeConfig',
+        code: BUSINESS_ERROR_CODES.DATA_SCOPE_CONFIG_INVALID
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '角色或部门不存在',
+    examples: [
+      {
+        name: 'roleNotFound',
+        code: BUSINESS_ERROR_CODES.ROLE_NOT_FOUND
+      },
+      {
+        name: 'departmentNotFound',
+        code: BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '分配参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
+  @Put(':id/data-scope')
+  assignDataScope(@Param('id') id: string, @Body() dto: AssignRoleDataScopeDto) {
+    return this.rolesService.assignDataScope(id, dto);
   }
 
   @ApiOperation({
