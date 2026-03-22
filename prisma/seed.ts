@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient } from '../src/generated/prisma';
+import { buildSetDatabaseTimeZoneSql } from '../src/shared/time/database-timezone';
 import { departmentSeedData } from './seed-data/department.data';
 import { dictTreeData } from './seed-data/dict-tree.data';
 import { menuSeedData } from './seed-data/menu.data';
@@ -27,7 +28,7 @@ interface DictionarySeedNode {
 const prisma = new PrismaClient();
 
 async function main() {
-  await prisma.$executeRawUnsafe("SET time_zone = '+08:00'");
+  await prisma.$executeRawUnsafe(buildSetDatabaseTimeZoneSql());
 
   const dictionaryRows = flattenDictionaryNodes(
     dictTreeData.data as DictionarySeedNode[]

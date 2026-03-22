@@ -1,5 +1,6 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaClient } from '../../../generated/prisma';
+import { buildSetDatabaseTimeZoneSql } from '../../../shared/time/database-timezone';
 
 @Injectable()
 export class PrismaService
@@ -15,7 +16,7 @@ export class PrismaService
 
   async onModuleInit() {
     await this.$connect();
-    await this.$executeRawUnsafe("SET time_zone = '+08:00'");
+    await this.$executeRawUnsafe(buildSetDatabaseTimeZoneSql());
   }
 
   async onModuleDestroy() {
