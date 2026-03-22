@@ -99,7 +99,7 @@ model User {
 }
 
 model Menu {
-  id        Int        @id
+  id        Int        @id @default(autoincrement())
   parentId  Int?       @map("parent_id")
   title     String
   name      String
@@ -169,7 +169,7 @@ model Role {
 }
 
 model Department {
-  id             Int                   @id
+  id             Int                   @id @default(autoincrement())
   tenantId       String                @map("tenant_id")
   parentId       Int?                  @map("parent_id")
   name           String

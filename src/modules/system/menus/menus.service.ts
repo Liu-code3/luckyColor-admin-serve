@@ -4,6 +4,7 @@ import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
 import { CreateMenuDto, MenuListQueryDto, UpdateMenuDto } from './menus.dto';
 
 @Injectable()
@@ -58,27 +59,48 @@ export class MenusService {
   }
 
   async create(dto: CreateMenuDto) {
-    const nextId = dto.id ?? (await this.getNextId());
-    const menu = await this.prisma.menu.create({
-      data: {
-        id: nextId,
-        parentId: dto.parentId ?? null,
-        title: dto.title,
-        name: dto.name,
-        type: dto.type,
-        path: dto.path,
-        menuKey: dto.menuKey,
-        icon: dto.icon ?? '',
-        layout: dto.layout ?? '',
-        isVisible: dto.isVisible,
-        component: dto.component,
-        redirect: dto.redirect ?? null,
-        meta: (dto.meta ?? undefined) as Prisma.InputJsonValue | undefined,
-        sort: dto.sort ?? nextId
-      }
-    });
+    try {
+      const menu = await this.prisma.$transaction(
+        async (tx) => {
+          const created = await tx.menu.create({
+            data: {
+              id: dto.id,
+              parentId: dto.parentId ?? null,
+              title: dto.title,
+              name: dto.name,
+              type: dto.type,
+              path: dto.path,
+              menuKey: dto.menuKey,
+              icon: dto.icon ?? '',
+              layout: dto.layout ?? '',
+              isVisible: dto.isVisible,
+              component: dto.component,
+              redirect: dto.redirect ?? null,
+              meta: (dto.meta ?? undefined) as Prisma.InputJsonValue | undefined,
+              sort: dto.sort ?? 0
+            }
+          });
 
-    return successResponse(this.toMenuResponse(menu));
+          if (dto.sort !== undefined) {
+            return created;
+          }
+
+          return tx.menu.update({
+            where: { id: created.id },
+            data: {
+              sort: created.id
+            }
+          });
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+        }
+      );
+
+      return successResponse(this.toMenuResponse(menu));
+    } catch (error) {
+      rethrowUniqueConstraintAsBusinessException(error, ['id']);
+    }
   }
 
   async update(id: number, dto: UpdateMenuDto) {
@@ -112,27 +134,27 @@ export class MenusService {
   }
 
   async remove(id: number) {
-    const menus = await this.prisma.menu.findMany();
-    const target = menus.find((item) => item.id === id);
-    if (!target) {
-      throw new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND);
-    }
+    await this.prisma.$transaction(
+      async (tx) => {
+        const menus = await tx.menu.findMany();
+        const target = menus.find((item) => item.id === id);
+        if (!target) {
+          throw new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND);
+        }
 
-    const ids = this.collectMenuIds(id, menus);
-    await this.prisma.menu.deleteMany({
-      where: {
-        id: { in: ids }
+        const ids = this.collectMenuIds(id, menus);
+        await tx.menu.deleteMany({
+          where: {
+            id: { in: ids }
+          }
+        });
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
       }
-    });
+    );
 
     return successResponse(true);
-  }
-
-  private async getNextId() {
-    const result = await this.prisma.menu.aggregate({
-      _max: { id: true }
-    });
-    return (result._max.id ?? 0) + 1;
   }
 
   private async ensureMenuExists(id: number) {

@@ -128,23 +128,30 @@ export class DictionaryService {
   }
 
   async remove(id: string) {
-    const rows = await this.prisma.dictionary.findMany({
-      where: this.buildDictionaryWhere()
-    });
-    const target = rows.find((item) => item.id === id);
-    if (!target) {
-      throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
-    }
+    await this.prisma.$transaction(
+      async (tx) => {
+        const rows = await tx.dictionary.findMany({
+          where: this.buildDictionaryWhere()
+        });
+        const target = rows.find((item) => item.id === id);
+        if (!target) {
+          throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
+        }
 
-    const ids = this.collectDictionaryIds(
-      id,
-      rows.map((item) => this.toNode(item))
-    );
-    await this.prisma.dictionary.deleteMany({
-      where: {
-        id: { in: ids }
+        const ids = this.collectDictionaryIds(
+          id,
+          rows.map((item) => this.toNode(item))
+        );
+        await tx.dictionary.deleteMany({
+          where: {
+            id: { in: ids }
+          }
+        });
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
       }
-    });
+    );
 
     return successResponse(true);
   }

@@ -15,8 +15,7 @@ describe('TenantBootstrapService', () => {
         findFirst: jest.fn()
       },
       department: {
-        aggregate: jest.fn(),
-        createMany: jest.fn()
+        create: jest.fn()
       },
       role: {
         create: jest.fn()
@@ -91,11 +90,31 @@ describe('TenantBootstrapService', () => {
         status: true
       }
     });
-    prisma.department.aggregate.mockResolvedValue({
-      _max: {
-        id: 120
-      }
-    });
+    prisma.department.create
+      .mockResolvedValueOnce({
+        id: 201,
+        tenantId: 'tenant_acme',
+        parentId: null,
+        name: 'Headquarters',
+        code: 'acme_headquarters',
+        sort: 1
+      })
+      .mockResolvedValueOnce({
+        id: 202,
+        tenantId: 'tenant_acme',
+        parentId: 201,
+        name: 'Product',
+        code: 'acme_product',
+        sort: 10
+      })
+      .mockResolvedValueOnce({
+        id: 203,
+        tenantId: 'tenant_acme',
+        parentId: 201,
+        name: 'Operations',
+        code: 'acme_operations',
+        sort: 20
+      });
     prisma.role.create
       .mockResolvedValueOnce({
         id: 'role-admin',
@@ -147,7 +166,27 @@ describe('TenantBootstrapService', () => {
         tenantPackage: true
       }
     });
-    expect(prisma.department.createMany).toHaveBeenCalled();
+    expect(prisma.department.create).toHaveBeenNthCalledWith(1, {
+      data: expect.objectContaining({
+        tenantId: 'tenant_acme',
+        parentId: null,
+        code: 'acme_headquarters'
+      })
+    });
+    expect(prisma.department.create).toHaveBeenNthCalledWith(2, {
+      data: expect.objectContaining({
+        tenantId: 'tenant_acme',
+        parentId: 201,
+        code: 'acme_product'
+      })
+    });
+    expect(prisma.department.create).toHaveBeenNthCalledWith(3, {
+      data: expect.objectContaining({
+        tenantId: 'tenant_acme',
+        parentId: 201,
+        code: 'acme_operations'
+      })
+    });
     expect(prisma.userRole.create).toHaveBeenCalledWith({
       data: {
         tenantId: 'tenant_acme',
@@ -167,8 +206,8 @@ describe('TenantBootstrapService', () => {
     expect(prisma.roleMenu.createMany).toHaveBeenCalled();
     expect(prisma.roleDepartmentScope.createMany).toHaveBeenCalledWith({
       data: [
-        { tenantId: 'tenant_acme', roleId: 'role-admin', departmentId: 220 },
-        { tenantId: 'tenant_acme', roleId: 'role-admin', departmentId: 240 }
+        { tenantId: 'tenant_acme', roleId: 'role-admin', departmentId: 201 },
+        { tenantId: 'tenant_acme', roleId: 'role-admin', departmentId: 203 }
       ]
     });
     expect(prisma.dictionary.createMany).toHaveBeenCalled();

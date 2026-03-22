@@ -1,3 +1,4 @@
+import { Prisma } from '../../../generated/prisma';
 import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
@@ -94,6 +95,13 @@ describe('RolesService', () => {
 
     return prisma;
   }
+
+  const createUniqueConstraintError = (target: string[]) =>
+    new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { target }
+    });
 
   it('returns assigned menus for a role', async () => {
     const prisma = createPrismaMock();
@@ -438,5 +446,24 @@ describe('RolesService', () => {
         menus: []
       }
     });
+  });
+
+  it('translates unique role code conflicts into business errors on create', async () => {
+    const prisma = createPrismaMock();
+    const service = new RolesService(prisma as never, createTenantScope());
+    prisma.role.findFirst.mockResolvedValue(null);
+    prisma.role.create.mockRejectedValue(
+      createUniqueConstraintError(['tenant_id', 'code'])
+    );
+
+    await expect(
+      service.create({
+        name: 'Tenant Admin',
+        code: 'tenant_admin',
+        dataScope: 'ALL'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS)
+    );
   });
 });

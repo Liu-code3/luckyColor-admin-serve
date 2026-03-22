@@ -14,8 +14,6 @@ import {
   DEFAULT_TENANT_ROLE_TEMPLATES
 } from './tenant-bootstrap.templates';
 
-type TenantBootstrapTx = Prisma.TransactionClient;
-
 @Injectable()
 export class TenantBootstrapService {
   constructor(
@@ -50,15 +48,46 @@ export class TenantBootstrapService {
         }
       });
 
-      const departmentBaseId = await this.getNextDepartmentBaseId(tx);
-      const departments = buildDefaultTenantDepartments(
+      const departmentTemplates = buildDefaultTenantDepartments(
         tenant.id,
-        tenant.code,
-        departmentBaseId
+        tenant.code
       );
-      await tx.department.createMany({
-        data: departments
-      });
+      const departmentsByKey = new Map<
+        string,
+        Prisma.DepartmentGetPayload<Record<string, never>>
+      >();
+      const departments: Prisma.DepartmentGetPayload<Record<string, never>>[] =
+        [];
+
+      for (const template of departmentTemplates) {
+        const parentDepartment = template.parentKey
+          ? departmentsByKey.get(template.parentKey)
+          : null;
+
+        if (template.parentKey && !parentDepartment) {
+          throw new Error(
+            `Missing parent department template: ${template.parentKey}`
+          );
+        }
+
+        const department = await tx.department.create({
+          data: {
+            tenantId: template.tenantId,
+            parentId: parentDepartment?.id ?? null,
+            name: template.name,
+            code: template.code,
+            leader: template.leader,
+            phone: template.phone,
+            email: template.email,
+            sort: template.sort,
+            status: template.status,
+            remark: template.remark
+          }
+        });
+
+        departmentsByKey.set(template.key, department);
+        departments.push(department);
+      }
 
       const roles = await Promise.all(
         DEFAULT_TENANT_ROLE_TEMPLATES.map((item) =>
@@ -117,8 +146,17 @@ export class TenantBootstrapService {
       }
 
       if (tenantAdminRole) {
+        const scopedDepartments = ['headquarters', 'operations']
+          .map((key) => departmentsByKey.get(key))
+          .filter(
+            (
+              department
+            ): department is Prisma.DepartmentGetPayload<Record<string, never>> =>
+              Boolean(department)
+          );
+
         await tx.roleDepartmentScope.createMany({
-          data: [departments[0], departments[2]].map((department) => ({
+          data: scopedDepartments.map((department) => ({
             tenantId: tenant.id,
             roleId: tenantAdminRole.id,
             departmentId: department.id
@@ -211,15 +249,5 @@ export class TenantBootstrapService {
     }
 
     return defaultPackage;
-  }
-
-  private async getNextDepartmentBaseId(tx: TenantBootstrapTx) {
-    const result = await tx.department.aggregate({
-      _max: {
-        id: true
-      }
-    });
-
-    return (result._max.id ?? 0) + 100;
   }
 }

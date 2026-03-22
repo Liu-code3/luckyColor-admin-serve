@@ -5,6 +5,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
 import {
   CreateDepartmentDto,
   DepartmentListQueryDto,
@@ -74,26 +75,49 @@ export class DepartmentsService {
   }
 
   async create(dto: CreateDepartmentDto) {
-    await this.ensureDepartmentCodeAvailable(dto.code);
+    const tenantId = this.tenantScope.resolveRequiredTenantValue();
 
-    const nextId = dto.id ?? (await this.getNextId());
-    const department = await this.prisma.department.create({
-      data: {
-        id: nextId,
-        tenantId: this.tenantScope.resolveRequiredTenantValue(),
-        parentId: dto.parentId ?? null,
-        name: dto.name,
-        code: dto.code,
-        leader: dto.leader ?? null,
-        phone: dto.phone ?? null,
-        email: dto.email ?? null,
-        sort: dto.sort ?? nextId,
-        status: dto.status ?? true,
-        remark: dto.remark ?? null
-      }
-    });
+    try {
+      const department = await this.prisma.$transaction(
+        async (tx) => {
+          await this.ensureDepartmentCodeAvailable(dto.code, undefined, tx);
 
-    return successResponse(this.toDepartmentResponse(department));
+          const created = await tx.department.create({
+            data: {
+              id: dto.id,
+              tenantId,
+              parentId: dto.parentId ?? null,
+              name: dto.name,
+              code: dto.code,
+              leader: dto.leader ?? null,
+              phone: dto.phone ?? null,
+              email: dto.email ?? null,
+              sort: dto.sort ?? 0,
+              status: dto.status ?? true,
+              remark: dto.remark ?? null
+            }
+          });
+
+          if (dto.sort !== undefined) {
+            return created;
+          }
+
+          return tx.department.update({
+            where: { id: created.id },
+            data: {
+              sort: created.id
+            }
+          });
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+        }
+      );
+
+      return successResponse(this.toDepartmentResponse(department));
+    } catch (error) {
+      rethrowUniqueConstraintAsBusinessException(error);
+    }
   }
 
   async update(id: number, dto: UpdateDepartmentDto) {
@@ -103,40 +127,51 @@ export class DepartmentsService {
       await this.ensureDepartmentCodeAvailable(dto.code, id);
     }
 
-    const department = await this.prisma.department.update({
-      where: { id },
-      data: {
-        parentId: dto.parentId,
-        name: dto.name,
-        code: dto.code,
-        leader: dto.leader,
-        phone: dto.phone,
-        email: dto.email,
-        sort: dto.sort,
-        status: dto.status,
-        remark: dto.remark
-      }
-    });
+    try {
+      const department = await this.prisma.department.update({
+        where: { id },
+        data: {
+          parentId: dto.parentId,
+          name: dto.name,
+          code: dto.code,
+          leader: dto.leader,
+          phone: dto.phone,
+          email: dto.email,
+          sort: dto.sort,
+          status: dto.status,
+          remark: dto.remark
+        }
+      });
 
-    return successResponse(this.toDepartmentResponse(department));
+      return successResponse(this.toDepartmentResponse(department));
+    } catch (error) {
+      rethrowUniqueConstraintAsBusinessException(error, ['tenant_id', 'code']);
+    }
   }
 
   async remove(id: number) {
-    const records = await this.prisma.department.findMany({
-      where: this.buildDepartmentWhere(),
-      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
-    });
-    const target = records.find((item) => item.id === id);
-    if (!target) {
-      throw new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND);
-    }
+    await this.prisma.$transaction(
+      async (tx) => {
+        const records = await tx.department.findMany({
+          where: this.buildDepartmentWhere(),
+          orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+        });
+        const target = records.find((item) => item.id === id);
+        if (!target) {
+          throw new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND);
+        }
 
-    const ids = this.collectDepartmentIds(id, records);
-    await this.prisma.department.deleteMany({
-      where: this.buildDepartmentWhere({
-        id: { in: ids }
-      })
-    });
+        const ids = this.collectDepartmentIds(id, records);
+        await tx.department.deleteMany({
+          where: this.buildDepartmentWhere({
+            id: { in: ids }
+          })
+        });
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      }
+    );
 
     return successResponse(true);
   }
@@ -146,13 +181,6 @@ export class DepartmentsService {
       where,
       'tenantId'
     ) as Prisma.DepartmentWhereInput;
-  }
-
-  private async getNextId() {
-    const result = await this.prisma.department.aggregate({
-      _max: { id: true }
-    });
-    return (result._max.id ?? 0) + 1;
   }
 
   private async ensureDepartmentExists(id: number) {
@@ -167,9 +195,10 @@ export class DepartmentsService {
 
   private async ensureDepartmentCodeAvailable(
     code: string,
-    excludeId?: number
+    excludeId?: number,
+    tx: Pick<PrismaService, 'department'> = this.prisma
   ) {
-    const department = await this.prisma.department.findFirst({
+    const department = await tx.department.findFirst({
       where: this.buildDepartmentWhere({
         code,
         id: excludeId ? { not: excludeId } : undefined

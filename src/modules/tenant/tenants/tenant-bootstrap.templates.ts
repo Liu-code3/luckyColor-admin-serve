@@ -65,56 +65,50 @@ export const DEFAULT_TENANT_DICTIONARY_SEEDS = [
   }
 ] as const;
 
+export const DEFAULT_TENANT_DEPARTMENT_TEMPLATES = [
+  {
+    key: 'headquarters',
+    parentKey: null,
+    name: 'Headquarters',
+    codeSuffix: 'headquarters',
+    sort: 1,
+    remark: 'Default root department'
+  },
+  {
+    key: 'product',
+    parentKey: 'headquarters',
+    name: 'Product',
+    codeSuffix: 'product',
+    sort: 10,
+    remark: 'Default product department'
+  },
+  {
+    key: 'operations',
+    parentKey: 'headquarters',
+    name: 'Operations',
+    codeSuffix: 'operations',
+    sort: 20,
+    remark: 'Default operations department'
+  }
+] as const;
+
 export function buildDefaultTenantDepartments(
   tenantId: string,
-  tenantCode: string,
-  baseId: number
+  tenantCode: string
 ) {
-  const rootId = baseId;
-  const productId = baseId + 10;
-  const operationsId = baseId + 20;
-
-  return [
-    {
-      id: rootId,
-      tenantId,
-      parentId: null,
-      name: 'Headquarters',
-      code: `${tenantCode}_headquarters`,
-      leader: null,
-      phone: null,
-      email: null,
-      sort: 1,
-      status: true,
-      remark: 'Default root department'
-    },
-    {
-      id: productId,
-      tenantId,
-      parentId: rootId,
-      name: 'Product',
-      code: `${tenantCode}_product`,
-      leader: null,
-      phone: null,
-      email: null,
-      sort: 10,
-      status: true,
-      remark: 'Default product department'
-    },
-    {
-      id: operationsId,
-      tenantId,
-      parentId: rootId,
-      name: 'Operations',
-      code: `${tenantCode}_operations`,
-      leader: null,
-      phone: null,
-      email: null,
-      sort: 20,
-      status: true,
-      remark: 'Default operations department'
-    }
-  ];
+  return DEFAULT_TENANT_DEPARTMENT_TEMPLATES.map((item) => ({
+    key: item.key,
+    parentKey: item.parentKey,
+    tenantId,
+    name: item.name,
+    code: `${tenantCode}_${item.codeSuffix}`,
+    leader: null,
+    phone: null,
+    email: null,
+    sort: item.sort,
+    status: true,
+    remark: item.remark
+  }));
 }
 
 export function buildDefaultTenantDictionaries(tenantId: string) {

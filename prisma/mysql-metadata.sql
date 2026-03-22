@@ -59,9 +59,15 @@ ALTER TABLE `users`
   MODIFY COLUMN `created_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at',
   MODIFY COLUMN `updated_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'updated at';
 
+ALTER TABLE `role_menus`
+  DROP FOREIGN KEY `role_menus_menu_id_fkey`;
+
+ALTER TABLE `role_department_scopes`
+  DROP FOREIGN KEY `role_department_scopes_department_id_fkey`;
+
 ALTER TABLE `menus`
   COMMENT = 'system menus',
-  MODIFY COLUMN `id` INTEGER NOT NULL COMMENT 'menu id',
+  MODIFY COLUMN `id` INTEGER NOT NULL AUTO_INCREMENT COMMENT 'menu id',
   MODIFY COLUMN `parent_id` INTEGER NULL COMMENT 'parent menu id',
   MODIFY COLUMN `title` VARCHAR(191) NOT NULL COMMENT 'menu title',
   MODIFY COLUMN `name` VARCHAR(191) NOT NULL COMMENT 'route name',
@@ -112,7 +118,7 @@ ALTER TABLE `roles`
 
 ALTER TABLE `departments`
   COMMENT = 'system departments',
-  MODIFY COLUMN `id` INTEGER NOT NULL COMMENT 'department id',
+  MODIFY COLUMN `id` INTEGER NOT NULL AUTO_INCREMENT COMMENT 'department id',
   MODIFY COLUMN `tenant_id` VARCHAR(191) NOT NULL COMMENT 'tenantId',
   MODIFY COLUMN `parent_id` INTEGER NULL COMMENT 'parent department id',
   MODIFY COLUMN `name` VARCHAR(191) NOT NULL COMMENT 'department name',
@@ -146,6 +152,18 @@ ALTER TABLE `role_department_scopes`
   MODIFY COLUMN `role_id` VARCHAR(191) NOT NULL COMMENT 'role id',
   MODIFY COLUMN `department_id` INTEGER NOT NULL COMMENT 'department id',
   MODIFY COLUMN `assigned_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'assigned at';
+
+ALTER TABLE `role_menus`
+  ADD CONSTRAINT `role_menus_menu_id_fkey`
+    FOREIGN KEY (`menu_id`) REFERENCES `menus` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE;
+
+ALTER TABLE `role_department_scopes`
+  ADD CONSTRAINT `role_department_scopes_department_id_fkey`
+    FOREIGN KEY (`department_id`) REFERENCES `departments` (`id`)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE;
 
 ALTER TABLE `system_configs`
   COMMENT = 'system configs',

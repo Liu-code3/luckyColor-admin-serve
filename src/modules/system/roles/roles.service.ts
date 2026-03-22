@@ -5,6 +5,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
 import {
   AssignRoleDataScopeDto,
   AssignRoleMenusDto,
@@ -84,30 +85,34 @@ export class RolesService {
     await this.ensureRoleCodeAvailable(dto.code);
 
     const tenantId = this.tenantScope.resolveRequiredTenantValue();
-    return this.prisma.$transaction(async (tx) => {
-      const role = await tx.role.create({
-        data: {
-          tenantId,
-          name: dto.name,
-          code: dto.code,
-          sort: dto.sort ?? 0,
-          status: dto.status ?? true,
-          dataScope: dto.dataScope ?? 'ALL',
-          remark: dto.remark ?? null
-        }
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const role = await tx.role.create({
+          data: {
+            tenantId,
+            name: dto.name,
+            code: dto.code,
+            sort: dto.sort ?? 0,
+            status: dto.status ?? true,
+            dataScope: dto.dataScope ?? 'ALL',
+            remark: dto.remark ?? null
+          }
+        });
+
+        await this.syncDataScope(
+          tx,
+          role.id,
+          dto.dataScope ?? 'ALL',
+          dto.dataScopeDeptIds,
+          tenantId
+        );
+
+        const created = await this.findRoleWithDataScope(role.id, tx);
+        return successResponse(this.toRoleResponse(created!));
       });
-
-      await this.syncDataScope(
-        tx,
-        role.id,
-        dto.dataScope ?? 'ALL',
-        dto.dataScopeDeptIds,
-        tenantId
-      );
-
-      const created = await this.findRoleWithDataScope(role.id, tx);
-      return successResponse(this.toRoleResponse(created!));
-    });
+    } catch (error) {
+      rethrowUniqueConstraintAsBusinessException(error, ['tenant_id', 'code']);
+    }
   }
 
   async update(id: string, dto: UpdateRoleDto) {
@@ -121,32 +126,36 @@ export class RolesService {
     }
 
     const tenantId = this.tenantScope.requireTenantId();
-    return this.prisma.$transaction(async (tx) => {
-      await tx.role.update({
-        where: { id },
-        data: {
-          name: dto.name,
-          code: dto.code,
-          sort: dto.sort,
-          status: dto.status,
-          dataScope: dto.dataScope,
-          remark: dto.remark
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.role.update({
+          where: { id },
+          data: {
+            name: dto.name,
+            code: dto.code,
+            sort: dto.sort,
+            status: dto.status,
+            dataScope: dto.dataScope,
+            remark: dto.remark
+          }
+        });
+
+        if (dto.dataScope !== undefined || dto.dataScopeDeptIds !== undefined) {
+          await this.syncDataScope(
+            tx,
+            id,
+            dto.dataScope ?? (existing.dataScope as RoleDataScope),
+            dto.dataScopeDeptIds ?? this.extractDepartmentIds(existing),
+            tenantId
+          );
         }
+
+        const updated = await this.findRoleWithDataScope(id, tx);
+        return successResponse(this.toRoleResponse(updated!));
       });
-
-      if (dto.dataScope !== undefined || dto.dataScopeDeptIds !== undefined) {
-        await this.syncDataScope(
-          tx,
-          id,
-          dto.dataScope ?? (existing.dataScope as RoleDataScope),
-          dto.dataScopeDeptIds ?? this.extractDepartmentIds(existing),
-          tenantId
-        );
-      }
-
-      const updated = await this.findRoleWithDataScope(id, tx);
-      return successResponse(this.toRoleResponse(updated!));
-    });
+    } catch (error) {
+      rethrowUniqueConstraintAsBusinessException(error, ['tenant_id', 'code']);
+    }
   }
 
   async remove(id: string) {

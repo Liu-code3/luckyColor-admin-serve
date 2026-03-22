@@ -6,6 +6,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
 import {
   AssignUserRolesDto,
   CreateUserDto,
@@ -68,16 +69,23 @@ export class UsersService {
   async create(dto: CreateUserDto) {
     await this.ensureUsernameAvailable(dto.username);
 
-    const user = await this.prisma.user.create({
-      data: {
-        tenantId: this.tenantScope.resolveRequiredTenantValue(),
-        username: dto.username,
-        password: await this.passwordService.hash(dto.password),
-        nickname: dto.nickname?.trim() || dto.username
-      }
-    });
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          tenantId: this.tenantScope.resolveRequiredTenantValue(),
+          username: dto.username,
+          password: await this.passwordService.hash(dto.password),
+          nickname: dto.nickname?.trim() || dto.username
+        }
+      });
 
-    return successResponse(this.toUserResponse(user));
+      return successResponse(this.toUserResponse(user));
+    } catch (error) {
+      rethrowUniqueConstraintAsBusinessException(error, [
+        'tenant_id',
+        'username'
+      ]);
+    }
   }
 
   async update(id: string, dto: UpdateUserDto) {
@@ -87,18 +95,25 @@ export class UsersService {
       await this.ensureUsernameAvailable(dto.username, id);
     }
 
-    const user = await this.prisma.user.update({
-      where: { id },
-      data: {
-        username: dto.username,
-        password: dto.password
-          ? await this.passwordService.hash(dto.password)
-          : undefined,
-        nickname: dto.nickname
-      }
-    });
+    try {
+      const user = await this.prisma.user.update({
+        where: { id },
+        data: {
+          username: dto.username,
+          password: dto.password
+            ? await this.passwordService.hash(dto.password)
+            : undefined,
+          nickname: dto.nickname
+        }
+      });
 
-    return successResponse(this.toUserResponse(user));
+      return successResponse(this.toUserResponse(user));
+    } catch (error) {
+      rethrowUniqueConstraintAsBusinessException(error, [
+        'tenant_id',
+        'username'
+      ]);
+    }
   }
 
   async remove(id: string) {

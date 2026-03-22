@@ -1,3 +1,4 @@
+import { Prisma } from '../../../generated/prisma';
 import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
@@ -56,6 +57,13 @@ describe('UsersService', () => {
 
     return prisma;
   }
+
+  const createUniqueConstraintError = (target: string[]) =>
+    new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { target }
+    });
 
   it('returns assigned roles for a user', async () => {
     const prisma = createPrismaMock();
@@ -281,6 +289,32 @@ describe('UsersService', () => {
         nickname: 'New User'
       }
     });
+  });
+
+  it('translates unique username conflicts into business errors on create', async () => {
+    const prisma = createPrismaMock();
+    const passwordService = {
+      hash: jest.fn().mockResolvedValue('hashed-password')
+    };
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      passwordService as never
+    );
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.user.create.mockRejectedValue(
+      createUniqueConstraintError(['tenant_id', 'username'])
+    );
+
+    await expect(
+      service.create({
+        username: 'new-user',
+        password: 'plain-password',
+        nickname: 'New User'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS)
+    );
   });
 
   it('hashes password before updating a user password', async () => {

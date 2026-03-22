@@ -4,6 +4,7 @@ import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
 import {
   ConfigListQueryDto,
   CreateConfigDto,
@@ -62,18 +63,22 @@ export class ConfigsService {
   async create(dto: CreateConfigDto) {
     await this.ensureConfigKeyAvailable(dto.configKey);
 
-    const config = await this.prisma.systemConfig.create({
-      data: {
-        configKey: dto.configKey,
-        configName: dto.configName,
-        configValue: dto.configValue,
-        valueType: dto.valueType ?? 'string',
-        status: dto.status ?? true,
-        remark: dto.remark ?? null
-      }
-    });
+    try {
+      const config = await this.prisma.systemConfig.create({
+        data: {
+          configKey: dto.configKey,
+          configName: dto.configName,
+          configValue: dto.configValue,
+          valueType: dto.valueType ?? 'string',
+          status: dto.status ?? true,
+          remark: dto.remark ?? null
+        }
+      });
 
-    return successResponse(this.toConfigResponse(config));
+      return successResponse(this.toConfigResponse(config));
+    } catch (error) {
+      rethrowUniqueConstraintAsBusinessException(error, ['config_key']);
+    }
   }
 
   async update(id: string, dto: UpdateConfigDto) {
@@ -83,19 +88,23 @@ export class ConfigsService {
       await this.ensureConfigKeyAvailable(dto.configKey, id);
     }
 
-    const config = await this.prisma.systemConfig.update({
-      where: { id },
-      data: {
-        configKey: dto.configKey,
-        configName: dto.configName,
-        configValue: dto.configValue,
-        valueType: dto.valueType,
-        status: dto.status,
-        remark: dto.remark
-      }
-    });
+    try {
+      const config = await this.prisma.systemConfig.update({
+        where: { id },
+        data: {
+          configKey: dto.configKey,
+          configName: dto.configName,
+          configValue: dto.configValue,
+          valueType: dto.valueType,
+          status: dto.status,
+          remark: dto.remark
+        }
+      });
 
-    return successResponse(this.toConfigResponse(config));
+      return successResponse(this.toConfigResponse(config));
+    } catch (error) {
+      rethrowUniqueConstraintAsBusinessException(error, ['config_key']);
+    }
   }
 
   async remove(id: string) {
