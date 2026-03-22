@@ -1,8 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
+import { BusinessException } from '../../../shared/api/business.exception';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { LoginDto } from './auth.dto';
 import type { JwtPayload } from './jwt-payload.interface';
 
@@ -18,7 +20,7 @@ export class AuthService {
     const user = await this.validateUser(dto);
 
     if (!user) {
-      throw new UnauthorizedException();
+      throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_LOGIN_FAILED);
     }
 
     const payload: JwtPayload = {
@@ -47,7 +49,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('用户登录状态已失效');
+      throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID);
     }
 
     return successResponse({

@@ -1,3 +1,8 @@
+import {
+  BUSINESS_ERROR_MESSAGE_MAP,
+  type BusinessErrorCode
+} from './error-codes';
+
 export interface ApiResponse<T> {
   code: number;
   msg: string;
@@ -8,7 +13,7 @@ export const SUCCESS_CODE = 200;
 export const DEFAULT_ERROR_CODE = 500;
 export const SUCCESS_MESSAGE = 'success';
 
-export const ERROR_MESSAGE_MAP: Record<number, string> = {
+export const HTTP_ERROR_MESSAGE_MAP: Record<number, string> = {
   400: '发出的请求有错误，服务器没有进行新建或修改数据的操作。',
   401: '用户没有权限（令牌、用户名、密码错误）。',
   403: '用户得到授权，但是访问是被禁止的。',
@@ -22,11 +27,19 @@ export const ERROR_MESSAGE_MAP: Record<number, string> = {
   504: '网关超时。'
 };
 
+export const ERROR_MESSAGE_MAP: Record<number, string> = {
+  ...HTTP_ERROR_MESSAGE_MAP,
+  ...BUSINESS_ERROR_MESSAGE_MAP
+};
+
 export function getErrorMessageByCode(code: number) {
-  return ERROR_MESSAGE_MAP[code] || ERROR_MESSAGE_MAP[DEFAULT_ERROR_CODE];
+  return ERROR_MESSAGE_MAP[code] || HTTP_ERROR_MESSAGE_MAP[DEFAULT_ERROR_CODE];
 }
 
-export function successResponse<T>(data: T, _msg = SUCCESS_MESSAGE): ApiResponse<T> {
+export function successResponse<T>(
+  data: T,
+  _msg = SUCCESS_MESSAGE
+): ApiResponse<T> {
   return {
     code: SUCCESS_CODE,
     msg: SUCCESS_MESSAGE,
@@ -35,14 +48,8 @@ export function successResponse<T>(data: T, _msg = SUCCESS_MESSAGE): ApiResponse
 }
 
 export function errorResponse(
-  codeOrMsg: number | string = DEFAULT_ERROR_CODE,
-  fallbackCode = DEFAULT_ERROR_CODE
+  code: number | BusinessErrorCode = DEFAULT_ERROR_CODE
 ): ApiResponse<null> {
-  const code =
-    typeof codeOrMsg === 'number'
-      ? codeOrMsg
-      : fallbackCode;
-
   return {
     code,
     msg: getErrorMessageByCode(code),

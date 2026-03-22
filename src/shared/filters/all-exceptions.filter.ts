@@ -6,10 +6,9 @@ import {
   HttpStatus,
   Logger
 } from '@nestjs/common';
-import {
-  DEFAULT_ERROR_CODE,
-  errorResponse
-} from '../api/api-response';
+import { errorResponse } from '../api/api-response';
+import { BusinessException } from '../api/business.exception';
+import { BUSINESS_ERROR_CODES } from '../api/error-codes';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -24,13 +23,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
-    const normalizedStatus = status || DEFAULT_ERROR_CODE;
 
     this.logger.error(
-      `Request failed: ${request.method} ${request.url} -> ${normalizedStatus}`,
+      `Request failed: ${request.method} ${request.url} -> ${status}`,
       exception instanceof Error ? exception.stack : JSON.stringify(exception)
     );
 
-    response.status(normalizedStatus).json(errorResponse(normalizedStatus));
+    if (exception instanceof BusinessException) {
+      response.status(status).json(errorResponse(exception.code));
+      return;
+    }
+
+    if (exception instanceof HttpException && status === HttpStatus.UNPROCESSABLE_ENTITY) {
+      response
+        .status(status)
+        .json(errorResponse(BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID));
+      return;
+    }
+
+    response.status(status).json(errorResponse(status));
   }
 }
