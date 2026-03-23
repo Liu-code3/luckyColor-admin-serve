@@ -28,7 +28,9 @@ import { RequireMenuPermission } from '../../iam/permissions/require-permissions
 import {
   AssignUserRolesDto,
   CreateUserDto,
+  ResetUserPasswordDto,
   UpdateUserDto,
+  UpdateUserStatusDto,
   UserListQueryDto
 } from './users.dto';
 import {
@@ -322,6 +324,108 @@ export class UsersController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
+  }
+
+  @ApiOperation({
+    summary: '修改用户状态',
+    description: '根据用户 ID 启用或停用用户账号。'
+  })
+  @ApiParam({ name: 'id', description: '用户 ID', example: 'clx1234567890' })
+  @ApiBody({ type: UpdateUserStatusDto })
+  @ApiSuccessResponse({
+    type: UserItemResponseDto,
+    description: '用户状态修改成功响应',
+    dataExample: {
+      id: 'clx1234567890',
+      tenantId: 'tenant_001',
+      departmentId: 120,
+      username: 'admin',
+      nickname: '管理员',
+      status: false,
+      department: {
+        id: 120,
+        name: '运营支持部',
+        code: 'operations_support'
+      },
+      createdAt: '2026-03-22T14:30:00.000Z',
+      updatedAt: '2026-03-22T15:00:00.000Z'
+    }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '用户不存在',
+    examples: [
+      {
+        name: 'userNotFound',
+        code: BUSINESS_ERROR_CODES.USER_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '状态参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
+  @SystemLog({
+    module: '用户管理',
+    action: '修改用户状态',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'status', label: 'status' }
+    ]
+  })
+  @Patch(':id/status')
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateUserStatusDto) {
+    return this.usersService.updateStatus(id, dto);
+  }
+
+  @ApiOperation({
+    summary: '重置用户密码',
+    description: '根据用户 ID 重置用户登录密码。'
+  })
+  @ApiParam({ name: 'id', description: '用户 ID', example: 'clx1234567890' })
+  @ApiBody({ type: ResetUserPasswordDto })
+  @ApiSuccessResponse({
+    description: '密码重置结果',
+    dataSchema: {
+      type: 'boolean',
+      example: true
+    },
+    dataExample: true
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '用户不存在',
+    examples: [
+      {
+        name: 'userNotFound',
+        code: BUSINESS_ERROR_CODES.USER_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '密码参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
+  @SystemLog({
+    module: '用户管理',
+    action: '重置用户密码',
+    targets: [{ source: 'param', key: 'id', label: 'id' }]
+  })
+  @Put(':id/reset-password')
+  resetPassword(@Param('id') id: string, @Body() dto: ResetUserPasswordDto) {
+    return this.usersService.resetPassword(id, dto);
   }
 
   @ApiOperation({

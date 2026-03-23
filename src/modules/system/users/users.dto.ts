@@ -245,6 +245,26 @@ export class UpdateUserDto {
   departmentId?: number | null;
 }
 
+export class UpdateUserStatusDto {
+  @ApiProperty({
+    description: '用户状态，true 为启用，false 为停用',
+    example: true
+  })
+  @Type(() => Boolean)
+  @IsBoolean()
+  status!: boolean;
+}
+
+export class ResetUserPasswordDto {
+  @ApiProperty({
+    description: '新密码',
+    example: '654321'
+  })
+  @IsString()
+  @IsNotEmpty()
+  password!: string;
+}
+
 export class AssignUserRolesDto {
   @ApiProperty({
     description: '角色 ID 列表，传空数组表示清空当前用户全部角色',

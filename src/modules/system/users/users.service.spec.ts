@@ -459,6 +459,77 @@ describe('UsersService', () => {
     });
   });
 
+  it('updates user status', async () => {
+    const prisma = createPrismaMock();
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      createDataScopeServiceMock()
+    );
+    prisma.user.findFirst.mockResolvedValue(createUser());
+    prisma.user.update.mockResolvedValue(
+      createUser({
+        status: false,
+        departmentId: 120,
+        department: {
+          id: 120,
+          name: '运营支持部',
+          code: 'operations_support'
+        }
+      })
+    );
+
+    const response = await service.updateStatus('user-1', {
+      status: false
+    });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: {
+        status: false
+      },
+      include: {
+        department: true
+      }
+    });
+    expect(response.data.status).toBe(false);
+  });
+
+  it('resets user password with hash', async () => {
+    const prisma = createPrismaMock();
+    const passwordService = {
+      hash: jest.fn().mockResolvedValue('reset-password-hash')
+    };
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      passwordService as never,
+      createDataScopeServiceMock()
+    );
+    prisma.user.findFirst.mockResolvedValue(createUser());
+    prisma.user.update.mockResolvedValue(createUser());
+
+    const response = await service.resetPassword('user-1', {
+      password: '654321'
+    });
+
+    expect(passwordService.hash).toHaveBeenCalledWith('654321');
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: {
+        password: 'reset-password-hash'
+      }
+    });
+    expect(response).toEqual({
+      code: 200,
+      msg: 'success',
+      data: true
+    });
+  });
+
   it('applies self data scope when querying user list', async () => {
     const prisma = createPrismaMock();
     const dataScopeService = createDataScopeServiceMock();

@@ -12,7 +12,9 @@ import { DataScopeService } from '../../iam/data-scopes/data-scope.service';
 import {
   AssignUserRolesDto,
   CreateUserDto,
+  ResetUserPasswordDto,
   UpdateUserDto,
+  UpdateUserStatusDto,
   UserListQueryDto
 } from './users.dto';
 
@@ -164,6 +166,35 @@ export class UsersService {
   async remove(id: string) {
     await this.ensureUserExists(id);
     await this.prisma.user.delete({ where: { id } });
+    return successResponse(true);
+  }
+
+  async updateStatus(id: string, dto: UpdateUserStatusDto) {
+    await this.ensureUserExists(id);
+
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: {
+        status: dto.status
+      },
+      include: {
+        department: true
+      }
+    });
+
+    return successResponse(this.toUserResponse(user));
+  }
+
+  async resetPassword(id: string, dto: ResetUserPasswordDto) {
+    await this.ensureUserExists(id);
+
+    await this.prisma.user.update({
+      where: { id },
+      data: {
+        password: await this.passwordService.hash(dto.password)
+      }
+    });
+
     return successResponse(true);
   }
 
