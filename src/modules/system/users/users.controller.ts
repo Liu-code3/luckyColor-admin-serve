@@ -61,7 +61,31 @@ export class UsersController {
     name: 'keyword',
     required: false,
     example: 'admin',
-    description: '用户名或昵称关键字'
+    description: '用户名、昵称、手机号或邮箱关键字'
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    example: true,
+    description: '用户状态，true 为启用，false 为停用'
+  })
+  @ApiQuery({
+    name: 'departmentId',
+    required: false,
+    example: 100,
+    description: '所属部门 ID'
+  })
+  @ApiQuery({
+    name: 'createdAtStart',
+    required: false,
+    example: '2026-03-01T00:00:00.000Z',
+    description: '创建时间开始'
+  })
+  @ApiQuery({
+    name: 'createdAtEnd',
+    required: false,
+    example: '2026-03-31T23:59:59.999Z',
+    description: '创建时间结束'
   })
   @ApiSuccessResponse({
     type: UserPageResponseDto,

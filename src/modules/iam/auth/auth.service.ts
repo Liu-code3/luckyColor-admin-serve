@@ -168,24 +168,31 @@ export class AuthService {
       return null;
     }
 
+    if (!user.status) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_ACCOUNT_DISABLED);
+    }
+
     if (!this.passwordService.isHash(user.password)) {
       if (user.password !== dto.password) {
         return null;
       }
 
       const passwordHash = await this.passwordService.hash(dto.password);
+      const lastLoginAt = new Date();
       await this.prisma.user.update({
         where: {
           id: user.id
         },
         data: {
-          password: passwordHash
+          password: passwordHash,
+          lastLoginAt
         }
       });
 
       return {
         ...user,
-        password: passwordHash
+        password: passwordHash,
+        lastLoginAt
       };
     }
 
@@ -198,7 +205,20 @@ export class AuthService {
       return null;
     }
 
-    return user;
+    const lastLoginAt = new Date();
+    await this.prisma.user.update({
+      where: {
+        id: user.id
+      },
+      data: {
+        lastLoginAt
+      }
+    });
+
+    return {
+      ...user,
+      lastLoginAt
+    };
   }
 
   private findUserWithAccess(payload: JwtPayload) {
@@ -226,6 +246,10 @@ export class AuthService {
   }
 
   private toAccessSnapshot(user: AuthUserRecord) {
+    if (!user.status) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_ACCOUNT_DISABLED);
+    }
+
     const assignedRoles = user.roles.map((item) => item.role);
     const roles = this.collectRoles(assignedRoles);
 

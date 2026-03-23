@@ -47,6 +47,33 @@ export class UserItemResponseDto {
   nickname?: string | null;
 
   @ApiPropertyOptional({
+    description: '手机号',
+    example: '13800000000',
+    nullable: true
+  })
+  phone?: string | null;
+
+  @ApiPropertyOptional({
+    description: '邮箱',
+    example: 'admin@luckycolor.local',
+    nullable: true
+  })
+  email?: string | null;
+
+  @ApiPropertyOptional({
+    description: '头像地址',
+    example: 'https://static.luckycolor.local/avatar/admin.png',
+    nullable: true
+  })
+  avatar?: string | null;
+
+  @ApiProperty({
+    description: '用户状态，true 为启用，false 为停用',
+    example: true
+  })
+  status!: boolean;
+
+  @ApiPropertyOptional({
     description: '所属部门 ID',
     example: 100,
     nullable: true
@@ -59,6 +86,14 @@ export class UserItemResponseDto {
     nullable: true
   })
   department?: UserDepartmentSummaryResponseDto | null;
+
+  @ApiPropertyOptional({
+    description: '最近登录时间',
+    format: 'date-time',
+    example: '2026-03-22T16:00:00.000Z',
+    nullable: true
+  })
+  lastLoginAt?: string | null;
 
   @ApiProperty({
     description: '创建时间',

@@ -201,7 +201,9 @@ describe('TenantBootstrapService', () => {
         departmentId: 201,
         username: 'admin',
         password: 'hashed-admin-password',
-        nickname: 'Acme Admin'
+        nickname: 'Acme Admin',
+        status: true,
+        lastLoginAt: null
       }
     });
     expect(prisma.roleMenu.createMany).toHaveBeenCalled();

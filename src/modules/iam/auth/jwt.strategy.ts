@@ -44,6 +44,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         tenantId: payload.tenantId
       },
       select: {
+        status: true,
         roles: {
           select: {
             role: {
@@ -58,6 +59,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (!user) {
       throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID);
+    }
+
+    if (!user.status) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_ACCOUNT_DISABLED);
     }
 
     if (user.roles.length > 0 && !user.roles.some((item) => item.role.status)) {

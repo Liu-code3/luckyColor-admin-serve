@@ -16,6 +16,12 @@ import {
   UserListQueryDto
 } from './users.dto';
 
+type UserWithDepartment = Prisma.UserGetPayload<{
+  include: {
+    department: true;
+  };
+}>;
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -71,17 +77,29 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto) {
-    await this.ensureUsernameAvailable(dto.username);
+    const username = dto.username.trim();
+    const nickname = this.normalizeOptionalString(dto.nickname) ?? username;
+    const phone = this.normalizeOptionalString(dto.phone);
+    const email = this.normalizeOptionalString(dto.email);
+    const avatar = this.normalizeOptionalString(dto.avatar);
+
+    await this.ensureUsernameAvailable(username);
+    await this.ensurePhoneAvailable(phone);
+    await this.ensureEmailAvailable(email);
     await this.ensureDepartmentBelongsToTenant(dto.departmentId);
 
     try {
       const user = await this.prisma.user.create({
         data: {
           tenantId: this.tenantScope.resolveRequiredTenantValue(),
-          username: dto.username,
+          departmentId: dto.departmentId ?? null,
+          username,
           password: await this.passwordService.hash(dto.password),
-          nickname: dto.nickname?.trim() || dto.username,
-          departmentId: dto.departmentId ?? null
+          nickname,
+          phone: phone ?? null,
+          email: email ?? null,
+          avatar: avatar ?? null,
+          status: dto.status ?? true
         },
         include: {
           department: true
@@ -90,30 +108,46 @@ export class UsersService {
 
       return successResponse(this.toUserResponse(user));
     } catch (error) {
-      rethrowUniqueConstraintAsBusinessException(error, [
-        'tenant_id',
-        'username'
-      ]);
+      rethrowUniqueConstraintAsBusinessException(error);
     }
   }
 
   async update(id: string, dto: UpdateUserDto) {
     await this.ensureUserExists(id);
+
+    const username = dto.username?.trim();
+    const nickname = this.normalizeOptionalString(dto.nickname);
+    const phone = this.normalizeOptionalString(dto.phone);
+    const email = this.normalizeOptionalString(dto.email);
+    const avatar = this.normalizeOptionalString(dto.avatar);
+
     await this.ensureDepartmentBelongsToTenant(dto.departmentId);
 
-    if (dto.username) {
-      await this.ensureUsernameAvailable(dto.username, id);
+    if (username) {
+      await this.ensureUsernameAvailable(username, id);
+    }
+
+    if (phone !== undefined) {
+      await this.ensurePhoneAvailable(phone, id);
+    }
+
+    if (email !== undefined) {
+      await this.ensureEmailAvailable(email, id);
     }
 
     try {
       const user = await this.prisma.user.update({
         where: { id },
         data: {
-          username: dto.username,
+          username,
           password: dto.password
             ? await this.passwordService.hash(dto.password)
             : undefined,
-          nickname: dto.nickname,
+          nickname,
+          phone,
+          email,
+          avatar,
+          status: dto.status,
           departmentId: dto.departmentId
         },
         include: {
@@ -123,10 +157,7 @@ export class UsersService {
 
       return successResponse(this.toUserResponse(user));
     } catch (error) {
-      rethrowUniqueConstraintAsBusinessException(error, [
-        'tenant_id',
-        'username'
-      ]);
+      rethrowUniqueConstraintAsBusinessException(error);
     }
   }
 
@@ -235,8 +266,16 @@ export class UsersService {
       filters.push({
         OR: [
           { username: { contains: keyword } },
-          { nickname: { contains: keyword } }
+          { nickname: { contains: keyword } },
+          { phone: { contains: keyword } },
+          { email: { contains: keyword } }
         ]
+      });
+    }
+
+    if (query.status !== undefined) {
+      filters.push({
+        status: query.status
       });
     }
 
@@ -244,6 +283,14 @@ export class UsersService {
       filters.push({
         departmentId: query.departmentId
       });
+    }
+
+    const createdAt = this.buildCreatedAtWhere(
+      query.createdAtStart,
+      query.createdAtEnd
+    );
+    if (createdAt) {
+      filters.push({ createdAt });
     }
 
     if (!filters.length) {
@@ -257,6 +304,24 @@ export class UsersService {
     return {
       AND: filters
     };
+  }
+
+  private buildCreatedAtWhere(start?: string, end?: string) {
+    if (!start && !end) {
+      return undefined;
+    }
+
+    const where: Prisma.DateTimeFilter = {};
+
+    if (start) {
+      where.gte = new Date(start);
+    }
+
+    if (end) {
+      where.lte = new Date(end);
+    }
+
+    return where;
   }
 
   private async ensureUserExists(id: string) {
@@ -273,6 +338,40 @@ export class UsersService {
     const user = await this.prisma.user.findFirst({
       where: this.buildUserWhere({
         username,
+        id: excludeId ? { not: excludeId } : undefined
+      })
+    });
+
+    if (user) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS);
+    }
+  }
+
+  private async ensurePhoneAvailable(phone?: string | null, excludeId?: string) {
+    if (phone === undefined || phone === null) {
+      return;
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: this.buildUserWhere({
+        phone,
+        id: excludeId ? { not: excludeId } : undefined
+      })
+    });
+
+    if (user) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS);
+    }
+  }
+
+  private async ensureEmailAvailable(email?: string | null, excludeId?: string) {
+    if (email === undefined || email === null) {
+      return;
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: this.buildUserWhere({
+        email,
         id: excludeId ? { not: excludeId } : undefined
       })
     });
@@ -302,26 +401,30 @@ export class UsersService {
     return department;
   }
 
-  private toUserResponse(user: {
-    id: string;
-    tenantId: string;
-    departmentId?: number | null;
-    username: string;
-    nickname: string | null;
-    department?: {
-      id: number;
-      name: string;
-      code: string;
-    } | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }) {
+  private normalizeOptionalString(value?: string | null) {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  private toUserResponse(user: UserWithDepartment) {
     return {
       id: user.id,
       tenantId: user.tenantId,
       departmentId: user.departmentId ?? null,
       username: user.username,
       nickname: user.nickname,
+      phone: user.phone,
+      email: user.email,
+      avatar: user.avatar,
+      status: user.status,
       department: user.department
         ? {
             id: user.department.id,
@@ -329,6 +432,7 @@ export class UsersService {
             code: user.department.code
           }
         : null,
+      lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };

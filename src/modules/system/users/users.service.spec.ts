@@ -14,8 +14,14 @@ describe('UsersService', () => {
   const createUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
     id: 'user-1',
     tenantId: 'tenant_001',
+    departmentId: null,
     username: 'admin',
     nickname: '系统管理员',
+    phone: '13800000000',
+    email: 'admin@luckycolor.local',
+    avatar: 'https://static.luckycolor.local/avatar/admin.png',
+    status: true,
+    lastLoginAt: new Date('2026-03-22T16:00:00.000Z'),
     createdAt: new Date('2026-03-22T14:30:00.000Z'),
     updatedAt: new Date('2026-03-22T14:30:00.000Z'),
     ...overrides
@@ -349,7 +355,11 @@ describe('UsersService', () => {
         departmentId: 100,
         username: 'new-user',
         password: 'hashed-password',
-        nickname: 'New User'
+        nickname: 'New User',
+        phone: null,
+        email: null,
+        avatar: null,
+        status: true
       },
       include: {
         department: true
@@ -437,6 +447,10 @@ describe('UsersService', () => {
         username: 'admin-updated',
         password: 'hashed-password-2',
         nickname: 'Updated User',
+        phone: undefined,
+        email: undefined,
+        avatar: undefined,
+        status: undefined,
         departmentId: 120
       },
       include: {
@@ -493,7 +507,9 @@ describe('UsersService', () => {
       {
         OR: [
           { username: { contains: 'admin' } },
-          { nickname: { contains: 'admin' } }
+          { nickname: { contains: 'admin' } },
+          { phone: { contains: 'admin' } },
+          { email: { contains: 'admin' } }
         ]
       }
     );
@@ -532,5 +548,120 @@ describe('UsersService', () => {
     ).rejects.toThrow(
       new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND)
     );
+  });
+
+  it('applies status and created time filters when querying user list', async () => {
+    const prisma = createPrismaMock();
+    const dataScopeService = createDataScopeServiceMock();
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      dataScopeService
+    );
+    prisma.user.count.mockResolvedValue(0);
+    prisma.user.findMany.mockResolvedValue([]);
+    dataScopeService.buildUserWhere = jest
+      .fn()
+      .mockImplementation(async (_user, where) => where);
+
+    await service.list(
+      {
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      },
+      {
+        page: 1,
+        size: 10,
+        keyword: 'admin',
+        status: false,
+        departmentId: 100,
+        createdAtStart: '2026-03-01T00:00:00.000Z',
+        createdAtEnd: '2026-03-31T23:59:59.999Z'
+      }
+    );
+
+    expect(dataScopeService.buildUserWhere).toHaveBeenCalledWith(
+      {
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      },
+      {
+        AND: [
+          {
+            OR: [
+              { username: { contains: 'admin' } },
+              { nickname: { contains: 'admin' } },
+              { phone: { contains: 'admin' } },
+              { email: { contains: 'admin' } }
+            ]
+          },
+          { status: false },
+          { departmentId: 100 },
+          {
+            createdAt: {
+              gte: new Date('2026-03-01T00:00:00.000Z'),
+              lte: new Date('2026-03-31T23:59:59.999Z')
+            }
+          }
+        ]
+      }
+    );
+  });
+
+  it('rejects duplicate phone when creating a user', async () => {
+    const prisma = createPrismaMock();
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      createDataScopeServiceMock()
+    );
+    prisma.user.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(createUser({ id: 'user-2', phone: '13800000009' }));
+
+    await expect(
+      service.create({
+        username: 'new-user',
+        password: 'plain-password',
+        phone: '13800000009'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS)
+    );
+
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects duplicate email when updating a user', async () => {
+    const prisma = createPrismaMock();
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      createDataScopeServiceMock()
+    );
+    prisma.user.findFirst
+      .mockResolvedValueOnce(createUser())
+      .mockResolvedValueOnce(createUser({ id: 'user-2', email: 'dup@luckycolor.local' }));
+
+    await expect(
+      service.update('user-1', {
+        email: 'dup@luckycolor.local'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS)
+    );
+
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });

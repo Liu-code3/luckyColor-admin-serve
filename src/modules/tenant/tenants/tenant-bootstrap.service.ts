@@ -118,7 +118,9 @@ export class TenantBootstrapService {
           departmentId: departmentsByKey.get('headquarters')?.id ?? null,
           username: dto.adminUsername?.trim() || 'admin',
           password: await this.passwordService.hash(dto.adminPassword),
-          nickname: dto.adminNickname?.trim() || `${tenant.name} Admin`
+          nickname: dto.adminNickname?.trim() || `${tenant.name} Admin`,
+          status: true,
+          lastLoginAt: null
         }
       });
 

@@ -22,6 +22,11 @@ import type { JwtPayload } from './jwt-payload.interface';
 
 const AUTH_RUNTIME_FORBIDDEN_EXAMPLES = [
   {
+    name: 'accountDisabled',
+    code: BUSINESS_ERROR_CODES.AUTH_ACCOUNT_DISABLED,
+    summary: '当前账号已被禁用'
+  },
+  {
     name: 'roleDisabled',
     code: BUSINESS_ERROR_CODES.ROLE_DISABLED,
     summary: '当前账号角色已失效'

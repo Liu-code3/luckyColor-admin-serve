@@ -49,6 +49,8 @@ describe('AuthService', () => {
     username: 'admin',
     password: '123456',
     nickname: '系统管理员',
+    status: true,
+    lastLoginAt: null,
     createdAt: new Date('2026-03-22T14:30:00.000Z'),
     updatedAt: new Date('2026-03-22T14:30:00.000Z'),
     roles: [],
@@ -164,6 +166,14 @@ describe('AuthService', () => {
       username: 'admin'
     });
     expect(passwordService.verify).toHaveBeenCalledWith('123456', '123456');
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: {
+        id: 'user-1'
+      },
+      data: {
+        lastLoginAt: expect.any(Date)
+      }
+    });
     expect(response).toEqual({
       code: 200,
       msg: 'success',
@@ -302,6 +312,28 @@ describe('AuthService', () => {
     ).rejects.toThrow(
       new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID)
     );
+  });
+
+  it('rejects login when account is disabled', async () => {
+    const { service, prisma, passwordService, jwtService } = createService();
+    prisma.user.findFirst.mockResolvedValue(
+      createUser({
+        status: false
+      })
+    );
+
+    await expect(
+      service.login({
+        username: 'admin',
+        password: '123456'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.AUTH_ACCOUNT_DISABLED)
+    );
+
+    expect(passwordService.verify).not.toHaveBeenCalled();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+    expect(jwtService.signAsync).not.toHaveBeenCalled();
   });
 
   it('filters disabled roles from access snapshot', async () => {
@@ -488,7 +520,8 @@ describe('AuthService', () => {
         id: 'user-1'
       },
       data: {
-        password: 'argon2-hash-value'
+        password: 'argon2-hash-value',
+        lastLoginAt: expect.any(Date)
       }
     });
     expect(jwtService.signAsync).toHaveBeenCalledWith({

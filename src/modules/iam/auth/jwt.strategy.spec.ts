@@ -10,6 +10,7 @@ describe('JwtStrategy', () => {
     const prisma = {
       user: {
         findFirst: jest.fn().mockResolvedValue({
+          status: true,
           roles: [{ role: { status: true } }]
         })
       }
@@ -56,6 +57,7 @@ describe('JwtStrategy', () => {
         tenantId: 'tenant_001'
       },
       select: {
+        status: true,
         roles: {
           select: {
             role: {
@@ -100,9 +102,28 @@ describe('JwtStrategy', () => {
     );
   });
 
+  it('throws account disabled when token user is disabled', async () => {
+    const { strategy, prisma } = createStrategy();
+    prisma.user.findFirst.mockResolvedValue({
+      status: false,
+      roles: [{ role: { status: true } }]
+    });
+
+    await expect(
+      strategy.validate({
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.AUTH_ACCOUNT_DISABLED)
+    );
+  });
+
   it('throws role disabled when all assigned roles are invalid', async () => {
     const { strategy, prisma } = createStrategy();
     prisma.user.findFirst.mockResolvedValue({
+      status: true,
       roles: [{ role: { status: false } }]
     });
 

@@ -88,7 +88,12 @@ async function main() {
       departmentId: 100,
       username: 'admin',
       password: await hashPassword('123456'),
-      nickname: '系统管理员'
+      nickname: '系统管理员',
+      phone: '13800000000',
+      email: 'admin@luckycolor.local',
+      avatar: 'https://static.luckycolor.local/avatar/admin.png',
+      status: true,
+      lastLoginAt: null
     }
   });
 

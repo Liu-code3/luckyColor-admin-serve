@@ -111,14 +111,23 @@ model User {
   username     String
   password     String
   nickname     String?
+  phone        String?
+  email        String?
+  avatar       String?
+  status       Boolean     @default(true)
+  lastLoginAt  DateTime?   @map("last_login_at") @db.Timestamp(3)
   department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   roles        UserRole[]
   createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamp(3)
   updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamp(3)
 
   @@unique([tenantId, username])
+  @@unique([tenantId, phone])
+  @@unique([tenantId, email])
   @@index([tenantId])
   @@index([tenantId, departmentId])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
   @@map("users")
 }
 
