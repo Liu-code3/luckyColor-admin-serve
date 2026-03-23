@@ -20,6 +20,10 @@ describe('DictionaryItemsService', () => {
         .fn()
         .mockImplementation((value?: string | null) => value ?? 'tenant_001')
     };
+    const dictionaryCacheService = {
+      getTree: jest.fn(),
+      refreshCacheSafely: jest.fn()
+    };
 
     prisma.$transaction.mockImplementation(async (input: unknown) => {
       if (Array.isArray(input)) {
@@ -32,27 +36,24 @@ describe('DictionaryItemsService', () => {
     return {
       service: new DictionaryItemsService(
         prisma as never,
-        tenantScope as never
+        tenantScope as never,
+        dictionaryCacheService as never
       ),
-      prisma
+      prisma,
+      dictionaryCacheService
     };
   }
 
   it('lists dictionary items under type with keyword and status filter', async () => {
-    const { service, prisma } = createService();
-    prisma.dictionary.findFirst.mockResolvedValue({
-      id: 'dict_common_status',
-      parentId: null
-    });
-    prisma.dictionary.findMany.mockResolvedValue([
+    const { service, dictionaryCacheService } = createService();
+    dictionaryCacheService.getTree.mockResolvedValue([
       {
-        id: 'dict_enabled',
-        parentId: 'dict_common_status',
+        id: 'dict_common_status',
         weight: 10,
-        name: '启用',
+        name: '系统通用状态',
         tenantId: 'tenant_001',
-        dictLabel: '启用',
-        dictValue: 'ENABLE',
+        dictLabel: '系统通用状态',
+        dictValue: 'COMMON_STATUS',
         category: 'FRM',
         sortCode: 10,
         status: true,
@@ -62,26 +63,47 @@ describe('DictionaryItemsService', () => {
         updateTime: null,
         updateUser: null,
         createdAt: new Date('2026-03-22T10:00:00.000Z'),
-        updatedAt: new Date('2026-03-22T10:00:00.000Z')
-      },
-      {
-        id: 'dict_disabled',
-        parentId: 'dict_common_status',
-        weight: 20,
-        name: '停用',
-        tenantId: 'tenant_001',
-        dictLabel: '停用',
-        dictValue: 'DISABLED',
-        category: 'FRM',
-        sortCode: 20,
-        status: false,
-        deleteFlag: 'NOT_DELETE',
-        createTime: null,
-        createUser: null,
-        updateTime: null,
-        updateUser: null,
-        createdAt: new Date('2026-03-22T10:00:00.000Z'),
-        updatedAt: new Date('2026-03-22T10:00:00.000Z')
+        updatedAt: new Date('2026-03-22T10:00:00.000Z'),
+        children: [
+          {
+            id: 'dict_enabled',
+            parentId: 'dict_common_status',
+            weight: 10,
+            name: '启用',
+            tenantId: 'tenant_001',
+            dictLabel: '启用',
+            dictValue: 'ENABLE',
+            category: 'FRM',
+            sortCode: 10,
+            status: true,
+            deleteFlag: 'NOT_DELETE',
+            createTime: null,
+            createUser: null,
+            updateTime: null,
+            updateUser: null,
+            createdAt: new Date('2026-03-22T10:00:00.000Z'),
+            updatedAt: new Date('2026-03-22T10:00:00.000Z')
+          },
+          {
+            id: 'dict_disabled',
+            parentId: 'dict_common_status',
+            weight: 20,
+            name: '停用',
+            tenantId: 'tenant_001',
+            dictLabel: '停用',
+            dictValue: 'DISABLED',
+            category: 'FRM',
+            sortCode: 20,
+            status: false,
+            deleteFlag: 'NOT_DELETE',
+            createTime: null,
+            createUser: null,
+            updateTime: null,
+            updateUser: null,
+            createdAt: new Date('2026-03-22T10:00:00.000Z'),
+            updatedAt: new Date('2026-03-22T10:00:00.000Z')
+          }
+        ]
       }
     ]);
 
@@ -103,20 +125,15 @@ describe('DictionaryItemsService', () => {
   });
 
   it('returns dictionary item tree under type', async () => {
-    const { service, prisma } = createService();
-    prisma.dictionary.findFirst.mockResolvedValue({
-      id: 'dict_common_status',
-      parentId: null
-    });
-    prisma.dictionary.findMany.mockResolvedValue([
+    const { service, dictionaryCacheService } = createService();
+    dictionaryCacheService.getTree.mockResolvedValue([
       {
-        id: 'dict_enabled',
-        parentId: 'dict_common_status',
+        id: 'dict_common_status',
         weight: 10,
-        name: '启用',
+        name: '系统通用状态',
         tenantId: 'tenant_001',
-        dictLabel: '启用',
-        dictValue: 'ENABLE',
+        dictLabel: '系统通用状态',
+        dictValue: 'COMMON_STATUS',
         category: 'FRM',
         sortCode: 10,
         status: true,
@@ -126,26 +143,49 @@ describe('DictionaryItemsService', () => {
         updateTime: null,
         updateUser: null,
         createdAt: new Date('2026-03-22T10:00:00.000Z'),
-        updatedAt: new Date('2026-03-22T10:00:00.000Z')
-      },
-      {
-        id: 'dict_enabled_child',
-        parentId: 'dict_enabled',
-        weight: 20,
-        name: '启用子项',
-        tenantId: 'tenant_001',
-        dictLabel: '启用子项',
-        dictValue: 'ENABLE_CHILD',
-        category: 'FRM',
-        sortCode: 20,
-        status: true,
-        deleteFlag: 'NOT_DELETE',
-        createTime: null,
-        createUser: null,
-        updateTime: null,
-        updateUser: null,
-        createdAt: new Date('2026-03-22T10:00:00.000Z'),
-        updatedAt: new Date('2026-03-22T10:00:00.000Z')
+        updatedAt: new Date('2026-03-22T10:00:00.000Z'),
+        children: [
+          {
+            id: 'dict_enabled',
+            parentId: 'dict_common_status',
+            weight: 10,
+            name: '启用',
+            tenantId: 'tenant_001',
+            dictLabel: '启用',
+            dictValue: 'ENABLE',
+            category: 'FRM',
+            sortCode: 10,
+            status: true,
+            deleteFlag: 'NOT_DELETE',
+            createTime: null,
+            createUser: null,
+            updateTime: null,
+            updateUser: null,
+            createdAt: new Date('2026-03-22T10:00:00.000Z'),
+            updatedAt: new Date('2026-03-22T10:00:00.000Z'),
+            children: [
+              {
+                id: 'dict_enabled_child',
+                parentId: 'dict_enabled',
+                weight: 20,
+                name: '启用子项',
+                tenantId: 'tenant_001',
+                dictLabel: '启用子项',
+                dictValue: 'ENABLE_CHILD',
+                category: 'FRM',
+                sortCode: 20,
+                status: true,
+                deleteFlag: 'NOT_DELETE',
+                createTime: null,
+                createUser: null,
+                updateTime: null,
+                updateUser: null,
+                createdAt: new Date('2026-03-22T10:00:00.000Z'),
+                updatedAt: new Date('2026-03-22T10:00:00.000Z')
+              }
+            ]
+          }
+        ]
       }
     ]);
 
@@ -162,7 +202,7 @@ describe('DictionaryItemsService', () => {
   });
 
   it('cascades descendant items when disabling status', async () => {
-    const { service, prisma } = createService();
+    const { service, prisma, dictionaryCacheService } = createService();
     prisma.dictionary.findFirst.mockResolvedValue({
       id: 'dict_enabled',
       parentId: 'dict_common_status'
@@ -241,11 +281,12 @@ describe('DictionaryItemsService', () => {
         status: false
       }
     });
+    expect(dictionaryCacheService.refreshCacheSafely).toHaveBeenCalled();
     expect(response.data.status).toBe(false);
   });
 
   it('updates dictionary item sortCode independently', async () => {
-    const { service, prisma } = createService();
+    const { service, prisma, dictionaryCacheService } = createService();
     prisma.dictionary.findFirst.mockResolvedValue({
       id: 'dict_enabled',
       parentId: 'dict_common_status'
@@ -280,12 +321,13 @@ describe('DictionaryItemsService', () => {
         sortCode: 200
       }
     });
+    expect(dictionaryCacheService.refreshCacheSafely).toHaveBeenCalled();
     expect(response.data.sortCode).toBe(200);
   });
 
   it('rejects missing dictionary type when listing items', async () => {
-    const { service, prisma } = createService();
-    prisma.dictionary.findFirst.mockResolvedValue(null);
+    const { service, dictionaryCacheService } = createService();
+    dictionaryCacheService.getTree.mockResolvedValue([]);
 
     await expect(
       service.list({

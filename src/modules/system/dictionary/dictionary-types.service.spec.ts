@@ -21,6 +21,9 @@ describe('DictionaryTypesService', () => {
         .fn()
         .mockImplementation((value?: string | null) => value ?? 'tenant_001')
     };
+    const dictionaryCacheService = {
+      refreshCacheSafely: jest.fn()
+    };
     const dictionaryItemsService = {
       toNode: jest.fn().mockImplementation((item) => ({
         ...item,
@@ -41,10 +44,12 @@ describe('DictionaryTypesService', () => {
       service: new DictionaryTypesService(
         prisma as never,
         tenantScope as never,
+        dictionaryCacheService as never,
         dictionaryItemsService as never
       ),
       prisma,
       tenantScope,
+      dictionaryCacheService,
       dictionaryItemsService
     };
   }
@@ -141,7 +146,8 @@ describe('DictionaryTypesService', () => {
   });
 
   it('creates root dictionary type with default label and delete flag', async () => {
-    const { service, prisma, tenantScope } = createService();
+    const { service, prisma, tenantScope, dictionaryCacheService } =
+      createService();
     prisma.dictionary.findFirst.mockResolvedValue(null);
     prisma.dictionary.create.mockResolvedValue({
       id: 'dict_common_status',
@@ -183,11 +189,12 @@ describe('DictionaryTypesService', () => {
       })
     });
     expect(tenantScope.resolveTenantValue).toHaveBeenCalled();
+    expect(dictionaryCacheService.refreshCacheSafely).toHaveBeenCalled();
     expect(response.data.id).toBe('dict_common_status');
   });
 
   it('updates root dictionary type and keeps parentId null', async () => {
-    const { service, prisma } = createService();
+    const { service, prisma, dictionaryCacheService } = createService();
     prisma.dictionary.findFirst
       .mockResolvedValueOnce({
         id: 'dict_common_status',
@@ -229,11 +236,13 @@ describe('DictionaryTypesService', () => {
         dictLabel: '系统通用状态'
       })
     });
+    expect(dictionaryCacheService.refreshCacheSafely).toHaveBeenCalled();
     expect(response.data.category).toBe('BIZ');
   });
 
   it('removes dictionary type and cascades child items', async () => {
-    const { service, prisma, dictionaryItemsService } = createService();
+    const { service, prisma, dictionaryItemsService, dictionaryCacheService } =
+      createService();
     prisma.dictionary.findFirst.mockResolvedValue({
       id: 'dict_common_status',
       parentId: null
@@ -271,6 +280,7 @@ describe('DictionaryTypesService', () => {
         }
       }
     });
+    expect(dictionaryCacheService.refreshCacheSafely).toHaveBeenCalled();
     expect(response.data).toBe(true);
   });
 });

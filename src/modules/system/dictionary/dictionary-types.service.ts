@@ -15,6 +15,7 @@ import {
   type DictionaryTypeListQueryDto,
   type UpdateDictionaryTypeDto
 } from './dictionary-types.dto';
+import { DictionaryCacheService } from './dictionary-cache.service';
 import type { DictionaryTypeNode } from './dictionary.models';
 import { DictionaryItemsService } from './dictionary-items.service';
 
@@ -23,6 +24,7 @@ export class DictionaryTypesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantScope: TenantPrismaScopeService,
+    private readonly dictionaryCacheService: DictionaryCacheService,
     private readonly dictionaryItemsService: DictionaryItemsService
   ) {}
 
@@ -145,11 +147,12 @@ export class DictionaryTypesService {
       }
     );
 
+    await this.dictionaryCacheService.refreshCacheSafely();
     return successResponse(true);
   }
 
-  create(dto: CreateDictionaryDto) {
-    return this.prisma.dictionary.create({
+  async create(dto: CreateDictionaryDto) {
+    const created = await this.prisma.dictionary.create({
       data: {
         id: createDictionaryId(dto.id),
         parentId: null,
@@ -168,10 +171,13 @@ export class DictionaryTypesService {
         updateUser: dto.updateUser ?? null
       }
     });
+
+    await this.dictionaryCacheService.refreshCacheSafely();
+    return created;
   }
 
-  update(id: string, dto: UpdateDictionaryDto) {
-    return this.prisma.dictionary.update({
+  async update(id: string, dto: UpdateDictionaryDto) {
+    const updated = await this.prisma.dictionary.update({
       where: { id },
       data: {
         parentId:
@@ -193,15 +199,13 @@ export class DictionaryTypesService {
         updateUser: dto.updateUser
       }
     });
+
+    await this.dictionaryCacheService.refreshCacheSafely();
+    return updated;
   }
 
   toNode(row: Dictionary): DictionaryTypeNode {
-    const {
-      createdAt: _createdAt,
-      updatedAt: _updatedAt,
-      parentId: _parentId,
-      ...rest
-    } = row;
+    const { parentId: _parentId, ...rest } = row;
 
     return {
       ...rest,

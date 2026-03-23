@@ -10,6 +10,7 @@ import {
   DictionaryPageQueryDto,
   UpdateDictionaryDto
 } from './dictionary.dto';
+import { DictionaryCacheService } from './dictionary-cache.service';
 import type { DictionaryNode } from './dictionary.models';
 import { DictionaryItemsService } from './dictionary-items.service';
 import { DictionaryTypesService } from './dictionary-types.service';
@@ -19,12 +20,13 @@ export class DictionaryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantScope: TenantPrismaScopeService,
+    private readonly dictionaryCacheService: DictionaryCacheService,
     private readonly dictionaryTypesService: DictionaryTypesService,
     private readonly dictionaryItemsService: DictionaryItemsService
   ) {}
 
   async getTree() {
-    const tree = await this.getDictionaryTree();
+    const tree = await this.dictionaryCacheService.getTree();
     return successResponse(tree);
   }
 
@@ -33,7 +35,7 @@ export class DictionaryService {
     const size = query.size || 10;
     const id = query.id?.trim() || '';
     const searchKey = query.searchKey?.trim() || '';
-    const tree = await this.getDictionaryTree();
+    const tree = await this.dictionaryCacheService.getTree();
 
     let recordsAll = this.sortByCode(this.treeToData(tree));
 
@@ -131,29 +133,13 @@ export class DictionaryService {
       }
     );
 
+    await this.dictionaryCacheService.refreshCacheSafely();
     return successResponse(true);
   }
 
-  private async getDictionaryTree() {
-    const [types, items] = await Promise.all([
-      this.dictionaryTypesService.findMany(),
-      this.dictionaryItemsService.findMany()
-    ]);
-    const itemForest = this.dictionaryItemsService.buildForest(items);
-
-    return types.map((row) => {
-      const node = this.dictionaryTypesService.toNode(row);
-      const children = itemForest.get(node.id);
-
-      if (!children?.length) {
-        return node;
-      }
-
-      return {
-        ...node,
-        children
-      };
-    });
+  async refreshCache() {
+    const result = await this.dictionaryCacheService.refreshCache();
+    return successResponse(result);
   }
 
   private async ensureDictionaryExists(id: string) {

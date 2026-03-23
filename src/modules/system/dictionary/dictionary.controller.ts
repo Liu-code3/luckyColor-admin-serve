@@ -27,6 +27,7 @@ import {
   DictionaryPageQueryDto,
   UpdateDictionaryDto
 } from './dictionary.dto';
+import { DictionaryCacheRefreshResponseDto } from './dictionary-cache.response.dto';
 import {
   DictionaryItemResponseDto,
   DictionaryPageResponseDto,
@@ -241,6 +242,28 @@ export class DictionaryController {
   @Post()
   create(@Body() dto: CreateDictionaryDto) {
     return this.dictionaryService.create(dto);
+  }
+
+  @ApiOperation({
+    summary: '刷新字典缓存',
+    description: '将当前租户视角下的字典树重新写入 Redis 缓存。'
+  })
+  @ApiSuccessResponse({
+    type: DictionaryCacheRefreshResponseDto,
+    description: '字典缓存刷新结果',
+    dataExample: {
+      cacheKey: 'system:dictionaries:tree:tenant_001',
+      count: 18,
+      refreshedAt: '2026-03-24T10:00:00.000Z'
+    }
+  })
+  @SystemLog({
+    module: '字典管理',
+    action: '刷新字典缓存'
+  })
+  @Post('refresh-cache')
+  refreshCache() {
+    return this.dictionaryService.refreshCache();
   }
 
   @ApiOperation({

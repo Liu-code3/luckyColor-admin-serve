@@ -14,8 +14,12 @@ describe('DictionaryService', () => {
     const tenantScope = {
       buildWhere: jest.fn().mockImplementation((where) => where)
     };
+    const dictionaryCacheService = {
+      getTree: jest.fn(),
+      refreshCache: jest.fn(),
+      refreshCacheSafely: jest.fn()
+    };
     const dictionaryTypesService = {
-      findMany: jest.fn(),
       toNode: jest.fn(),
       create: jest.fn(),
       update: jest.fn()
@@ -41,10 +45,12 @@ describe('DictionaryService', () => {
       service: new DictionaryService(
         prisma as never,
         tenantScope as never,
+        dictionaryCacheService as never,
         dictionaryTypesService as never,
         dictionaryItemsService as never
       ),
       prisma,
+      dictionaryCacheService,
       dictionaryTypesService,
       dictionaryItemsService
     };
@@ -137,64 +143,52 @@ describe('DictionaryService', () => {
     expect(response.data.parentId).toBe('dict_type');
   });
 
-  it('assembles tree from type and item services', async () => {
-    const { service, dictionaryTypesService, dictionaryItemsService } =
+  it('reads tree from cache service', async () => {
+    const { service, dictionaryCacheService } = createService();
+    dictionaryCacheService.getTree.mockResolvedValue([
+      {
+        id: 'dict_type',
+        children: [expect.objectContaining({ id: 'dict_item' })]
+      }
+    ]);
+
+    const response = await service.getTree();
+
+    expect(dictionaryCacheService.getTree).toHaveBeenCalled();
+    expect(response.data).toEqual([
+      expect.objectContaining({
+        id: 'dict_type'
+      })
+    ]);
+  });
+
+  it('refreshes cache after removing dictionary nodes', async () => {
+    const { service, prisma, dictionaryItemsService, dictionaryCacheService } =
       createService();
-    dictionaryTypesService.findMany.mockResolvedValue([
+    prisma.dictionary.findMany.mockResolvedValue([
       {
         id: 'dict_type',
         parentId: null
-      }
-    ]);
-    dictionaryItemsService.findMany.mockResolvedValue([
+      },
       {
         id: 'dict_item',
         parentId: 'dict_type'
       }
     ]);
-    dictionaryTypesService.toNode.mockReturnValue({
-      id: 'dict_type',
-      parentId: '0',
-      weight: 1,
-      name: '状态字典',
-      tenantId: 'tenant_001',
-      dictLabel: '状态字典',
-      dictValue: 'STATUS',
-      category: 'FRM',
-      sortCode: 1,
-      deleteFlag: '0'
+    dictionaryItemsService.toNode.mockImplementation((item) => ({
+      ...item,
+      parentId: item.parentId ?? '0'
+    }));
+    dictionaryItemsService.collectIds.mockReturnValue(['dict_type', 'dict_item']);
+
+    const response = await service.remove('dict_type');
+
+    expect(prisma.dictionary.deleteMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ['dict_type', 'dict_item'] }
+      }
     });
-    dictionaryItemsService.buildForest.mockReturnValue(
-      new Map([
-        [
-          'dict_type',
-          [
-            {
-              id: 'dict_item',
-              parentId: 'dict_type',
-              weight: 10,
-              name: '启用',
-              tenantId: 'tenant_001',
-              dictLabel: '启用',
-              dictValue: 'ENABLE',
-              category: 'FRM',
-              sortCode: 10,
-              deleteFlag: '0'
-            }
-          ]
-        ]
-      ])
-    );
-
-    const response = await service.getTree();
-
-    expect(dictionaryTypesService.findMany).toHaveBeenCalled();
-    expect(dictionaryItemsService.findMany).toHaveBeenCalled();
-    expect(response.data).toEqual([
-      expect.objectContaining({
-        id: 'dict_type',
-        children: [expect.objectContaining({ id: 'dict_item' })]
-      })
-    ]);
+    expect(dictionaryCacheService.refreshCacheSafely).toHaveBeenCalled();
+    expect(response.data).toBe(true);
   });
 });

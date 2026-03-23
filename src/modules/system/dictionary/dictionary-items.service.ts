@@ -16,13 +16,16 @@ import {
   type DictionaryItemTreeQueryDto,
   type UpdateDictionaryItemStatusDto
 } from './dictionary-items.dto';
+import { DictionaryCacheService } from './dictionary-cache.service';
+import type { DictionaryNode } from './dictionary.models';
 import type { DictionaryItemNode } from './dictionary.models';
 
 @Injectable()
 export class DictionaryItemsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly tenantScope: TenantPrismaScopeService
+    private readonly tenantScope: TenantPrismaScopeService,
+    private readonly dictionaryCacheService: DictionaryCacheService
   ) {}
 
   findMany() {
@@ -39,12 +42,10 @@ export class DictionaryItemsService {
   }
 
   async list(query: DictionaryItemListQueryDto) {
-    await this.ensureTypeExists(query.typeId);
-
-    const rows = await this.findMany();
-    const scopedRows = this.filterRowsByType(
+    const tree = await this.dictionaryCacheService.getTree();
+    const scopedRows = this.filterTreeByType(
       query.typeId,
-      rows,
+      tree,
       query.status,
       query.keyword
     );
@@ -61,13 +62,13 @@ export class DictionaryItemsService {
   }
 
   async tree(query: DictionaryItemTreeQueryDto) {
-    await this.ensureTypeExists(query.typeId);
+    const tree = await this.dictionaryCacheService.getTree();
+    const typeNode = tree.find((item) => item.id === query.typeId);
+    if (!typeNode) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
+    }
 
-    const rows = await this.findMany();
-    const scopedRows = this.filterRowsByType(query.typeId, rows, query.status);
-    const itemForest = this.buildForest(scopedRows);
-
-    return successResponse(itemForest.get(query.typeId) ?? []);
+    return successResponse(this.filterTreeNodes(typeNode.children || [], query.status));
   }
 
   async detail(id: string) {
@@ -119,6 +120,7 @@ export class DictionaryItemsService {
       }
     );
 
+    await this.dictionaryCacheService.refreshCacheSafely();
     return successResponse(this.toItemResponse(updated));
   }
 
@@ -132,11 +134,12 @@ export class DictionaryItemsService {
       }
     });
 
+    await this.dictionaryCacheService.refreshCacheSafely();
     return successResponse(this.toItemResponse(updated));
   }
 
-  create(dto: CreateDictionaryDto) {
-    return this.prisma.dictionary.create({
+  async create(dto: CreateDictionaryDto) {
+    const created = await this.prisma.dictionary.create({
       data: {
         id: createDictionaryId(dto.id),
         parentId: dto.parentId && dto.parentId !== '0' ? dto.parentId : null,
@@ -155,10 +158,13 @@ export class DictionaryItemsService {
         updateUser: dto.updateUser ?? null
       }
     });
+
+    await this.dictionaryCacheService.refreshCacheSafely();
+    return created;
   }
 
-  update(id: string, dto: UpdateDictionaryDto) {
-    return this.prisma.dictionary.update({
+  async update(id: string, dto: UpdateDictionaryDto) {
+    const updated = await this.prisma.dictionary.update({
       where: { id },
       data: {
         parentId:
@@ -182,15 +188,13 @@ export class DictionaryItemsService {
         updateUser: dto.updateUser
       }
     });
+
+    await this.dictionaryCacheService.refreshCacheSafely();
+    return updated;
   }
 
   toNode(row: Dictionary): DictionaryItemNode {
-    const {
-      createdAt: _createdAt,
-      updatedAt: _updatedAt,
-      parentId,
-      ...rest
-    } = row;
+    const { parentId, ...rest } = row;
     return {
       ...rest,
       parentId: parentId ?? '0'
@@ -253,50 +257,19 @@ export class DictionaryItemsService {
     return ids;
   }
 
-  private async ensureTypeExists(typeId: string) {
-    const type = await this.prisma.dictionary.findFirst({
-      where: this.tenantScope.buildWhere(
-        {
-          id: typeId,
-          parentId: null
-        },
-        'tenantId',
-        {
-          includeGlobal: true
-        }
-      ) as Prisma.DictionaryWhereInput
-    });
-
-    if (!type) {
-      throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
-    }
-
-    return type;
-  }
-
-  private async ensureItemExists(id: string) {
-    const item = await this.findFirst({ id });
-    if (!item) {
-      throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
-    }
-
-    return item;
-  }
-
-  private filterRowsByType(
+  private filterTreeByType(
     typeId: string,
-    rows: Dictionary[],
+    tree: DictionaryNode[],
     status?: boolean,
     keyword?: string
   ) {
-    const itemNodes = rows.map((item) => this.toNode(item));
-    const ids = new Set(
-      this.collectIds(typeId, itemNodes).filter((itemId) => itemId !== typeId)
-    );
-    const normalizedKeyword = keyword?.trim();
+    const typeNode = tree.find((item) => item.id === typeId);
+    if (!typeNode) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
+    }
 
-    return rows
-      .filter((item) => ids.has(item.id))
+    const normalizedKeyword = keyword?.trim();
+    return this.flattenTree(typeNode.children || [])
       .filter((item) => status === undefined || item.status === status)
       .filter((item) => {
         if (!normalizedKeyword) {
@@ -308,13 +281,50 @@ export class DictionaryItemsService {
           item.dictLabel.includes(normalizedKeyword) ||
           item.dictValue.includes(normalizedKeyword)
         );
-      })
-      .sort((left, right) => {
-        if (left.sortCode === right.sortCode) {
-          return left.name.localeCompare(right.name, 'zh-CN');
+      });
+  }
+
+  private async ensureItemExists(id: string) {
+    const item = await this.findFirst({ id });
+    if (!item) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
+    }
+
+    return item;
+  }
+
+  private flattenTree(nodes: DictionaryNode[]) {
+    const result: DictionaryNode[] = [];
+
+    const walk = (items: DictionaryNode[]) => {
+      items.forEach((item) => {
+        const clone = { ...item };
+        result.push(clone);
+        if (clone.children?.length) {
+          walk(clone.children);
+          delete clone.children;
+        }
+      });
+    };
+
+    walk(nodes);
+    return result;
+  }
+
+  private filterTreeNodes(nodes: DictionaryNode[], status?: boolean): DictionaryNode[] {
+    return nodes
+      .filter((item) => status === undefined || item.status === status)
+      .map((item) => {
+        const children = this.filterTreeNodes(item.children || [], status);
+        if (!children.length) {
+          const { children: _children, ...rest } = item;
+          return rest;
         }
 
-        return left.sortCode - right.sortCode;
+        return {
+          ...item,
+          children
+        };
       });
   }
 

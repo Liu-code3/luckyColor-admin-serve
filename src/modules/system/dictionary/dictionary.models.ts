@@ -1,9 +1,6 @@
 import type { Dictionary } from '../../../generated/prisma';
 
-export type DictionaryNode = Omit<
-  Dictionary,
-  'parentId' | 'createdAt' | 'updatedAt'
-> & {
+export type DictionaryNode = Omit<Dictionary, 'parentId'> & {
   parentId: string;
   children?: DictionaryNode[];
 };
