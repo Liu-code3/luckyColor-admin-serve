@@ -3,11 +3,11 @@ import { BusinessException } from '../api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../api/error-codes';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 
-function createHost() {
+function createHost(url = '/api/test', method = 'GET') {
   const json = jest.fn();
   const status = jest.fn().mockReturnValue({ json });
   const response = { status };
-  const request = { method: 'GET', url: '/api/test' };
+  const request = { method, url };
 
   const host = {
     switchToHttp: () => ({
@@ -65,6 +65,53 @@ describe('AllExceptionsFilter', () => {
     expect(json).toHaveBeenCalledWith({
       code: HttpStatus.INTERNAL_SERVER_ERROR,
       msg: '服务器内部错误',
+      data: null
+    });
+  });
+
+  it('skips logging extension scheme 404 requests', () => {
+    const filter = new AllExceptionsFilter();
+    const loggerErrorSpy = jest
+      .spyOn(filter['logger'], 'error')
+      .mockImplementation(() => undefined);
+    const { host, status, json } = createHost(
+      '/chrome-extension://oglffgiaiekgeicdgkdlnlkhliajdlja/injectScript.js'
+    );
+
+    filter.catch(
+      new HttpException('Cannot GET extension resource', HttpStatus.NOT_FOUND),
+      host
+    );
+
+    expect(loggerErrorSpy).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(json).toHaveBeenCalledWith({
+      code: HttpStatus.NOT_FOUND,
+      msg: '请求的资源不存在',
+      data: null
+    });
+  });
+
+  it('skips logging dashboard heartbeat auth expiry noise', () => {
+    const filter = new AllExceptionsFilter();
+    const loggerErrorSpy = jest
+      .spyOn(filter['logger'], 'error')
+      .mockImplementation(() => undefined);
+    const { host, status, json } = createHost(
+      '/api/dashboard/track-visit',
+      'POST'
+    );
+
+    filter.catch(
+      new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED),
+      host
+    );
+
+    expect(loggerErrorSpy).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+    expect(json).toHaveBeenCalledWith({
+      code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+      msg: '登录已过期，请重新登录',
       data: null
     });
   });

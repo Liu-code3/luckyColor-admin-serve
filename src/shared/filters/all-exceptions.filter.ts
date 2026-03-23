@@ -24,10 +24,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    this.logger.error(
-      `Request failed: ${request.method} ${request.url} -> ${status}`,
-      exception instanceof Error ? exception.stack : JSON.stringify(exception)
-    );
+    if (!this.shouldIgnoreRequestLog(request, status, exception)) {
+      this.logger.error(
+        `Request failed: ${request.method} ${request.url} -> ${status}`,
+        exception instanceof Error ? exception.stack : JSON.stringify(exception)
+      );
+    }
 
     if (exception instanceof BusinessException) {
       response.status(status).json(errorResponse(exception.code));
@@ -42,5 +44,31 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     response.status(status).json(errorResponse(status));
+  }
+
+  private shouldIgnoreRequestLog(
+    request: { method?: string; url?: string },
+    status: number,
+    exception: unknown
+  ) {
+    if (
+      status === HttpStatus.NOT_FOUND &&
+      /^\/(?:chrome|moz|safari)-extension:\/\//.test(request.url ?? '')
+    ) {
+      return true;
+    }
+
+    if (
+      request.method === 'POST' &&
+      request.url === '/api/dashboard/track-visit' &&
+      status === HttpStatus.UNAUTHORIZED &&
+      exception instanceof BusinessException &&
+      (exception.code === BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED ||
+        exception.code === BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID)
+    ) {
+      return true;
+    }
+
+    return false;
   }
 }
