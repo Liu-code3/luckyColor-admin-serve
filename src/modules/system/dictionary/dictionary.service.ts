@@ -6,25 +6,21 @@ import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
-  createDictionaryId,
   CreateDictionaryDto,
   DictionaryPageQueryDto,
   UpdateDictionaryDto
 } from './dictionary.dto';
-
-type DictionaryNode = Omit<
-  Dictionary,
-  'parentId' | 'createdAt' | 'updatedAt'
-> & {
-  parentId: string;
-  children?: DictionaryNode[];
-};
+import type { DictionaryNode } from './dictionary.models';
+import { DictionaryItemsService } from './dictionary-items.service';
+import { DictionaryTypesService } from './dictionary-types.service';
 
 @Injectable()
 export class DictionaryService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly tenantScope: TenantPrismaScopeService
+    private readonly tenantScope: TenantPrismaScopeService,
+    private readonly dictionaryTypesService: DictionaryTypesService,
+    private readonly dictionaryItemsService: DictionaryItemsService
   ) {}
 
   async getTree() {
@@ -75,24 +71,10 @@ export class DictionaryService {
   }
 
   async create(dto: CreateDictionaryDto) {
-    const record = await this.prisma.dictionary.create({
-      data: {
-        id: createDictionaryId(dto.id),
-        parentId: dto.parentId && dto.parentId !== '0' ? dto.parentId : null,
-        weight: dto.weight,
-        name: dto.name,
-        tenantId: this.tenantScope.resolveTenantValue(dto.tenantId),
-        dictLabel: dto.dictLabel,
-        dictValue: dto.dictValue,
-        category: dto.category,
-        sortCode: dto.sortCode,
-        deleteFlag: dto.deleteFlag,
-        createTime: dto.createTime ?? null,
-        createUser: dto.createUser ?? null,
-        updateTime: dto.updateTime ?? null,
-        updateUser: dto.updateUser ?? null
-      }
-    });
+    const record =
+      dto.parentId && dto.parentId !== '0'
+        ? await this.dictionaryItemsService.create(dto)
+        : await this.dictionaryTypesService.create(dto);
 
     return successResponse(this.toNode(record));
   }
@@ -100,29 +82,16 @@ export class DictionaryService {
   async update(id: string, dto: UpdateDictionaryDto) {
     await this.ensureDictionaryExists(id);
 
-    const record = await this.prisma.dictionary.update({
-      where: { id },
-      data: {
-        parentId:
-          dto.parentId === undefined
-            ? undefined
-            : dto.parentId && dto.parentId !== '0'
-              ? dto.parentId
-              : null,
-        weight: dto.weight,
-        name: dto.name,
-        tenantId: this.tenantScope.resolveTenantValue(dto.tenantId),
-        dictLabel: dto.dictLabel,
-        dictValue: dto.dictValue,
-        category: dto.category,
-        sortCode: dto.sortCode,
-        deleteFlag: dto.deleteFlag,
-        createTime: dto.createTime,
-        createUser: dto.createUser,
-        updateTime: dto.updateTime,
-        updateUser: dto.updateUser
-      }
+    const current = await this.prisma.dictionary.findUnique({
+      where: { id }
     });
+    const nextIsItem =
+      dto.parentId !== undefined
+        ? Boolean(dto.parentId && dto.parentId !== '0')
+        : Boolean(current?.parentId);
+    const record = nextIsItem
+      ? await this.dictionaryItemsService.update(id, dto)
+      : await this.dictionaryTypesService.update(id, dto);
 
     return successResponse(this.toNode(record));
   }
@@ -135,13 +104,22 @@ export class DictionaryService {
         });
         const target = rows.find((item) => item.id === id);
         if (!target) {
-          throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
+          throw new BusinessException(
+            BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND
+          );
         }
 
-        const ids = this.collectDictionaryIds(
-          id,
-          rows.map((item) => this.toNode(item))
-        );
+        const itemNodes = rows
+          .filter((item) => item.parentId !== null)
+          .map((item) => this.dictionaryItemsService.toNode(item));
+        const ids = target.parentId
+          ? this.dictionaryItemsService.collectIds(id, itemNodes)
+          : [
+              id,
+              ...this.dictionaryItemsService
+                .collectIds(id, itemNodes)
+                .filter((itemId) => itemId !== id)
+            ];
         await tx.dictionary.deleteMany({
           where: {
             id: { in: ids }
@@ -157,12 +135,25 @@ export class DictionaryService {
   }
 
   private async getDictionaryTree() {
-    const rows = await this.prisma.dictionary.findMany({
-      where: this.buildDictionaryWhere(),
-      orderBy: [{ sortCode: 'asc' }, { name: 'asc' }]
-    });
+    const [types, items] = await Promise.all([
+      this.dictionaryTypesService.findMany(),
+      this.dictionaryItemsService.findMany()
+    ]);
+    const itemForest = this.dictionaryItemsService.buildForest(items);
 
-    return this.buildTree(rows.map((row) => this.toNode(row)));
+    return types.map((row) => {
+      const node = this.dictionaryTypesService.toNode(row);
+      const children = itemForest.get(node.id);
+
+      if (!children?.length) {
+        return node;
+      }
+
+      return {
+        ...node,
+        children
+      };
+    });
   }
 
   private async ensureDictionaryExists(id: string) {
@@ -182,60 +173,9 @@ export class DictionaryService {
   }
 
   private toNode(row: Dictionary): DictionaryNode {
-    const {
-      createdAt: _createdAt,
-      updatedAt: _updatedAt,
-      parentId,
-      ...rest
-    } = row;
-    return {
-      ...rest,
-      parentId: parentId ?? '0'
-    };
-  }
-
-  private buildTree(list: DictionaryNode[]) {
-    const nodeMap = new Map<string, DictionaryNode>();
-    const roots: DictionaryNode[] = [];
-
-    list.forEach((item) => {
-      nodeMap.set(item.id, {
-        ...item,
-        children: []
-      });
-    });
-
-    nodeMap.forEach((item) => {
-      if (item.parentId === '0') {
-        roots.push(item);
-        return;
-      }
-
-      const parent = nodeMap.get(item.parentId);
-      if (parent) {
-        parent.children = parent.children || [];
-        parent.children.push(item);
-      } else {
-        roots.push(item);
-      }
-    });
-
-    return roots.map((item) => this.pruneEmptyChildren(item));
-  }
-
-  private pruneEmptyChildren(node: DictionaryNode): DictionaryNode {
-    const children = (node.children || []).map((child) =>
-      this.pruneEmptyChildren(child)
-    );
-    if (!children.length) {
-      const { children: _children, ...rest } = node;
-      return rest;
-    }
-
-    return {
-      ...node,
-      children
-    };
+    return row.parentId
+      ? this.dictionaryItemsService.toNode(row)
+      : this.dictionaryTypesService.toNode(row);
   }
 
   private treeToData(tree: DictionaryNode[]) {
@@ -350,19 +290,5 @@ export class DictionaryService {
 
     walk(list);
     return dataArr;
-  }
-
-  private collectDictionaryIds(rootId: string, rows: DictionaryNode[]) {
-    const ids = [rootId];
-    const walk = (parentId: string) => {
-      rows
-        .filter((item) => item.parentId === parentId)
-        .forEach((item) => {
-          ids.push(item.id);
-          walk(item.id);
-        });
-    };
-    walk(rootId);
-    return ids;
   }
 }
