@@ -49,6 +49,21 @@ ALTER TABLE `dashboard_visits`
   MODIFY COLUMN `route_icon` VARCHAR(191) NULL COMMENT 'route icon',
   MODIFY COLUMN `visited_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'visited at';
 
+ALTER TABLE `system_logs`
+  COMMENT = 'system operation logs',
+  MODIFY COLUMN `id` VARCHAR(191) NOT NULL COMMENT 'system log id',
+  MODIFY COLUMN `tenant_id` VARCHAR(191) NOT NULL COMMENT 'tenant id',
+  MODIFY COLUMN `operator_user_id` VARCHAR(191) NOT NULL COMMENT 'operator user id',
+  MODIFY COLUMN `operator_name` VARCHAR(191) NOT NULL COMMENT 'operator name',
+  MODIFY COLUMN `module` VARCHAR(191) NOT NULL COMMENT 'log module',
+  MODIFY COLUMN `content` TEXT NOT NULL COMMENT 'log content',
+  MODIFY COLUMN `ip_address` VARCHAR(191) NOT NULL COMMENT 'ip address',
+  MODIFY COLUMN `region` VARCHAR(191) NOT NULL COMMENT 'region',
+  MODIFY COLUMN `browser_version` VARCHAR(191) NOT NULL COMMENT 'browser version',
+  MODIFY COLUMN `terminal_system` VARCHAR(191) NOT NULL COMMENT 'terminal system',
+  MODIFY COLUMN `created_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at',
+  MODIFY COLUMN `updated_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'updated at';
+
 ALTER TABLE `users`
   COMMENT = 'system users',
   MODIFY COLUMN `id` VARCHAR(191) NOT NULL COMMENT 'user id',

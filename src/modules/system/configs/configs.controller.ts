@@ -31,6 +31,7 @@ import {
   ConfigItemResponseDto,
   ConfigPageResponseDto
 } from './configs.response.dto';
+import { SystemLog } from '../system-logs/system-log.decorator';
 import { ConfigsService } from './configs.service';
 
 @ApiTags('系统管理 / 系统配置')
@@ -168,6 +169,11 @@ export class ConfigsController {
       }
     ]
   })
+  @SystemLog({
+    module: '系统配置',
+    action: '创建配置',
+    targets: [{ source: 'body', key: 'configKey', label: 'configKey' }]
+  })
   @Post()
   create(@Body() dto: CreateConfigDto) {
     return this.configsService.create(dto);
@@ -185,6 +191,10 @@ export class ConfigsController {
       count: 3,
       refreshedAt: '2026-03-22T16:00:00.000Z'
     }
+  })
+  @SystemLog({
+    module: '系统配置',
+    action: '刷新配置缓存'
   })
   @Post('refresh-cache')
   refreshCache() {
@@ -242,6 +252,14 @@ export class ConfigsController {
       }
     ]
   })
+  @SystemLog({
+    module: '系统配置',
+    action: '更新配置',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'configKey', label: 'configKey' }
+    ]
+  })
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateConfigDto) {
     return this.configsService.update(id, dto);
@@ -269,6 +287,11 @@ export class ConfigsController {
         code: BUSINESS_ERROR_CODES.CONFIG_NOT_FOUND
       }
     ]
+  })
+  @SystemLog({
+    module: '系统配置',
+    action: '删除配置',
+    targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
   @Delete(':id')
   remove(@Param('id') id: string) {

@@ -32,6 +32,7 @@ import {
   DepartmentPageResponseDto,
   DepartmentTreeItemResponseDto
 } from './departments.response.dto';
+import { SystemLog } from '../system-logs/system-log.decorator';
 import { DepartmentsService } from './departments.service';
 
 @ApiTags('系统管理 / 部门管理')
@@ -225,6 +226,11 @@ export class DepartmentsController {
       }
     ]
   })
+  @SystemLog({
+    module: '部门管理',
+    action: '创建部门',
+    targets: [{ source: 'body', key: 'name', label: 'name' }]
+  })
   @Post()
   create(@Body() dto: CreateDepartmentDto) {
     return this.departmentsService.create(dto);
@@ -284,6 +290,14 @@ export class DepartmentsController {
       }
     ]
   })
+  @SystemLog({
+    module: '部门管理',
+    action: '更新部门',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'name', label: 'name' }
+    ]
+  })
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDepartmentDto) {
     return this.departmentsService.update(id, dto);
@@ -311,6 +325,11 @@ export class DepartmentsController {
         code: BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND
       }
     ]
+  })
+  @SystemLog({
+    module: '部门管理',
+    action: '删除部门',
+    targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {

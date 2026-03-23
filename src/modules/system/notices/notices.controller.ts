@@ -27,6 +27,7 @@ import {
   UpdateNoticeDto
 } from './notices.dto';
 import { NoticeItemResponseDto, NoticePageResponseDto } from './notices.response.dto';
+import { SystemLog } from '../system-logs/system-log.decorator';
 import { NoticesService } from './notices.service';
 
 @ApiTags('系统管理 / 通知公告')
@@ -154,6 +155,11 @@ export class NoticesController {
       }
     ]
   })
+  @SystemLog({
+    module: '通知公告',
+    action: '创建公告',
+    targets: [{ source: 'body', key: 'title', label: 'title' }]
+  })
   @Post()
   create(@Body() dto: CreateNoticeDto) {
     return this.noticesService.create(dto);
@@ -200,6 +206,14 @@ export class NoticesController {
       }
     ]
   })
+  @SystemLog({
+    module: '通知公告',
+    action: '更新公告',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'title', label: 'title' }
+    ]
+  })
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateNoticeDto) {
     return this.noticesService.update(id, dto);
@@ -227,6 +241,11 @@ export class NoticesController {
         code: BUSINESS_ERROR_CODES.NOTICE_NOT_FOUND
       }
     ]
+  })
+  @SystemLog({
+    module: '通知公告',
+    action: '删除公告',
+    targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
   @Delete(':id')
   remove(@Param('id') id: string) {

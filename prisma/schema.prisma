@@ -83,6 +83,27 @@ model DashboardVisit {
   @@map("dashboard_visits")
 }
 
+model SystemLog {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  operatorUserId String   @map("operator_user_id")
+  operatorName   String   @map("operator_name")
+  module         String
+  content        String   @db.Text
+  ipAddress      String   @map("ip_address")
+  region         String
+  browserVersion String   @map("browser_version")
+  terminalSystem String   @map("terminal_system")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamp(3)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, module, createdAt])
+  @@index([tenantId, operatorUserId, createdAt])
+  @@index([tenantId, operatorName, createdAt])
+  @@map("system_logs")
+}
+
 model User {
   id        String     @id @default(cuid())
   tenantId  String     @map("tenant_id")

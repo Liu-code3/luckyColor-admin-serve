@@ -31,6 +31,7 @@ import {
   DictionaryPageResponseDto,
   DictionaryTreeItemResponseDto
 } from './dictionary.response.dto';
+import { SystemLog } from '../system-logs/system-log.decorator';
 import { DictionaryService } from './dictionary.service';
 
 @ApiTags('系统管理 / 字典管理')
@@ -230,6 +231,11 @@ export class DictionaryController {
       }
     ]
   })
+  @SystemLog({
+    module: '字典管理',
+    action: '创建字典',
+    targets: [{ source: 'body', key: 'dictLabel', label: 'dictLabel' }]
+  })
   @Post()
   create(@Body() dto: CreateDictionaryDto) {
     return this.dictionaryService.create(dto);
@@ -281,6 +287,14 @@ export class DictionaryController {
       }
     ]
   })
+  @SystemLog({
+    module: '字典管理',
+    action: '更新字典',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'dictLabel', label: 'dictLabel' }
+    ]
+  })
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateDictionaryDto) {
     return this.dictionaryService.update(id, dto);
@@ -308,6 +322,11 @@ export class DictionaryController {
         code: BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND
       }
     ]
+  })
+  @SystemLog({
+    module: '字典管理',
+    action: '删除字典',
+    targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
   @Delete(':id')
   remove(@Param('id') id: string) {

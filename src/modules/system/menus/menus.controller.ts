@@ -28,6 +28,7 @@ import {
   MenuPageResponseDto,
   MenuTreeItemResponseDto
 } from './menus.response.dto';
+import { SystemLog } from '../system-logs/system-log.decorator';
 import { MenusService } from './menus.service';
 
 @ApiTags('系统管理 / 菜单管理')
@@ -240,6 +241,11 @@ export class MenusController {
       }
     ]
   })
+  @SystemLog({
+    module: '菜单管理',
+    action: '创建菜单',
+    targets: [{ source: 'body', key: 'title', label: 'title' }]
+  })
   @Post()
   create(@Body() dto: CreateMenuDto) {
     return this.menusService.create(dto);
@@ -296,6 +302,14 @@ export class MenusController {
       }
     ]
   })
+  @SystemLog({
+    module: '菜单管理',
+    action: '更新菜单',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'title', label: 'title' }
+    ]
+  })
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateMenuDto) {
     return this.menusService.update(id, dto);
@@ -323,6 +337,11 @@ export class MenusController {
         code: BUSINESS_ERROR_CODES.MENU_NOT_FOUND
       }
     ]
+  })
+  @SystemLog({
+    module: '菜单管理',
+    action: '删除菜单',
+    targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {

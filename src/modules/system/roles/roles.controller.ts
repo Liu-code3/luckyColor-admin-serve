@@ -35,6 +35,7 @@ import {
   RoleMenuAssignmentResponseDto,
   RolePageResponseDto
 } from './roles.response.dto';
+import { SystemLog } from '../system-logs/system-log.decorator';
 import { RolesService } from './roles.service';
 
 @ApiTags('系统管理 / 角色管理')
@@ -294,6 +295,11 @@ export class RolesController {
       }
     ]
   })
+  @SystemLog({
+    module: '角色管理',
+    action: '创建角色',
+    targets: [{ source: 'body', key: 'code', label: 'code' }]
+  })
   @Post()
   create(@Body() dto: CreateRoleDto) {
     return this.rolesService.create(dto);
@@ -363,6 +369,14 @@ export class RolesController {
         name: 'invalidParams',
         code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
       }
+    ]
+  })
+  @SystemLog({
+    module: '角色管理',
+    action: '更新角色',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'code', label: 'code' }
     ]
   })
   @Patch(':id')
@@ -435,6 +449,14 @@ export class RolesController {
       }
     ]
   })
+  @SystemLog({
+    module: '角色管理',
+    action: '分配数据权限',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'dataScope', label: 'dataScope' }
+    ]
+  })
   @Put(':id/data-scope')
   assignDataScope(@Param('id') id: string, @Body() dto: AssignRoleDataScopeDto) {
     return this.rolesService.assignDataScope(id, dto);
@@ -504,6 +526,14 @@ export class RolesController {
       }
     ]
   })
+  @SystemLog({
+    module: '角色管理',
+    action: '分配角色菜单',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'menuIds', label: 'menuIds' }
+    ]
+  })
   @Put(':id/menus')
   assignMenus(@Param('id') id: string, @Body() dto: AssignRoleMenusDto) {
     return this.rolesService.assignMenus(id, dto);
@@ -531,6 +561,11 @@ export class RolesController {
         code: BUSINESS_ERROR_CODES.ROLE_NOT_FOUND
       }
     ]
+  })
+  @SystemLog({
+    module: '角色管理',
+    action: '删除角色',
+    targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
   @Delete(':id')
   remove(@Param('id') id: string) {

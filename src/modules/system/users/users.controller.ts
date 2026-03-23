@@ -33,6 +33,7 @@ import {
   UserPageResponseDto,
   UserRoleAssignmentResponseDto
 } from './users.response.dto';
+import { SystemLog } from '../system-logs/system-log.decorator';
 import { UsersService } from './users.service';
 
 @ApiTags('系统管理 / 用户管理')
@@ -187,6 +188,11 @@ export class UsersController {
       }
     ]
   })
+  @SystemLog({
+    module: '用户管理',
+    action: '创建用户',
+    targets: [{ source: 'body', key: 'username', label: 'username' }]
+  })
   @Post()
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
@@ -227,6 +233,14 @@ export class UsersController {
         name: 'invalidParams',
         code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
       }
+    ]
+  })
+  @SystemLog({
+    module: '用户管理',
+    action: '更新用户',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'username', label: 'username' }
     ]
   })
   @Patch(':id')
@@ -290,6 +304,14 @@ export class UsersController {
       }
     ]
   })
+  @SystemLog({
+    module: '用户管理',
+    action: '分配用户角色',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'roleIds', label: 'roleIds' }
+    ]
+  })
   @Put(':id/roles')
   assignRoles(@Param('id') id: string, @Body() dto: AssignUserRolesDto) {
     return this.usersService.assignRoles(id, dto);
@@ -317,6 +339,11 @@ export class UsersController {
         code: BUSINESS_ERROR_CODES.USER_NOT_FOUND
       }
     ]
+  })
+  @SystemLog({
+    module: '用户管理',
+    action: '删除用户',
+    targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
   @Delete(':id')
   remove(@Param('id') id: string) {
