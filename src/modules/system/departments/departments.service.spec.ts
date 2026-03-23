@@ -10,7 +10,9 @@ describe('DepartmentsService', () => {
       getTenantId: jest.fn().mockReturnValue(tenantId)
     } as never);
 
-  const createDepartment = (overrides: Partial<Record<string, unknown>> = {}) => ({
+  const createDepartment = (
+    overrides: Partial<Record<string, unknown>> = {}
+  ) => ({
     id: 101,
     tenantId: 'tenant_001',
     parentId: null,
@@ -31,6 +33,7 @@ describe('DepartmentsService', () => {
     const prisma = {
       department: {
         findFirst: jest.fn(),
+        findMany: jest.fn(),
         create: jest.fn(),
         update: jest.fn()
       },
@@ -62,6 +65,7 @@ describe('DepartmentsService', () => {
     );
 
     prisma.department.findFirst.mockResolvedValue(null);
+    prisma.department.findMany.mockResolvedValue([]);
     prisma.department.create.mockResolvedValue(
       createDepartment({
         sort: 0
@@ -107,6 +111,7 @@ describe('DepartmentsService', () => {
     );
 
     prisma.department.findFirst.mockResolvedValue(null);
+    prisma.department.findMany.mockResolvedValue([]);
     prisma.department.create.mockRejectedValue(
       createUniqueConstraintError(['tenant_id', 'code'])
     );
@@ -119,5 +124,121 @@ describe('DepartmentsService', () => {
     ).rejects.toThrow(
       new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS)
     );
+  });
+
+  it('rejects create when parent department does not exist', async () => {
+    const prisma = createPrismaMock();
+    const service = new DepartmentsService(
+      prisma as never,
+      createTenantScope()
+    );
+
+    prisma.department.findFirst.mockResolvedValue(null);
+    prisma.department.findMany.mockResolvedValue([
+      createDepartment({
+        id: 100,
+        name: 'Headquarters',
+        code: 'headquarters'
+      })
+    ]);
+
+    await expect(
+      service.create({
+        parentId: 999,
+        name: 'Product',
+        code: 'product'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND)
+    );
+
+    expect(prisma.department.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects update when moving a department under itself', async () => {
+    const prisma = createPrismaMock();
+    const service = new DepartmentsService(
+      prisma as never,
+      createTenantScope()
+    );
+
+    prisma.department.findFirst.mockResolvedValue(
+      createDepartment({
+        id: 110,
+        parentId: 100,
+        name: 'Product',
+        code: 'product'
+      })
+    );
+    prisma.department.findMany.mockResolvedValue([
+      createDepartment({
+        id: 100,
+        name: 'Headquarters',
+        code: 'headquarters'
+      }),
+      createDepartment({
+        id: 110,
+        parentId: 100,
+        name: 'Product',
+        code: 'product'
+      })
+    ]);
+
+    await expect(
+      service.update(110, {
+        parentId: 110
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_HIERARCHY_INVALID)
+    );
+
+    expect(prisma.department.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects update when moving a department under its descendant', async () => {
+    const prisma = createPrismaMock();
+    const service = new DepartmentsService(
+      prisma as never,
+      createTenantScope()
+    );
+
+    prisma.department.findFirst.mockResolvedValue(
+      createDepartment({
+        id: 100,
+        parentId: null,
+        name: 'Headquarters',
+        code: 'headquarters'
+      })
+    );
+    prisma.department.findMany.mockResolvedValue([
+      createDepartment({
+        id: 100,
+        parentId: null,
+        name: 'Headquarters',
+        code: 'headquarters'
+      }),
+      createDepartment({
+        id: 110,
+        parentId: 100,
+        name: 'Product',
+        code: 'product'
+      }),
+      createDepartment({
+        id: 120,
+        parentId: 110,
+        name: 'Frontend',
+        code: 'frontend'
+      })
+    ]);
+
+    await expect(
+      service.update(100, {
+        parentId: 120
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_HIERARCHY_INVALID)
+    );
+
+    expect(prisma.department.update).not.toHaveBeenCalled();
   });
 });

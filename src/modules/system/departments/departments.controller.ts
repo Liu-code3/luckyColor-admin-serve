@@ -219,6 +219,26 @@ export class DepartmentsController {
     ]
   })
   @ApiErrorResponse({
+    status: 404,
+    description: '父级部门不存在',
+    examples: [
+      {
+        name: 'parentDepartmentNotFound',
+        code: BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 400,
+    description: '部门层级关系不合法',
+    examples: [
+      {
+        name: 'departmentHierarchyInvalid',
+        code: BUSINESS_ERROR_CODES.DEPARTMENT_HIERARCHY_INVALID
+      }
+    ]
+  })
+  @ApiErrorResponse({
     status: 422,
     description: '创建参数校验失败',
     examples: [
@@ -264,7 +284,7 @@ export class DepartmentsController {
   })
   @ApiErrorResponse({
     status: 404,
-    description: '部门不存在',
+    description: '部门不存在，或父级部门不存在',
     examples: [
       {
         name: 'departmentNotFound',
@@ -279,6 +299,16 @@ export class DepartmentsController {
       {
         name: 'departmentCodeExists',
         code: BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 400,
+    description: '部门层级关系不合法',
+    examples: [
+      {
+        name: 'departmentHierarchyInvalid',
+        code: BUSINESS_ERROR_CODES.DEPARTMENT_HIERARCHY_INVALID
       }
     ]
   })

@@ -81,6 +81,11 @@ export class DepartmentsService {
       const department = await this.prisma.$transaction(
         async (tx) => {
           await this.ensureDepartmentCodeAvailable(dto.code, undefined, tx);
+          await this.validateDepartmentHierarchy(
+            dto.parentId ?? null,
+            undefined,
+            tx
+          );
 
           const created = await tx.department.create({
             data: {
@@ -121,10 +126,17 @@ export class DepartmentsService {
   }
 
   async update(id: number, dto: UpdateDepartmentDto) {
-    await this.ensureDepartmentExists(id);
+    const existing = await this.ensureDepartmentExists(id);
 
     if (dto.code) {
       await this.ensureDepartmentCodeAvailable(dto.code, id);
+    }
+
+    if (dto.parentId !== undefined) {
+      await this.validateDepartmentHierarchy(
+        dto.parentId === undefined ? existing.parentId : dto.parentId,
+        id
+      );
     }
 
     try {
@@ -158,7 +170,9 @@ export class DepartmentsService {
         });
         const target = records.find((item) => item.id === id);
         if (!target) {
-          throw new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND);
+          throw new BusinessException(
+            BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND
+          );
         }
 
         const ids = this.collectDepartmentIds(id, records);
@@ -181,6 +195,51 @@ export class DepartmentsService {
       where,
       'tenantId'
     ) as Prisma.DepartmentWhereInput;
+  }
+
+  private async validateDepartmentHierarchy(
+    parentId: number | null,
+    currentId?: number,
+    tx: Pick<PrismaService, 'department'> = this.prisma
+  ) {
+    const departments = await tx.department.findMany({
+      where: this.buildDepartmentWhere(),
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+    });
+
+    this.assertDepartmentHierarchy(parentId, departments, currentId);
+  }
+
+  private assertDepartmentHierarchy(
+    parentId: number | null,
+    departments: Array<{ id: number; parentId: number | null }>,
+    currentId?: number
+  ) {
+    if (parentId === null) {
+      return;
+    }
+
+    if (currentId !== undefined && parentId === currentId) {
+      throw new BusinessException(
+        BUSINESS_ERROR_CODES.DEPARTMENT_HIERARCHY_INVALID
+      );
+    }
+
+    const parent = departments.find((item) => item.id === parentId);
+    if (!parent) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND);
+    }
+
+    if (currentId !== undefined) {
+      const descendantIds = new Set(
+        this.collectDepartmentIds(currentId, departments)
+      );
+      if (descendantIds.has(parentId)) {
+        throw new BusinessException(
+          BUSINESS_ERROR_CODES.DEPARTMENT_HIERARCHY_INVALID
+        );
+      }
+    }
   }
 
   private async ensureDepartmentExists(id: number) {
@@ -215,10 +274,16 @@ export class DepartmentsService {
     rows: Array<{ id: number; parentId: number | null }>
   ) {
     const ids = [rootId];
+    const visited = new Set<number>(ids);
     const walk = (parentId: number) => {
       rows
         .filter((item) => item.parentId === parentId)
         .forEach((item) => {
+          if (visited.has(item.id)) {
+            return;
+          }
+
+          visited.add(item.id);
           ids.push(item.id);
           walk(item.id);
         });
