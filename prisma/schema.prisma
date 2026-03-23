@@ -166,6 +166,7 @@ model Dictionary {
   dictValue  String   @map("dict_value")
   category   String
   sortCode   Int      @map("sort_code")
+  status     Boolean  @default(true)
   deleteFlag String   @map("delete_flag")
   createTime String?  @map("create_time")
   createUser String?  @map("create_user")
@@ -175,6 +176,7 @@ model Dictionary {
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamp(3)
 
   @@index([parentId])
+  @@index([status])
   @@index([dictValue])
   @@index([sortCode])
   @@map("dictionaries")

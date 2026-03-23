@@ -51,6 +51,12 @@ export class DictionaryTypeItemResponseDto {
   sortCode!: number;
 
   @ApiProperty({
+    description: '状态，true 为启用，false 为停用',
+    example: true
+  })
+  status!: boolean;
+
+  @ApiProperty({
     description: '删除标记',
     example: 'NOT_DELETE'
   })

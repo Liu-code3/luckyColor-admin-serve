@@ -57,6 +57,12 @@ export class DictionaryItemResponseDto {
   sortCode!: number;
 
   @ApiProperty({
+    description: '状态，true 为启用，false 为停用',
+    example: true
+  })
+  status!: boolean;
+
+  @ApiProperty({
     description: '删除标记',
     example: '0'
   })
@@ -89,6 +95,20 @@ export class DictionaryItemResponseDto {
     nullable: true
   })
   updateUser?: string | null;
+
+  @ApiProperty({
+    description: '创建时间',
+    format: 'date-time',
+    example: '2026-03-22T10:00:00.000Z'
+  })
+  createdAt!: string;
+
+  @ApiProperty({
+    description: '更新时间',
+    format: 'date-time',
+    example: '2026-03-22T11:00:00.000Z'
+  })
+  updatedAt!: string;
 }
 
 export class DictionaryTreeItemResponseDto extends DictionaryItemResponseDto {

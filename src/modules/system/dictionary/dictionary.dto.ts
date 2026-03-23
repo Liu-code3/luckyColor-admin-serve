@@ -1,7 +1,38 @@
 import { randomUUID } from 'node:crypto';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Min
+} from 'class-validator';
+
+function transformBoolean(value: unknown) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized === 'true') {
+      return true;
+    }
+
+    if (normalized === 'false') {
+      return false;
+    }
+  }
+
+  return value;
+}
 
 export class DictionaryPageQueryDto {
   @ApiPropertyOptional({
@@ -112,6 +143,16 @@ export class CreateDictionaryDto {
   @IsInt()
   sortCode!: number;
 
+  @ApiPropertyOptional({
+    description: '状态，true 为启用，false 为停用',
+    example: true,
+    default: true
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  status?: boolean;
+
   @ApiProperty({
     description: '删除标记',
     example: '0'
@@ -219,6 +260,15 @@ export class UpdateDictionaryDto {
   @Type(() => Number)
   @IsInt()
   sortCode?: number;
+
+  @ApiPropertyOptional({
+    description: '状态，true 为启用，false 为停用',
+    example: true
+  })
+  @IsOptional()
+  @Transform(({ value }) => transformBoolean(value))
+  @IsBoolean()
+  status?: boolean;
 
   @ApiPropertyOptional({
     description: '删除标记',

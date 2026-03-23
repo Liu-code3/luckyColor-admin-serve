@@ -21,6 +21,7 @@ interface DictionarySeedNode {
   dictValue: string;
   category: string;
   sortCode: number;
+  status?: boolean;
   deleteFlag: string;
   createTime?: string;
   createUser?: string;
@@ -199,6 +200,7 @@ function flattenDictionaryNodes(nodes: DictionarySeedNode[]) {
     dictValue: string;
     category: string;
     sortCode: number;
+    status: boolean;
     deleteFlag: string;
     createTime: string | null;
     createUser: string | null;
@@ -218,6 +220,7 @@ function flattenDictionaryNodes(nodes: DictionarySeedNode[]) {
         dictValue: item.dictValue,
         category: item.category,
         sortCode: item.sortCode,
+        status: item.status ?? true,
         deleteFlag: item.deleteFlag,
         createTime: item.createTime ?? null,
         createUser: item.createUser ?? null,
