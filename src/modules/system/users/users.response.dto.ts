@@ -1,5 +1,25 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+export class UserDepartmentSummaryResponseDto {
+  @ApiProperty({
+    description: '部门 ID',
+    example: 100
+  })
+  id!: number;
+
+  @ApiProperty({
+    description: '部门名称',
+    example: '总部'
+  })
+  name!: string;
+
+  @ApiProperty({
+    description: '部门编码',
+    example: 'headquarters'
+  })
+  code!: string;
+}
+
 export class UserItemResponseDto {
   @ApiProperty({
     description: '租户 ID',
@@ -25,6 +45,20 @@ export class UserItemResponseDto {
     nullable: true
   })
   nickname?: string | null;
+
+  @ApiPropertyOptional({
+    description: '所属部门 ID',
+    example: 100,
+    nullable: true
+  })
+  departmentId?: number | null;
+
+  @ApiPropertyOptional({
+    description: '所属部门摘要',
+    type: UserDepartmentSummaryResponseDto,
+    nullable: true
+  })
+  department?: UserDepartmentSummaryResponseDto | null;
 
   @ApiProperty({
     description: '创建时间',

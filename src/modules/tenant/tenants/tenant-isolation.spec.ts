@@ -107,6 +107,9 @@ describe('Tenant isolation regression', () => {
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
       where: {
         AND: [{ id: 'user-from-tenant-002' }, { tenantId: 'tenant_001' }]
+      },
+      include: {
+        department: true
       }
     });
   });

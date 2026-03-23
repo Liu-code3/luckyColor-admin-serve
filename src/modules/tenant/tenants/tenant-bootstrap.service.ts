@@ -115,6 +115,7 @@ export class TenantBootstrapService {
       const adminUser = await tx.user.create({
         data: {
           tenantId: tenant.id,
+          departmentId: departmentsByKey.get('headquarters')?.id ?? null,
           username: dto.adminUsername?.trim() || 'admin',
           password: await this.passwordService.hash(dto.adminPassword),
           nickname: dto.adminNickname?.trim() || `${tenant.name} Admin`
@@ -151,8 +152,9 @@ export class TenantBootstrapService {
           .filter(
             (
               department
-            ): department is Prisma.DepartmentGetPayload<Record<string, never>> =>
-              Boolean(department)
+            ): department is Prisma.DepartmentGetPayload<
+              Record<string, never>
+            > => Boolean(department)
           );
 
         await tx.roleDepartmentScope.createMany({

@@ -70,15 +70,6 @@ async function main() {
     }))
   });
 
-  const adminUser = await prisma.user.create({
-    data: {
-      tenantId: 'tenant_001',
-      username: 'admin',
-      password: await hashPassword('123456'),
-      nickname: '系统管理员'
-    }
-  });
-
   await prisma.role.createMany({
     data: roleSeedData
   });
@@ -89,6 +80,16 @@ async function main() {
 
   await prisma.department.createMany({
     data: departmentSeedData
+  });
+
+  const adminUser = await prisma.user.create({
+    data: {
+      tenantId: 'tenant_001',
+      departmentId: 100,
+      username: 'admin',
+      password: await hashPassword('123456'),
+      nickname: '系统管理员'
+    }
   });
 
   await prisma.systemConfig.createMany({

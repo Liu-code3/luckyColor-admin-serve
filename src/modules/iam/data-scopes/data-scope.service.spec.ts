@@ -7,6 +7,9 @@ describe('DataScopeService', () => {
     const prisma = {
       user: {
         findFirst: jest.fn()
+      },
+      department: {
+        findMany: jest.fn()
       }
     };
 
@@ -31,6 +34,7 @@ describe('DataScopeService', () => {
   it('resolves all scope for super admin', async () => {
     const { service, prisma } = createService();
     prisma.user.findFirst.mockResolvedValue({
+      departmentId: 100,
       roles: [createUserRole({ code: 'super_admin', dataScope: 'SELF' })]
     });
 
@@ -42,13 +46,15 @@ describe('DataScopeService', () => {
       })
     ).resolves.toEqual({
       scope: 'ALL',
-      departmentIds: []
+      departmentIds: [],
+      userDepartmentId: 100
     });
   });
 
   it('resolves custom scope and merges department ids', async () => {
     const { service, prisma } = createService();
     prisma.user.findFirst.mockResolvedValue({
+      departmentId: 120,
       roles: [
         createUserRole({
           dataScope: 'CUSTOM',
@@ -69,13 +75,15 @@ describe('DataScopeService', () => {
       })
     ).resolves.toEqual({
       scope: 'CUSTOM',
-      departmentIds: [100, 120, 130]
+      departmentIds: [100, 120, 130],
+      userDepartmentId: 120
     });
   });
 
   it('builds self-only filter for self scope users', async () => {
     const { service, prisma } = createService();
     prisma.user.findFirst.mockResolvedValue({
+      departmentId: 100,
       roles: [createUserRole({ dataScope: 'SELF' })]
     });
 
@@ -95,13 +103,56 @@ describe('DataScopeService', () => {
     });
   });
 
-  it('rejects department-based user scope when user model lacks department binding', async () => {
+  it('builds department-only filter for department scope users', async () => {
     const { service, prisma } = createService();
     prisma.user.findFirst.mockResolvedValue({
+      departmentId: 120,
+      roles: [createUserRole({ dataScope: 'DEPARTMENT' })]
+    });
+
+    await expect(
+      service.buildUserWhere({
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      })
+    ).resolves.toEqual({
+      departmentId: 120
+    });
+  });
+
+  it('builds department and children filter for descendant scope users', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findFirst.mockResolvedValue({
+      departmentId: 100,
+      roles: [createUserRole({ dataScope: 'DEPARTMENT_AND_CHILDREN' })]
+    });
+    prisma.department.findMany.mockResolvedValue([
+      { id: 100, parentId: null },
+      { id: 110, parentId: 100 },
+      { id: 120, parentId: 100 },
+      { id: 121, parentId: 120 }
+    ]);
+
+    await expect(
+      service.buildUserWhere({
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      })
+    ).resolves.toEqual({
+      departmentId: { in: [100, 110, 120, 121] }
+    });
+  });
+
+  it('builds custom department filter for custom scope users', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findFirst.mockResolvedValue({
+      departmentId: 100,
       roles: [
         createUserRole({
           dataScope: 'CUSTOM',
-          dataScopeDepartments: [{ departmentId: 100 }]
+          dataScopeDepartments: [{ departmentId: 100 }, { departmentId: 120 }]
         })
       ]
     });
@@ -112,8 +163,26 @@ describe('DataScopeService', () => {
         tenantId: 'tenant_001',
         username: 'admin'
       })
+    ).resolves.toEqual({
+      departmentId: { in: [100, 120] }
+    });
+  });
+
+  it('denies department scope when current user has no bound department', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findFirst.mockResolvedValue({
+      departmentId: null,
+      roles: [createUserRole({ dataScope: 'DEPARTMENT' })]
+    });
+
+    await expect(
+      service.buildUserWhere({
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      })
     ).rejects.toThrow(
-      new BusinessException(BUSINESS_ERROR_CODES.DATA_SCOPE_CONFIG_INVALID)
+      new BusinessException(BUSINESS_ERROR_CODES.DATA_SCOPE_DENIED)
     );
   });
 });

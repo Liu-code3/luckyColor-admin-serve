@@ -198,6 +198,7 @@ describe('TenantBootstrapService', () => {
     expect(prisma.user.create).toHaveBeenCalledWith({
       data: {
         tenantId: 'tenant_acme',
+        departmentId: 201,
         username: 'admin',
         password: 'hashed-admin-password',
         nickname: 'Acme Admin'

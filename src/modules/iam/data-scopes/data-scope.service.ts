@@ -8,6 +8,7 @@ import type { RoleDataScope } from '../../system/roles/roles.constants';
 
 type DataScopeRoleRecord = Prisma.UserGetPayload<{
   select: {
+    departmentId: true;
     roles: {
       select: {
         role: {
@@ -30,6 +31,7 @@ type DataScopeRoleRecord = Prisma.UserGetPayload<{
 export interface DataScopeProfile {
   scope: RoleDataScope;
   departmentIds: number[];
+  userDepartmentId: number | null;
 }
 
 @Injectable()
@@ -43,6 +45,7 @@ export class DataScopeService {
         tenantId: user.tenantId
       },
       select: {
+        departmentId: true,
         roles: {
           select: {
             role: {
@@ -79,17 +82,39 @@ export class DataScopeService {
       case 'ALL':
         return where;
       case 'SELF':
-        return {
-          AND: [where, { id: user.sub }]
-        };
-      case 'CUSTOM':
+        return this.combineWhere(where, { id: user.sub });
       case 'DEPARTMENT':
-      case 'DEPARTMENT_AND_CHILDREN':
-        // Current user model has no departmentId yet, so department-scoped
-        // filtering cannot be applied safely to user queries at this stage.
-        throw new BusinessException(
-          BUSINESS_ERROR_CODES.DATA_SCOPE_CONFIG_INVALID
+        if (!profile.userDepartmentId) {
+          throw new BusinessException(BUSINESS_ERROR_CODES.DATA_SCOPE_DENIED);
+        }
+
+        return this.combineWhere(where, {
+          departmentId: profile.userDepartmentId
+        });
+      case 'DEPARTMENT_AND_CHILDREN': {
+        if (!profile.userDepartmentId) {
+          throw new BusinessException(BUSINESS_ERROR_CODES.DATA_SCOPE_DENIED);
+        }
+
+        const departmentIds = await this.collectDepartmentIds(
+          user.tenantId,
+          profile.userDepartmentId
         );
+
+        return this.combineWhere(where, {
+          departmentId: { in: departmentIds }
+        });
+      }
+      case 'CUSTOM':
+        if (!profile.departmentIds.length) {
+          throw new BusinessException(
+            BUSINESS_ERROR_CODES.DATA_SCOPE_CONFIG_INVALID
+          );
+        }
+
+        return this.combineWhere(where, {
+          departmentId: { in: profile.departmentIds }
+        });
       default:
         throw new BusinessException(BUSINESS_ERROR_CODES.DATA_SCOPE_DENIED);
     }
@@ -109,14 +134,16 @@ export class DataScopeService {
     if (activeRoles.some((role) => role.code === 'super_admin')) {
       return {
         scope: 'ALL',
-        departmentIds: []
+        departmentIds: [],
+        userDepartmentId: user.departmentId
       };
     }
 
     if (activeRoles.some((role) => role.dataScope === 'ALL')) {
       return {
         scope: 'ALL',
-        departmentIds: []
+        departmentIds: [],
+        userDepartmentId: user.departmentId
       };
     }
 
@@ -133,7 +160,8 @@ export class DataScopeService {
     if (customDepartmentIds.length > 0) {
       return {
         scope: 'CUSTOM',
-        departmentIds: customDepartmentIds
+        departmentIds: customDepartmentIds,
+        userDepartmentId: user.departmentId
       };
     }
 
@@ -142,24 +170,68 @@ export class DataScopeService {
     ) {
       return {
         scope: 'DEPARTMENT_AND_CHILDREN',
-        departmentIds: []
+        departmentIds: [],
+        userDepartmentId: user.departmentId
       };
     }
 
     if (activeRoles.some((role) => role.dataScope === 'DEPARTMENT')) {
       return {
         scope: 'DEPARTMENT',
-        departmentIds: []
+        departmentIds: [],
+        userDepartmentId: user.departmentId
       };
     }
 
     if (activeRoles.some((role) => role.dataScope === 'SELF')) {
       return {
         scope: 'SELF',
-        departmentIds: []
+        departmentIds: [],
+        userDepartmentId: user.departmentId
       };
     }
 
     throw new BusinessException(BUSINESS_ERROR_CODES.DATA_SCOPE_DENIED);
+  }
+
+  private async collectDepartmentIds(
+    tenantId: string,
+    rootDepartmentId: number
+  ) {
+    const departments = await this.prisma.department.findMany({
+      where: {
+        tenantId
+      },
+      select: {
+        id: true,
+        parentId: true
+      }
+    });
+
+    const ids = [rootDepartmentId];
+    const walk = (parentId: number) => {
+      departments
+        .filter((item) => item.parentId === parentId)
+        .forEach((item) => {
+          ids.push(item.id);
+          walk(item.id);
+        });
+    };
+
+    walk(rootDepartmentId);
+    return ids;
+  }
+
+  private combineWhere(
+    where: Prisma.UserWhereInput | undefined,
+    constraint: Prisma.UserWhereInput
+  ) {
+    if (!where || Object.keys(where).length === 0) {
+      return constraint;
+    }
+
+    return {
+      AND: [where, constraint]
+    };
   }
 }

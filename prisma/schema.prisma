@@ -105,17 +105,20 @@ model SystemLog {
 }
 
 model User {
-  id        String     @id @default(cuid())
-  tenantId  String     @map("tenant_id")
-  username  String
-  password  String
-  nickname  String?
-  roles     UserRole[]
-  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamp(3)
-  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamp(3)
+  id           String      @id @default(cuid())
+  tenantId     String      @map("tenant_id")
+  departmentId Int?        @map("department_id")
+  username     String
+  password     String
+  nickname     String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  roles        UserRole[]
+  createdAt    DateTime    @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt    DateTime    @updatedAt @map("updated_at") @db.Timestamp(3)
 
   @@unique([tenantId, username])
   @@index([tenantId])
+  @@index([tenantId, departmentId])
   @@map("users")
 }
 
@@ -201,6 +204,7 @@ model Department {
   sort           Int                   @default(0)
   status         Boolean               @default(true)
   remark         String?
+  users          User[]
   dataScopeRoles RoleDepartmentScope[]
   createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamp(3)
   updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamp(3)

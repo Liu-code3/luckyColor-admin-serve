@@ -3,6 +3,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayUnique,
   IsArray,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -35,6 +36,15 @@ export class UserListQueryDto {
   @IsOptional()
   @IsString()
   keyword?: string;
+
+  @ApiPropertyOptional({
+    description: '所属部门 ID',
+    example: 100
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  departmentId?: number;
 }
 
 export class CreateUserDto {
@@ -61,6 +71,16 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   nickname?: string;
+
+  @ApiPropertyOptional({
+    description: '所属部门 ID',
+    example: 100,
+    nullable: true
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  departmentId?: number | null;
 }
 
 export class UpdateUserDto {
@@ -87,6 +107,16 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   nickname?: string;
+
+  @ApiPropertyOptional({
+    description: '所属部门 ID，传 null 表示清空',
+    example: 120,
+    nullable: true
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  departmentId?: number | null;
 }
 
 export class AssignUserRolesDto {

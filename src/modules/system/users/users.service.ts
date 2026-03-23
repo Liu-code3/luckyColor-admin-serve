@@ -31,14 +31,7 @@ export class UsersService {
     const keyword = query.keyword?.trim();
     const scopedWhere = await this.dataScopeService.buildUserWhere(
       user,
-      keyword
-        ? {
-            OR: [
-              { username: { contains: keyword } },
-              { nickname: { contains: keyword } }
-            ]
-          }
-        : undefined
+      this.buildUserListWhere(query, keyword)
     );
     const where = this.buildUserWhere(scopedWhere);
 
@@ -46,6 +39,9 @@ export class UsersService {
       this.prisma.user.count({ where }),
       this.prisma.user.findMany({
         where,
+        include: {
+          department: true
+        },
         orderBy: { createdAt: 'desc' },
         skip: (current - 1) * size,
         take: size
@@ -62,7 +58,10 @@ export class UsersService {
 
   async detail(id: string) {
     const user = await this.prisma.user.findFirst({
-      where: this.buildUserWhere({ id })
+      where: this.buildUserWhere({ id }),
+      include: {
+        department: true
+      }
     });
     if (!user) {
       throw new BusinessException(BUSINESS_ERROR_CODES.USER_NOT_FOUND);
@@ -73,6 +72,7 @@ export class UsersService {
 
   async create(dto: CreateUserDto) {
     await this.ensureUsernameAvailable(dto.username);
+    await this.ensureDepartmentBelongsToTenant(dto.departmentId);
 
     try {
       const user = await this.prisma.user.create({
@@ -80,7 +80,11 @@ export class UsersService {
           tenantId: this.tenantScope.resolveRequiredTenantValue(),
           username: dto.username,
           password: await this.passwordService.hash(dto.password),
-          nickname: dto.nickname?.trim() || dto.username
+          nickname: dto.nickname?.trim() || dto.username,
+          departmentId: dto.departmentId ?? null
+        },
+        include: {
+          department: true
         }
       });
 
@@ -95,6 +99,7 @@ export class UsersService {
 
   async update(id: string, dto: UpdateUserDto) {
     await this.ensureUserExists(id);
+    await this.ensureDepartmentBelongsToTenant(dto.departmentId);
 
     if (dto.username) {
       await this.ensureUsernameAvailable(dto.username, id);
@@ -108,7 +113,11 @@ export class UsersService {
           password: dto.password
             ? await this.passwordService.hash(dto.password)
             : undefined,
-          nickname: dto.nickname
+          nickname: dto.nickname,
+          departmentId: dto.departmentId
+        },
+        include: {
+          department: true
         }
       });
 
@@ -212,6 +221,44 @@ export class UsersService {
     ) as Prisma.RoleWhereInput;
   }
 
+  private buildDepartmentWhere(where: Prisma.DepartmentWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.DepartmentWhereInput;
+  }
+
+  private buildUserListWhere(query: UserListQueryDto, keyword?: string) {
+    const filters: Prisma.UserWhereInput[] = [];
+
+    if (keyword) {
+      filters.push({
+        OR: [
+          { username: { contains: keyword } },
+          { nickname: { contains: keyword } }
+        ]
+      });
+    }
+
+    if (query.departmentId !== undefined) {
+      filters.push({
+        departmentId: query.departmentId
+      });
+    }
+
+    if (!filters.length) {
+      return undefined;
+    }
+
+    if (filters.length === 1) {
+      return filters[0];
+    }
+
+    return {
+      AND: filters
+    };
+  }
+
   private async ensureUserExists(id: string) {
     const user = await this.prisma.user.findFirst({
       where: this.buildUserWhere({ id })
@@ -235,19 +282,53 @@ export class UsersService {
     }
   }
 
+  private async ensureDepartmentBelongsToTenant(departmentId?: number | null) {
+    if (departmentId === undefined) {
+      return null;
+    }
+
+    if (departmentId === null) {
+      return null;
+    }
+
+    const department = await this.prisma.department.findFirst({
+      where: this.buildDepartmentWhere({ id: departmentId })
+    });
+
+    if (!department) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND);
+    }
+
+    return department;
+  }
+
   private toUserResponse(user: {
     id: string;
     tenantId: string;
+    departmentId?: number | null;
     username: string;
     nickname: string | null;
+    department?: {
+      id: number;
+      name: string;
+      code: string;
+    } | null;
     createdAt: Date;
     updatedAt: Date;
   }) {
     return {
       id: user.id,
       tenantId: user.tenantId,
+      departmentId: user.departmentId ?? null,
       username: user.username,
       nickname: user.nickname,
+      department: user.department
+        ? {
+            id: user.department.id,
+            name: user.department.name,
+            code: user.department.code
+          }
+        : null,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };

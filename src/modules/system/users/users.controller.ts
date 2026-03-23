@@ -73,8 +73,15 @@ export class UsersController {
       records: [
         {
           id: 'clx1234567890',
+          tenantId: 'tenant_001',
+          departmentId: 100,
           username: 'admin',
           nickname: '系统管理员',
+          department: {
+            id: 100,
+            name: '总部',
+            code: 'headquarters'
+          },
           createdAt: '2026-03-22T14:30:00.000Z',
           updatedAt: '2026-03-22T14:30:00.000Z'
         }
@@ -126,8 +133,15 @@ export class UsersController {
     description: '用户详情响应',
     dataExample: {
       id: 'clx1234567890',
+      tenantId: 'tenant_001',
+      departmentId: 100,
       username: 'admin',
       nickname: '系统管理员',
+      department: {
+        id: 100,
+        name: '总部',
+        code: 'headquarters'
+      },
       createdAt: '2026-03-22T14:30:00.000Z',
       updatedAt: '2026-03-22T14:30:00.000Z'
     }
@@ -196,8 +210,15 @@ export class UsersController {
     description: '用户创建成功响应',
     dataExample: {
       id: 'clx1234567890',
+      tenantId: 'tenant_001',
+      departmentId: 100,
       username: 'admin',
       nickname: '系统管理员',
+      department: {
+        id: 100,
+        name: '总部',
+        code: 'headquarters'
+      },
       createdAt: '2026-03-22T14:30:00.000Z',
       updatedAt: '2026-03-22T14:30:00.000Z'
     }
@@ -233,8 +254,15 @@ export class UsersController {
     description: '用户更新成功响应',
     dataExample: {
       id: 'clx1234567890',
+      tenantId: 'tenant_001',
+      departmentId: 120,
       username: 'admin',
       nickname: '管理员',
+      department: {
+        id: 120,
+        name: '运营支持部',
+        code: 'operations_support'
+      },
       createdAt: '2026-03-22T14:30:00.000Z',
       updatedAt: '2026-03-22T15:00:00.000Z'
     }

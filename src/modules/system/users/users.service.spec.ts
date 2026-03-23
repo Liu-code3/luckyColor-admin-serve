@@ -36,6 +36,9 @@ describe('UsersService', () => {
 
   function createPrismaMock() {
     const prisma = {
+      department: {
+        findFirst: jest.fn()
+      },
       user: {
         count: jest.fn(),
         findFirst: jest.fn(),
@@ -308,25 +311,48 @@ describe('UsersService', () => {
       createDataScopeServiceMock()
     );
     prisma.user.findFirst.mockResolvedValue(null);
+    prisma.department.findFirst.mockResolvedValue(null);
     prisma.user.create.mockResolvedValue(
       createUser({
+        departmentId: 100,
+        department: {
+          id: 100,
+          name: '总部',
+          code: 'headquarters'
+        },
         password: 'hashed-password'
       })
     );
+    prisma.department.findFirst.mockResolvedValue({
+      id: 100,
+      tenantId: 'tenant_001',
+      name: '总部',
+      code: 'headquarters'
+    });
 
     await service.create({
       username: 'new-user',
       password: 'plain-password',
-      nickname: 'New User'
+      nickname: 'New User',
+      departmentId: 100
     });
 
     expect(passwordService.hash).toHaveBeenCalledWith('plain-password');
+    expect(prisma.department.findFirst).toHaveBeenCalledWith({
+      where: {
+        AND: [{ id: 100 }, { tenantId: 'tenant_001' }]
+      }
+    });
     expect(prisma.user.create).toHaveBeenCalledWith({
       data: {
         tenantId: 'tenant_001',
+        departmentId: 100,
         username: 'new-user',
         password: 'hashed-password',
         nickname: 'New User'
+      },
+      include: {
+        department: true
       }
     });
   });
@@ -343,6 +369,7 @@ describe('UsersService', () => {
       createDataScopeServiceMock()
     );
     prisma.user.findFirst.mockResolvedValue(null);
+    prisma.department.findFirst.mockResolvedValue(null);
     prisma.user.create.mockRejectedValue(
       createUniqueConstraintError(['tenant_id', 'username'])
     );
@@ -372,8 +399,20 @@ describe('UsersService', () => {
     prisma.user.findFirst
       .mockResolvedValueOnce(createUser())
       .mockResolvedValueOnce(null);
+    prisma.department.findFirst.mockResolvedValue({
+      id: 120,
+      tenantId: 'tenant_001',
+      name: '运营支持部',
+      code: 'operations_support'
+    });
     prisma.user.update.mockResolvedValue(
       createUser({
+        departmentId: 120,
+        department: {
+          id: 120,
+          name: '运营支持部',
+          code: 'operations_support'
+        },
         username: 'admin-updated',
         nickname: 'Updated User'
       })
@@ -382,16 +421,26 @@ describe('UsersService', () => {
     await service.update('user-1', {
       username: 'admin-updated',
       password: 'new-plain-password',
-      nickname: 'Updated User'
+      nickname: 'Updated User',
+      departmentId: 120
     });
 
     expect(passwordService.hash).toHaveBeenCalledWith('new-plain-password');
+    expect(prisma.department.findFirst).toHaveBeenCalledWith({
+      where: {
+        AND: [{ id: 120 }, { tenantId: 'tenant_001' }]
+      }
+    });
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-1' },
       data: {
         username: 'admin-updated',
         password: 'hashed-password-2',
-        nickname: 'Updated User'
+        nickname: 'Updated User',
+        departmentId: 120
+      },
+      include: {
+        department: true
       }
     });
   });
@@ -408,7 +457,16 @@ describe('UsersService', () => {
       dataScopeService
     );
     prisma.user.count.mockResolvedValue(1);
-    prisma.user.findMany = jest.fn().mockResolvedValue([createUser()]);
+    prisma.user.findMany = jest.fn().mockResolvedValue([
+      createUser({
+        departmentId: 100,
+        department: {
+          id: 100,
+          name: '总部',
+          code: 'headquarters'
+        }
+      })
+    ]);
     dataScopeService.buildUserWhere = jest.fn().mockResolvedValue({
       AND: [{ username: { contains: 'admin' } }, { id: 'user-1' }]
     });
@@ -450,5 +508,29 @@ describe('UsersService', () => {
       }
     });
     expect(response.data.records).toHaveLength(1);
+  });
+
+  it('throws when creating user with missing department', async () => {
+    const prisma = createPrismaMock();
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      createDataScopeServiceMock()
+    );
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.department.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.create({
+        username: 'new-user',
+        password: 'plain-password',
+        departmentId: 999
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND)
+    );
   });
 });
