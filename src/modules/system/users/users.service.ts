@@ -7,6 +7,8 @@ import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
+import type { JwtPayload } from '../../iam/auth/jwt-payload.interface';
+import { DataScopeService } from '../../iam/data-scopes/data-scope.service';
 import {
   AssignUserRolesDto,
   CreateUserDto,
@@ -19,14 +21,16 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenantScope: TenantPrismaScopeService,
-    private readonly passwordService: PasswordService
+    private readonly passwordService: PasswordService,
+    private readonly dataScopeService: DataScopeService
   ) {}
 
-  async list(query: UserListQueryDto) {
+  async list(user: JwtPayload, query: UserListQueryDto) {
     const current = query.page || 1;
     const size = query.size || 10;
     const keyword = query.keyword?.trim();
-    const where = this.buildUserWhere(
+    const scopedWhere = await this.dataScopeService.buildUserWhere(
+      user,
       keyword
         ? {
             OR: [
@@ -36,6 +40,7 @@ export class UsersService {
           }
         : undefined
     );
+    const where = this.buildUserWhere(scopedWhere);
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.user.count({ where }),

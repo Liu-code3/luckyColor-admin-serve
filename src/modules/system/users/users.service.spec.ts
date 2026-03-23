@@ -2,6 +2,7 @@ import { Prisma } from '../../../generated/prisma';
 import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { DataScopeService } from '../../iam/data-scopes/data-scope.service';
 import { UsersService } from './users.service';
 
 describe('UsersService', () => {
@@ -36,7 +37,9 @@ describe('UsersService', () => {
   function createPrismaMock() {
     const prisma = {
       user: {
+        count: jest.fn(),
         findFirst: jest.fn(),
+        findMany: jest.fn(),
         create: jest.fn(),
         update: jest.fn()
       },
@@ -50,12 +53,23 @@ describe('UsersService', () => {
       $transaction: jest.fn()
     };
 
-    prisma.$transaction.mockImplementation(
-      async (callback: (tx: typeof prisma) => Promise<unknown>) =>
-        callback(prisma)
-    );
+    prisma.$transaction.mockImplementation(async (input: unknown) => {
+      if (Array.isArray(input)) {
+        return Promise.all(input);
+      }
+
+      return (input as (tx: typeof prisma) => Promise<unknown>)(prisma);
+    });
 
     return prisma;
+  }
+
+  function createDataScopeServiceMock() {
+    return {
+      buildUserWhere: jest
+        .fn()
+        .mockImplementation(async (_user, where) => where)
+    } as unknown as DataScopeService;
   }
 
   const createUniqueConstraintError = (target: string[]) =>
@@ -67,9 +81,14 @@ describe('UsersService', () => {
 
   it('returns assigned roles for a user', async () => {
     const prisma = createPrismaMock();
-    const service = new UsersService(prisma as never, createTenantScope(), {
-      hash: jest.fn()
-    } as never);
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      createDataScopeServiceMock()
+    );
     prisma.user.findFirst.mockResolvedValue({
       ...createUser(),
       roles: [
@@ -134,9 +153,14 @@ describe('UsersService', () => {
 
   it('throws when assigning roles to a missing user', async () => {
     const prisma = createPrismaMock();
-    const service = new UsersService(prisma as never, createTenantScope(), {
-      hash: jest.fn()
-    } as never);
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      createDataScopeServiceMock()
+    );
     prisma.user.findFirst.mockResolvedValue(null);
 
     await expect(
@@ -151,9 +175,14 @@ describe('UsersService', () => {
 
   it('throws when any assigned role does not exist', async () => {
     const prisma = createPrismaMock();
-    const service = new UsersService(prisma as never, createTenantScope(), {
-      hash: jest.fn()
-    } as never);
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      createDataScopeServiceMock()
+    );
     prisma.user.findFirst.mockResolvedValue(createUser());
     prisma.role.findMany.mockResolvedValue([createRole()]);
 
@@ -169,9 +198,14 @@ describe('UsersService', () => {
 
   it('replaces user roles and returns the latest assignment result', async () => {
     const prisma = createPrismaMock();
-    const service = new UsersService(prisma as never, createTenantScope(), {
-      hash: jest.fn()
-    } as never);
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      createDataScopeServiceMock()
+    );
     const user = createUser();
     const roles = [
       createRole(),
@@ -230,9 +264,14 @@ describe('UsersService', () => {
 
   it('supports clearing all assigned roles', async () => {
     const prisma = createPrismaMock();
-    const service = new UsersService(prisma as never, createTenantScope(), {
-      hash: jest.fn()
-    } as never);
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      createDataScopeServiceMock()
+    );
     prisma.user.findFirst.mockResolvedValue(createUser());
     prisma.userRole.deleteMany.mockResolvedValue({ count: 2 });
 
@@ -265,7 +304,8 @@ describe('UsersService', () => {
     const service = new UsersService(
       prisma as never,
       createTenantScope(),
-      passwordService as never
+      passwordService as never,
+      createDataScopeServiceMock()
     );
     prisma.user.findFirst.mockResolvedValue(null);
     prisma.user.create.mockResolvedValue(
@@ -299,7 +339,8 @@ describe('UsersService', () => {
     const service = new UsersService(
       prisma as never,
       createTenantScope(),
-      passwordService as never
+      passwordService as never,
+      createDataScopeServiceMock()
     );
     prisma.user.findFirst.mockResolvedValue(null);
     prisma.user.create.mockRejectedValue(
@@ -325,7 +366,8 @@ describe('UsersService', () => {
     const service = new UsersService(
       prisma as never,
       createTenantScope(),
-      passwordService as never
+      passwordService as never,
+      createDataScopeServiceMock()
     );
     prisma.user.findFirst
       .mockResolvedValueOnce(createUser())
@@ -352,5 +394,61 @@ describe('UsersService', () => {
         nickname: 'Updated User'
       }
     });
+  });
+
+  it('applies self data scope when querying user list', async () => {
+    const prisma = createPrismaMock();
+    const dataScopeService = createDataScopeServiceMock();
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      dataScopeService
+    );
+    prisma.user.count.mockResolvedValue(1);
+    prisma.user.findMany = jest.fn().mockResolvedValue([createUser()]);
+    dataScopeService.buildUserWhere = jest.fn().mockResolvedValue({
+      AND: [{ username: { contains: 'admin' } }, { id: 'user-1' }]
+    });
+
+    const response = await service.list(
+      {
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      },
+      {
+        page: 1,
+        size: 10,
+        keyword: 'admin'
+      }
+    );
+
+    expect(dataScopeService.buildUserWhere).toHaveBeenCalledWith(
+      {
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      },
+      {
+        OR: [
+          { username: { contains: 'admin' } },
+          { nickname: { contains: 'admin' } }
+        ]
+      }
+    );
+    expect(prisma.user.count).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          {
+            AND: [{ username: { contains: 'admin' } }, { id: 'user-1' }]
+          },
+          { tenantId: 'tenant_001' }
+        ]
+      }
+    });
+    expect(response.data.records).toHaveLength(1);
   });
 });

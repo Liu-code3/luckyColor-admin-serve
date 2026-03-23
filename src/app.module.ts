@@ -5,6 +5,7 @@ import { PrismaModule } from './infra/database/prisma/prisma.module';
 import { PasswordModule } from './infra/security/password.module';
 import { TenantModule } from './infra/tenancy/tenant.module';
 import { AuthModule } from './modules/iam/auth/auth.module';
+import { DataScopesModule } from './modules/iam/data-scopes/data-scopes.module';
 import { PermissionsModule } from './modules/iam/permissions/permissions.module';
 import { DashboardModule } from './modules/platform/dashboard/dashboard.module';
 import { FileModule } from './modules/platform/file/file.module';
@@ -32,6 +33,7 @@ import { TenantsModule } from './modules/tenant/tenants/tenants.module';
     TenantPackagesModule,
     TenantsModule,
     AuthModule,
+    DataScopesModule,
     PermissionsModule,
     DashboardModule,
     ConfigsModule,

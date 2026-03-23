@@ -22,6 +22,8 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
+import { CurrentUser } from '../../iam/auth/current-user.decorator';
+import type { JwtPayload } from '../../iam/auth/jwt-payload.interface';
 import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
 import {
   AssignUserRolesDto,
@@ -89,9 +91,29 @@ export class UsersController {
       }
     ]
   })
+  @ApiErrorResponse({
+    status: 400,
+    description: '当前数据权限配置暂不支持该查询场景',
+    examples: [
+      {
+        name: 'dataScopeConfigInvalid',
+        code: BUSINESS_ERROR_CODES.DATA_SCOPE_CONFIG_INVALID
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 403,
+    description: '当前账号没有查看该数据的权限',
+    examples: [
+      {
+        name: 'dataScopeDenied',
+        code: BUSINESS_ERROR_CODES.DATA_SCOPE_DENIED
+      }
+    ]
+  })
   @Get()
-  list(@Query() query: UserListQueryDto) {
-    return this.usersService.list(query);
+  list(@CurrentUser() user: JwtPayload, @Query() query: UserListQueryDto) {
+    return this.usersService.list(user, query);
   }
 
   @ApiOperation({

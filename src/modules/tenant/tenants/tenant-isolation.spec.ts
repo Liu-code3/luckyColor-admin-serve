@@ -5,6 +5,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { AuthService } from '../../iam/auth/auth.service';
+import { DataScopeService } from '../../iam/data-scopes/data-scope.service';
 import { JwtStrategy } from '../../iam/auth/jwt.strategy';
 import { UsersService } from '../../system/users/users.service';
 
@@ -91,7 +92,12 @@ describe('Tenant isolation regression', () => {
       createTenantScope('tenant_001'),
       {
         hash: jest.fn()
-      } as unknown as PasswordService
+      } as unknown as PasswordService,
+      {
+        buildUserWhere: jest
+          .fn()
+          .mockImplementation(async (_user, where) => where)
+      } as unknown as DataScopeService
     );
 
     await expect(service.detail('user-from-tenant-002')).rejects.toThrow(
