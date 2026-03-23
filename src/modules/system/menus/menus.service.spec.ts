@@ -35,6 +35,7 @@ describe('MenusService', () => {
       menu: {
         count: jest.fn(),
         findMany: jest.fn(),
+        findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         findUnique: jest.fn(),
@@ -70,6 +71,8 @@ describe('MenusService', () => {
   it('uses created id as default sort when sort is omitted', async () => {
     const prisma = createPrismaMock();
     const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findFirst.mockResolvedValue(null);
+    prisma.menu.findMany.mockResolvedValue([]);
 
     prisma.menu.create.mockResolvedValue(
       createMenu({
@@ -119,6 +122,8 @@ describe('MenusService', () => {
   it('translates duplicate menu id conflicts into business errors', async () => {
     const prisma = createPrismaMock();
     const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findFirst.mockResolvedValue(null);
+    prisma.menu.findMany.mockResolvedValue([]);
 
     prisma.menu.create.mockRejectedValue(createUniqueConstraintError(['id']));
 
@@ -135,6 +140,88 @@ describe('MenusService', () => {
       })
     ).rejects.toThrow(
       new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS)
+    );
+  });
+
+  it('rejects duplicate menu keys when creating menus', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findFirst.mockResolvedValue(
+      createMenu({
+        id: 999,
+        menuKey: 'dashboard:view'
+      })
+    );
+
+    await expect(
+      service.create({
+        title: 'Dashboard',
+        name: 'DashboardView',
+        type: 1,
+        path: '/dashboard',
+        menuKey: 'dashboard:view',
+        isVisible: true,
+        component: 'dashboard/index'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS)
+    );
+
+    expect(prisma.menu.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects root button menus', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.create({
+        title: '新增用户',
+        name: 'UserCreate',
+        type: 3,
+        path: '',
+        menuKey: 'system:user:create',
+        isVisible: true,
+        component: ''
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID)
+    );
+
+    expect(prisma.menu.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects menus under button parents', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findFirst.mockResolvedValue(null);
+    prisma.menu.findMany.mockResolvedValue([
+      createMenu({
+        id: 13,
+        parentId: 5,
+        type: 3,
+        title: '新增用户',
+        name: 'UserCreate',
+        path: '',
+        menuKey: 'system:user:create',
+        component: ''
+      })
+    ]);
+
+    await expect(
+      service.create({
+        parentId: 13,
+        title: '子菜单',
+        name: 'ChildMenu',
+        type: 2,
+        path: '/child',
+        menuKey: 'child:view',
+        isVisible: true,
+        component: 'child/index'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID)
     );
   });
 
@@ -269,5 +356,53 @@ describe('MenusService', () => {
     ).rejects.toThrow(
       new BusinessException(BUSINESS_ERROR_CODES.ROLE_NOT_FOUND)
     );
+  });
+
+  it('rejects moving a menu under its descendant', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findUnique.mockResolvedValue(
+      createMenu({
+        id: 1,
+        parentId: null,
+        type: 1,
+        title: '系统管理',
+        name: 'SystemManage',
+        path: '/system',
+        menuKey: 'system:root',
+        component: 'LAYOUT'
+      })
+    );
+    prisma.menu.findMany.mockResolvedValue([
+      createMenu({
+        id: 1,
+        parentId: null,
+        type: 1,
+        title: '系统管理',
+        name: 'SystemManage',
+        path: '/system',
+        menuKey: 'system:root',
+        component: 'LAYOUT'
+      }),
+      createMenu({
+        id: 5,
+        parentId: 1,
+        type: 2,
+        title: '用户管理',
+        name: 'UserManage',
+        path: '/system/users',
+        menuKey: 'system:user:list'
+      })
+    ]);
+
+    await expect(
+      service.update(1, {
+        parentId: 5
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID)
+    );
+
+    expect(prisma.menu.update).not.toHaveBeenCalled();
   });
 });

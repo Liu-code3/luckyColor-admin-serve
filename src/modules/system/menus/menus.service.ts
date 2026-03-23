@@ -73,9 +73,18 @@ export class MenusService {
   }
 
   async create(dto: CreateMenuDto) {
+    await this.ensureMenuKeyAvailable(dto.menuKey);
+
     try {
       const menu = await this.prisma.$transaction(
         async (tx) => {
+          await this.validateMenuHierarchy(
+            dto.parentId ?? null,
+            dto.type,
+            dto.id,
+            tx
+          );
+
           const created = await tx.menu.create({
             data: {
               id: dto.id,
@@ -118,7 +127,19 @@ export class MenusService {
   }
 
   async update(id: number, dto: UpdateMenuDto) {
-    await this.ensureMenuExists(id);
+    const existing = await this.ensureMenuExists(id);
+
+    if (dto.menuKey) {
+      await this.ensureMenuKeyAvailable(dto.menuKey, id);
+    }
+
+    if (dto.parentId !== undefined || dto.type !== undefined) {
+      await this.validateMenuHierarchy(
+        dto.parentId === undefined ? existing.parentId : dto.parentId,
+        dto.type ?? existing.type,
+        id
+      );
+    }
 
     const menu = await this.prisma.menu.update({
       where: { id },
@@ -177,6 +198,58 @@ export class MenusService {
       throw new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND);
     }
     return menu;
+  }
+
+  private async ensureMenuKeyAvailable(menuKey: string, excludeId?: number) {
+    const menu = await this.prisma.menu.findFirst({
+      where: {
+        menuKey,
+        id: excludeId ? { not: excludeId } : undefined
+      }
+    });
+
+    if (menu) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS);
+    }
+  }
+
+  private async validateMenuHierarchy(
+    parentId: number | null,
+    type: number,
+    currentId?: number,
+    tx: Pick<PrismaService, 'menu'> = this.prisma
+  ) {
+    if (parentId === null) {
+      if (type === 3) {
+        throw new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID);
+      }
+
+      return;
+    }
+
+    if (currentId !== undefined && parentId === currentId) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID);
+    }
+
+    const menus = await tx.menu.findMany({
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+    });
+    const parent = menus.find((item) => item.id === parentId);
+
+    if (!parent) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND);
+    }
+
+    if (parent.type === 3) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID);
+    }
+
+    if (currentId !== undefined) {
+      const descendantIds = new Set(this.collectMenuIds(currentId, menus));
+      if (descendantIds.has(parentId)) {
+        throw new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID);
+      }
+    }
   }
 
   private async resolveRoleScopedMenus(
