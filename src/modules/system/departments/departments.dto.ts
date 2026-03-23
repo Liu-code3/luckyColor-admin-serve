@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
@@ -8,6 +8,30 @@ import {
   IsString,
   Min
 } from 'class-validator';
+
+function transformBoolean(value: unknown) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized === 'true') {
+      return true;
+    }
+
+    if (normalized === 'false') {
+      return false;
+    }
+  }
+
+  return value;
+}
 
 export class DepartmentListQueryDto {
   @ApiPropertyOptional({
@@ -35,6 +59,15 @@ export class DepartmentListQueryDto {
   @IsOptional()
   @IsString()
   keyword?: string;
+
+  @ApiPropertyOptional({
+    description: '部门状态，true 为启用，false 为停用',
+    example: true
+  })
+  @IsOptional()
+  @Transform(({ value }) => transformBoolean(value))
+  @IsBoolean()
+  status?: boolean;
 }
 
 export class CreateDepartmentDto {
@@ -199,4 +232,14 @@ export class UpdateDepartmentDto {
   @IsOptional()
   @IsString()
   remark?: string | null;
+}
+
+export class UpdateDepartmentStatusDto {
+  @ApiProperty({
+    description: '部门状态，true 为启用，false 为停用',
+    example: true
+  })
+  @Type(() => Boolean)
+  @IsBoolean()
+  status!: boolean;
 }

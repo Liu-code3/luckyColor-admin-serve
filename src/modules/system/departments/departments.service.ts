@@ -9,7 +9,8 @@ import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/
 import {
   CreateDepartmentDto,
   DepartmentListQueryDto,
-  UpdateDepartmentDto
+  UpdateDepartmentDto,
+  UpdateDepartmentStatusDto
 } from './departments.dto';
 
 @Injectable()
@@ -23,16 +24,12 @@ export class DepartmentsService {
     const current = query.page || 1;
     const size = query.size || 10;
     const keyword = query.keyword?.trim();
-    const where = this.buildDepartmentWhere(
-      keyword
-        ? {
-            OR: [
-              { name: { contains: keyword } },
-              { code: { contains: keyword } }
-            ]
-          }
-        : undefined
-    );
+    const where = this.buildDepartmentWhere({
+      OR: keyword
+        ? [{ name: { contains: keyword } }, { code: { contains: keyword } }]
+        : undefined,
+      status: query.status
+    });
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.department.count({ where }),
@@ -188,6 +185,19 @@ export class DepartmentsService {
     );
 
     return successResponse(true);
+  }
+
+  async updateStatus(id: number, dto: UpdateDepartmentStatusDto) {
+    await this.ensureDepartmentExists(id);
+
+    const department = await this.prisma.department.update({
+      where: { id },
+      data: {
+        status: dto.status
+      }
+    });
+
+    return successResponse(this.toDepartmentResponse(department));
   }
 
   private buildDepartmentWhere(where: Prisma.DepartmentWhereInput = {}) {

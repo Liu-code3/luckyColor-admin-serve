@@ -32,6 +32,7 @@ describe('DepartmentsService', () => {
   function createPrismaMock() {
     const prisma = {
       department: {
+        count: jest.fn(),
         findFirst: jest.fn(),
         findMany: jest.fn(),
         create: jest.fn(),
@@ -40,12 +41,13 @@ describe('DepartmentsService', () => {
       $transaction: jest.fn()
     };
 
-    prisma.$transaction.mockImplementation(
-      async (
-        callback: (tx: typeof prisma) => Promise<unknown>,
-        _options?: unknown
-      ) => callback(prisma)
-    );
+    prisma.$transaction.mockImplementation(async (input: unknown) => {
+      if (Array.isArray(input)) {
+        return Promise.all(input);
+      }
+
+      return (input as (tx: typeof prisma) => Promise<unknown>)(prisma);
+    });
 
     return prisma;
   }
@@ -124,6 +126,50 @@ describe('DepartmentsService', () => {
     ).rejects.toThrow(
       new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS)
     );
+  });
+
+  it('applies status filter when querying department list', async () => {
+    const prisma = createPrismaMock();
+    const service = new DepartmentsService(
+      prisma as never,
+      createTenantScope()
+    );
+
+    prisma.department.count.mockResolvedValue(1);
+    prisma.department.findMany.mockResolvedValue([
+      createDepartment({
+        id: 110,
+        parentId: 100,
+        name: 'Product',
+        code: 'product',
+        status: false
+      })
+    ]);
+
+    const response = await service.list({
+      page: 1,
+      size: 10,
+      keyword: 'Product',
+      status: false
+    });
+
+    expect(prisma.department.count).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          {
+            OR: [
+              { name: { contains: 'Product' } },
+              { code: { contains: 'Product' } }
+            ],
+            status: false
+          },
+          {
+            tenantId: 'tenant_001'
+          }
+        ]
+      }
+    });
+    expect(response.data.records[0].status).toBe(false);
   });
 
   it('rejects create when parent department does not exist', async () => {
@@ -240,5 +286,43 @@ describe('DepartmentsService', () => {
     );
 
     expect(prisma.department.update).not.toHaveBeenCalled();
+  });
+
+  it('updates department status', async () => {
+    const prisma = createPrismaMock();
+    const service = new DepartmentsService(
+      prisma as never,
+      createTenantScope()
+    );
+
+    prisma.department.findFirst.mockResolvedValue(
+      createDepartment({
+        id: 110,
+        parentId: 100,
+        name: 'Product',
+        code: 'product'
+      })
+    );
+    prisma.department.update.mockResolvedValue(
+      createDepartment({
+        id: 110,
+        parentId: 100,
+        name: 'Product',
+        code: 'product',
+        status: false
+      })
+    );
+
+    const response = await service.updateStatus(110, {
+      status: false
+    });
+
+    expect(prisma.department.update).toHaveBeenCalledWith({
+      where: { id: 110 },
+      data: {
+        status: false
+      }
+    });
+    expect(response.data.status).toBe(false);
   });
 });

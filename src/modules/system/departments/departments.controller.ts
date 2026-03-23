@@ -26,7 +26,8 @@ import { RequireMenuPermission } from '../../iam/permissions/require-permissions
 import {
   CreateDepartmentDto,
   DepartmentListQueryDto,
-  UpdateDepartmentDto
+  UpdateDepartmentDto,
+  UpdateDepartmentStatusDto
 } from './departments.dto';
 import {
   DepartmentItemResponseDto,
@@ -59,6 +60,12 @@ export class DepartmentsController {
     required: false,
     example: '研发',
     description: '部门名称或编码关键字'
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    example: true,
+    description: '部门状态，true 为启用，false 为停用'
   })
   @ApiSuccessResponse({
     type: DepartmentPageResponseDto,
@@ -336,6 +343,66 @@ export class DepartmentsController {
     @Body() dto: UpdateDepartmentDto
   ) {
     return this.departmentsService.update(id, dto);
+  }
+
+  @ApiOperation({
+    summary: '更新部门状态',
+    description: '根据部门 ID 更新启停用状态。'
+  })
+  @ApiParam({ name: 'id', description: '部门 ID', example: 110 })
+  @ApiBody({ type: UpdateDepartmentStatusDto })
+  @ApiSuccessResponse({
+    type: DepartmentItemResponseDto,
+    description: '部门状态更新成功响应',
+    dataExample: {
+      pid: 100,
+      id: 110,
+      name: '产品研发部',
+      code: 'product_rd',
+      leader: '李工',
+      phone: '13800000001',
+      email: 'rd@luckycolor.local',
+      sort: 20,
+      status: false,
+      remark: '更新后的部门备注',
+      createdAt: '2026-03-22T14:30:00.000Z',
+      updatedAt: '2026-03-22T15:00:00.000Z'
+    }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '部门不存在',
+    examples: [
+      {
+        name: 'departmentNotFound',
+        code: BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '状态参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
+  @SystemLog({
+    module: '部门管理',
+    action: '更新部门状态',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'status', label: 'status' }
+    ]
+  })
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateDepartmentStatusDto
+  ) {
+    return this.departmentsService.updateStatus(id, dto);
   }
 
   @ApiOperation({
