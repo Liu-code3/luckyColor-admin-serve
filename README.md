@@ -6,6 +6,12 @@
 - Prisma
 - MySQL
 
+## 开发提交约定
+
+- 后端项目每次新增功能或修改功能后，必须完成一次 Git 提交。
+- 分支管理遵循 `gitflow`。
+- `git commit message` 使用简洁明了的中文。
+
 ## 启动
 
 ```powershell
