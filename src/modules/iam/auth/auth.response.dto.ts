@@ -95,6 +95,35 @@ export class AuthAccessResponseDto {
   menuTree!: MenuTreeItemResponseDto[];
 }
 
+export class AuthButtonPermissionResponseDto {
+  @ApiProperty({
+    description: '当前登录用户拥有的全部按钮权限码',
+    type: [String],
+    example: ['system:user:create', 'system:user:update']
+  })
+  buttonCodeList!: string[];
+
+  @ApiProperty({
+    description:
+      '本次查询命中的按钮权限码列表；未传 `codes` 时等同于 `buttonCodeList`',
+    type: [String],
+    example: ['system:user:create']
+  })
+  grantedCodeList!: string[];
+
+  @ApiProperty({
+    description: '按钮权限命中映射，键为权限码，值为是否拥有该权限',
+    example: {
+      'system:user:create': true,
+      'system:user:delete': false
+    },
+    additionalProperties: {
+      type: 'boolean'
+    }
+  })
+  permissionMap!: Record<string, boolean>;
+}
+
 export class LoginResultResponseDto {
   @ApiProperty({
     description: '访问令牌',

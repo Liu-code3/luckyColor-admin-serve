@@ -1,10 +1,5 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiOperation,
-  ApiTags
-} from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
   ApiErrorResponse,
@@ -13,9 +8,10 @@ import {
   ApiUnauthorizedErrorResponse
 } from '../../../shared/swagger/swagger-response';
 import { AuthService } from './auth.service';
-import { LoginDto } from './auth.dto';
+import { AuthButtonPermissionQueryDto, LoginDto } from './auth.dto';
 import {
   AuthAccessResponseDto,
+  AuthButtonPermissionResponseDto,
   AuthUserResponseDto,
   LoginResultResponseDto
 } from './auth.response.dto';
@@ -117,7 +113,8 @@ export class AuthController {
 
   @ApiOperation({
     summary: '当前用户访问快照',
-    description: '返回当前登录用户的角色明细、菜单树和按钮权限，便于前端初始化权限状态。'
+    description:
+      '返回当前登录用户的角色明细、菜单树和按钮权限，便于前端初始化权限状态。'
   })
   @ApiBearerAuth()
   @ApiSuccessResponse({
@@ -192,5 +189,47 @@ export class AuthController {
   @Get('access')
   access(@CurrentUser() user: JwtPayload) {
     return this.authService.getAccess(user);
+  }
+
+  @ApiOperation({
+    summary: '当前用户按钮权限查询',
+    description:
+      '返回当前登录用户拥有的按钮权限码；可选传入 codes 做定向校验，便于前端按权限码控制按钮显示与禁用。'
+  })
+  @ApiBearerAuth()
+  @ApiSuccessResponse({
+    type: AuthButtonPermissionResponseDto,
+    description: '当前用户按钮权限查询结果',
+    dataExample: {
+      buttonCodeList: ['system:user:create', 'system:user:update'],
+      grantedCodeList: ['system:user:create'],
+      permissionMap: {
+        'system:user:create': true,
+        'system:user:delete': false
+      }
+    }
+  })
+  @ApiUnauthorizedErrorResponse({
+    description: '登录态异常响应',
+    examples: [
+      {
+        name: 'tokenExpired',
+        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+        summary: '登录已过期'
+      },
+      {
+        name: 'tokenInvalid',
+        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
+        summary: '登录状态无效'
+      }
+    ]
+  })
+  @UseGuards(JwtAuthGuard)
+  @Get('button-permissions')
+  buttonPermissions(
+    @CurrentUser() user: JwtPayload,
+    @Query() query: AuthButtonPermissionQueryDto
+  ) {
+    return this.authService.getButtonPermissions(user, query);
   }
 }

@@ -55,6 +55,37 @@ describe('AllExceptionsFilter', () => {
     });
   });
 
+  it('maps framework unauthorized exception to auth token invalid code', () => {
+    const filter = new AllExceptionsFilter();
+    const { host, status, json } = createHost();
+
+    filter.catch(
+      new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED),
+      host
+    );
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
+    expect(json).toHaveBeenCalledWith({
+      code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
+      msg: '登录状态无效，请重新登录',
+      data: null
+    });
+  });
+
+  it('maps framework forbidden exception to permission denied code', () => {
+    const filter = new AllExceptionsFilter();
+    const { host, status, json } = createHost();
+
+    filter.catch(new HttpException('Forbidden', HttpStatus.FORBIDDEN), host);
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.FORBIDDEN);
+    expect(json).toHaveBeenCalledWith({
+      code: BUSINESS_ERROR_CODES.PERMISSION_DENIED,
+      msg: '当前账号没有此操作权限',
+      data: null
+    });
+  });
+
   it('returns http error payload for unknown system exception', () => {
     const filter = new AllExceptionsFilter();
     const { host, status, json } = createHost();

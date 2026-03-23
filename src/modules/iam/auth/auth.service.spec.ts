@@ -351,6 +351,74 @@ describe('AuthService', () => {
     expect(response.data.user.menuCodeList).toEqual(['main_system_department']);
   });
 
+  it('returns button permission query result for requested codes', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findFirst.mockResolvedValue(
+      createUser({
+        roles: [
+          {
+            role: createRole({
+              code: 'tenant_admin',
+              name: '租户管理员',
+              menus: [
+                {
+                  menu: createMenu({
+                    id: 31,
+                    parentId: 5,
+                    title: '新增用户',
+                    name: 'systemUsersCreate',
+                    type: 3,
+                    path: '',
+                    menuKey: 'system:user:create',
+                    component: '',
+                    sort: 31
+                  })
+                },
+                {
+                  menu: createMenu({
+                    id: 32,
+                    parentId: 5,
+                    title: '编辑用户',
+                    name: 'systemUsersUpdate',
+                    type: 3,
+                    path: '',
+                    menuKey: 'system:user:update',
+                    component: '',
+                    sort: 32
+                  })
+                }
+              ]
+            })
+          }
+        ]
+      })
+    );
+
+    const response = await service.getButtonPermissions(
+      {
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      },
+      {
+        codes: ['system:user:create', 'system:user:delete']
+      }
+    );
+
+    expect(response).toEqual({
+      code: 200,
+      msg: 'success',
+      data: {
+        buttonCodeList: ['system:user:create', 'system:user:update'],
+        grantedCodeList: ['system:user:create'],
+        permissionMap: {
+          'system:user:create': true,
+          'system:user:delete': false
+        }
+      }
+    });
+  });
+
   it('rejects login when password verification fails', async () => {
     const { service, prisma, passwordService } = createService();
     prisma.user.findFirst.mockResolvedValue(createUser());

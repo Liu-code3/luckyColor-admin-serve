@@ -36,10 +36,30 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return;
     }
 
-    if (exception instanceof HttpException && status === HttpStatus.UNPROCESSABLE_ENTITY) {
+    if (
+      exception instanceof HttpException &&
+      status === HttpStatus.UNPROCESSABLE_ENTITY
+    ) {
       response
         .status(status)
         .json(errorResponse(BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID));
+      return;
+    }
+
+    if (
+      exception instanceof HttpException &&
+      status === HttpStatus.UNAUTHORIZED
+    ) {
+      response
+        .status(status)
+        .json(errorResponse(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID));
+      return;
+    }
+
+    if (exception instanceof HttpException && status === HttpStatus.FORBIDDEN) {
+      response
+        .status(status)
+        .json(errorResponse(BUSINESS_ERROR_CODES.PERMISSION_DENIED));
       return;
     }
 

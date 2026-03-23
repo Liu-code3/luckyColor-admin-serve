@@ -8,7 +8,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
-import { LoginDto } from './auth.dto';
+import { AuthButtonPermissionQueryDto, LoginDto } from './auth.dto';
 import type { JwtPayload } from './jwt-payload.interface';
 
 type AuthUserRecord = Prisma.UserGetPayload<{
@@ -113,6 +113,30 @@ export class AuthService {
     }
 
     return successResponse(this.toAccessSnapshot(user));
+  }
+
+  async getButtonPermissions(
+    payload: JwtPayload,
+    query: AuthButtonPermissionQueryDto
+  ) {
+    const user = await this.findUserWithAccess(payload);
+
+    if (!user) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID);
+    }
+
+    const accessSnapshot = this.toAccessSnapshot(user);
+    const buttonCodeList = accessSnapshot.user.buttonCodeList;
+    const requestedCodes = query.codes?.length ? query.codes : buttonCodeList;
+    const permissionMap = Object.fromEntries(
+      requestedCodes.map((code) => [code, buttonCodeList.includes(code)])
+    );
+
+    return successResponse({
+      buttonCodeList,
+      grantedCodeList: requestedCodes.filter((code) => permissionMap[code]),
+      permissionMap
+    });
   }
 
   private async validateUser(dto: LoginDto) {
