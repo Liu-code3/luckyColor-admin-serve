@@ -205,6 +205,34 @@ describe('UsersService', () => {
     expect(prisma.userRole.createMany).not.toHaveBeenCalled();
   });
 
+  it('throws when assigning disabled roles to a user', async () => {
+    const prisma = createPrismaMock();
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      createDataScopeServiceMock()
+    );
+    prisma.user.findFirst.mockResolvedValue(createUser());
+    prisma.role.findMany.mockResolvedValue([
+      createRole({
+        id: 'role-disabled',
+        status: false
+      })
+    ]);
+
+    await expect(
+      service.assignRoles('user-1', { roleIds: ['role-disabled'] })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.STATUS_NOT_ALLOWED)
+    );
+
+    expect(prisma.userRole.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.userRole.createMany).not.toHaveBeenCalled();
+  });
+
   it('replaces user roles and returns the latest assignment result', async () => {
     const prisma = createPrismaMock();
     const service = new UsersService(

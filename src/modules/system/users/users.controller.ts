@@ -476,6 +476,16 @@ export class UsersController {
     ]
   })
   @ApiErrorResponse({
+    status: 400,
+    description: '分配的角色状态不可用',
+    examples: [
+      {
+        name: 'statusNotAllowed',
+        code: BUSINESS_ERROR_CODES.STATUS_NOT_ALLOWED
+      }
+    ]
+  })
+  @ApiErrorResponse({
     status: 422,
     description: '分配参数校验失败',
     examples: [

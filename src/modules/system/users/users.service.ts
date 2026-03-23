@@ -248,6 +248,10 @@ export class UsersService {
         throw new BusinessException(BUSINESS_ERROR_CODES.ROLE_NOT_FOUND);
       }
 
+      if (roles.some((role) => !role.status)) {
+        throw new BusinessException(BUSINESS_ERROR_CODES.STATUS_NOT_ALLOWED);
+      }
+
       await tx.userRole.deleteMany({
         where: {
           userId: id,
