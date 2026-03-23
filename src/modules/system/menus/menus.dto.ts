@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayNotEmpty,
@@ -15,6 +15,30 @@ import {
 
 export const MENU_TREE_VIEW_VALUES = ['platform', 'tenant'] as const;
 export type MenuTreeView = (typeof MENU_TREE_VIEW_VALUES)[number];
+
+function transformBoolean(value: unknown) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized === 'true') {
+      return true;
+    }
+
+    if (normalized === 'false') {
+      return false;
+    }
+  }
+
+  return value;
+}
 
 export class MenuListQueryDto {
   @ApiPropertyOptional({
@@ -42,6 +66,15 @@ export class MenuListQueryDto {
   @IsOptional()
   @IsString()
   title?: string;
+
+  @ApiPropertyOptional({
+    description: '菜单状态，true 为启用，false 为停用',
+    example: true
+  })
+  @IsOptional()
+  @Transform(({ value }) => transformBoolean(value))
+  @IsBoolean()
+  status?: boolean;
 }
 
 export class CreateMenuDto {
@@ -124,6 +157,16 @@ export class CreateMenuDto {
   @Type(() => Boolean)
   @IsBoolean()
   isVisible = true;
+
+  @ApiPropertyOptional({
+    description: '菜单状态，true 为启用，false 为停用',
+    example: true,
+    default: true
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  status?: boolean;
 
   @ApiProperty({
     description: '前端组件路径',
@@ -239,6 +282,15 @@ export class UpdateMenuDto {
   isVisible?: boolean;
 
   @ApiPropertyOptional({
+    description: '菜单状态，true 为启用，false 为停用',
+    example: true
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  status?: boolean;
+
+  @ApiPropertyOptional({
     description: '前端组件路径',
     example: 'system/users/index'
   })
@@ -279,7 +331,8 @@ export class UpdateMenuDto {
 
 export class MenuTreeQueryDto {
   @ApiPropertyOptional({
-    description: '菜单树视角，platform 返回全量菜单树，tenant 返回当前租户已授权菜单树',
+    description:
+      '菜单树视角，platform 返回全量菜单树，tenant 返回当前租户已授权菜单树',
     enum: MENU_TREE_VIEW_VALUES,
     example: 'platform',
     default: 'platform'
@@ -347,4 +400,14 @@ export class SyncMenusDto {
   @ValidateNested({ each: true })
   @Type(() => SyncMenuItemDto)
   menus!: SyncMenuItemDto[];
+}
+
+export class UpdateMenuStatusDto {
+  @ApiProperty({
+    description: '菜单状态，true 为启用，false 为停用；停用时会级联停用子菜单',
+    example: true
+  })
+  @Type(() => Boolean)
+  @IsBoolean()
+  status!: boolean;
 }

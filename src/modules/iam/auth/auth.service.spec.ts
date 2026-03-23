@@ -20,6 +20,7 @@ describe('AuthService', () => {
     icon: 'folder',
     layout: '',
     isVisible: true,
+    status: true,
     component: 'sys',
     redirect: null,
     meta: null,
@@ -270,6 +271,7 @@ describe('AuthService', () => {
             icon: 'folder',
             layout: '',
             isVisible: true,
+            status: true,
             component: 'sys',
             redirect: undefined,
             meta: undefined,
@@ -288,6 +290,7 @@ describe('AuthService', () => {
                 icon: 'folder',
                 layout: '',
                 isVisible: true,
+                status: true,
                 component: 'sys',
                 redirect: undefined,
                 meta: undefined,
@@ -545,6 +548,9 @@ describe('AuthService', () => {
     });
 
     expect(prisma.menu.findMany).toHaveBeenCalledWith({
+      where: {
+        status: true
+      },
       orderBy: [{ sort: 'asc' }, { id: 'asc' }]
     });
     expect(response).toEqual({
@@ -638,5 +644,137 @@ describe('AuthService', () => {
       username: 'admin'
     });
     expect(response.code).toBe(200);
+  });
+
+  it('filters disabled menus from access snapshot and button permissions', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findFirst.mockResolvedValue(
+      createUser({
+        roles: [
+          {
+            role: createRole({
+              code: 'tenant_admin',
+              name: '租户管理员',
+              menus: [
+                {
+                  menu: createMenu({
+                    id: 5,
+                    parentId: 4,
+                    title: '用户管理',
+                    name: 'systemUsers',
+                    type: 2,
+                    path: '/system/users',
+                    menuKey: 'main_system_users',
+                    sort: 5
+                  })
+                },
+                {
+                  menu: createMenu({
+                    id: 13,
+                    parentId: 5,
+                    title: '新增用户',
+                    name: 'systemUsersCreate',
+                    type: 3,
+                    path: '',
+                    menuKey: 'system:user:create',
+                    component: '',
+                    sort: 13,
+                    status: false
+                  })
+                }
+              ]
+            })
+          }
+        ]
+      })
+    );
+
+    const access = await service.getAccess({
+      sub: 'user-1',
+      tenantId: 'tenant_001',
+      username: 'admin'
+    });
+    const buttonPermissions = await service.getButtonPermissions(
+      {
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      },
+      {}
+    );
+
+    expect(access.data.user.menuCodeList).toEqual(['main_system_users']);
+    expect(access.data.user.buttonCodeList).toEqual([]);
+    expect(buttonPermissions.data).toEqual({
+      buttonCodeList: [],
+      grantedCodeList: [],
+      permissionMap: {}
+    });
+  });
+
+  it('filters disabled menus from dynamic routes', async () => {
+    const { service, prisma } = createService();
+    const rootMenu = createMenu({
+      id: 4,
+      parentId: null,
+      title: '系统管理',
+      name: 'system',
+      type: 1,
+      path: '/system',
+      menuKey: 'main_system',
+      component: 'LAYOUT',
+      redirect: '/system/users',
+      sort: 4
+    });
+    const disabledChildMenu = createMenu({
+      id: 5,
+      parentId: 4,
+      title: '用户管理',
+      name: 'systemUsers',
+      type: 2,
+      path: '/system/users',
+      menuKey: 'main_system_users',
+      component: 'system/users/index',
+      sort: 5,
+      status: false
+    });
+
+    prisma.user.findFirst.mockResolvedValue(
+      createUser({
+        roles: [
+          {
+            role: createRole({
+              code: 'tenant_admin',
+              name: '租户管理员',
+              menus: [{ menu: rootMenu }, { menu: disabledChildMenu }]
+            })
+          }
+        ]
+      })
+    );
+    prisma.menu.findMany.mockResolvedValue([rootMenu]);
+
+    const response = await service.getRoutes({
+      sub: 'user-1',
+      tenantId: 'tenant_001',
+      username: 'admin'
+    });
+
+    expect(response.data).toEqual([
+      {
+        path: '/system',
+        name: 'system',
+        component: 'LAYOUT',
+        redirect: '/system/users',
+        meta: {
+          title: '系统管理',
+          icon: 'folder',
+          hidden: false,
+          order: 4,
+          menuKey: 'main_system',
+          type: 1
+        }
+      }
+    ]);
   });
 });

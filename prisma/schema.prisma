@@ -142,6 +142,7 @@ model Menu {
   icon      String?
   layout    String?
   isVisible Boolean    @default(true) @map("is_visible")
+  status    Boolean    @default(true)
   component String
   redirect  String?
   meta      Json?

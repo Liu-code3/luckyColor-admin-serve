@@ -62,6 +62,12 @@ export class MenuItemResponseDto {
   isVisible!: boolean;
 
   @ApiProperty({
+    description: '菜单状态，true 为启用，false 为停用',
+    example: true
+  })
+  status!: boolean;
+
+  @ApiProperty({
     description: '前端组件路径',
     example: 'system/users/index'
   })

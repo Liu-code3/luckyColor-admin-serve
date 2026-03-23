@@ -29,7 +29,8 @@ import {
   MenuListQueryDto,
   MenuTreeQueryDto,
   SyncMenusDto,
-  UpdateMenuDto
+  UpdateMenuDto,
+  UpdateMenuStatusDto
 } from './menus.dto';
 import {
   MenuItemResponseDto,
@@ -63,6 +64,12 @@ export class MenusController {
     example: '系统',
     description: '菜单标题关键字'
   })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    example: true,
+    description: '菜单状态，true 为启用，false 为停用'
+  })
   @ApiSuccessResponse({
     type: MenuPageResponseDto,
     description: '菜单分页列表响应',
@@ -82,6 +89,7 @@ export class MenusController {
           icon: 'UserOutlined',
           layout: 'default',
           isVisible: true,
+          status: true,
           component: 'system/users/index',
           redirect: '/system/users/list',
           meta: {
@@ -131,6 +139,7 @@ export class MenusController {
         icon: 'SettingOutlined',
         layout: 'default',
         isVisible: true,
+        status: true,
         component: 'LAYOUT',
         meta: {
           title: '系统管理'
@@ -150,6 +159,7 @@ export class MenusController {
             icon: 'UserOutlined',
             layout: 'default',
             isVisible: true,
+            status: true,
             component: 'system/users/index',
             meta: {
               title: '用户管理'
@@ -166,7 +176,8 @@ export class MenusController {
     name: 'view',
     required: false,
     example: 'platform',
-    description: '菜单树视角，platform 返回全量菜单树，tenant 返回当前租户已授权菜单树'
+    description:
+      '菜单树视角，platform 返回全量菜单树，tenant 返回当前租户已授权菜单树'
   })
   @ApiQuery({
     name: 'roleId',
@@ -218,6 +229,7 @@ export class MenusController {
       icon: 'UserOutlined',
       layout: 'default',
       isVisible: true,
+      status: true,
       component: 'system/users/index',
       redirect: '/system/users/list',
       meta: {
@@ -262,6 +274,7 @@ export class MenusController {
       icon: 'UserOutlined',
       layout: 'default',
       isVisible: true,
+      status: true,
       component: 'system/users/index',
       redirect: '/system/users/list',
       meta: {
@@ -335,6 +348,7 @@ export class MenusController {
         icon: 'SettingOutlined',
         layout: 'default',
         isVisible: true,
+        status: true,
         component: 'LAYOUT',
         sort: 1,
         createdAt: '2026-03-22T14:30:00.000Z',
@@ -351,6 +365,7 @@ export class MenusController {
             icon: 'UserOutlined',
             layout: 'default',
             isVisible: true,
+            status: true,
             component: 'system/users/index',
             sort: 10,
             createdAt: '2026-03-22T14:30:00.000Z',
@@ -420,6 +435,7 @@ export class MenusController {
       icon: 'UserOutlined',
       layout: 'default',
       isVisible: true,
+      status: true,
       component: 'system/users/index',
       redirect: '/system/users/list',
       meta: {
@@ -482,6 +498,75 @@ export class MenusController {
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateMenuDto) {
     return this.menusService.update(id, dto);
+  }
+
+  @ApiOperation({
+    summary: '更新菜单状态',
+    description:
+      '根据菜单 ID 更新启停用状态；停用父菜单时会级联停用全部子菜单。'
+  })
+  @ApiParam({ name: 'id', description: '菜单 ID', example: 1001 })
+  @ApiBody({ type: UpdateMenuStatusDto })
+  @ApiSuccessResponse({
+    type: MenuItemResponseDto,
+    description: '菜单状态更新成功响应',
+    dataExample: {
+      pid: 0,
+      id: 1001,
+      title: '用户管理',
+      name: 'UserManage',
+      type: 2,
+      path: '/system/users',
+      key: 'system:user:list',
+      icon: 'UserOutlined',
+      layout: 'default',
+      isVisible: true,
+      status: false,
+      component: 'system/users/index',
+      redirect: '/system/users/list',
+      meta: {
+        title: '用户管理',
+        keepAlive: true
+      },
+      sort: 20,
+      createdAt: '2026-03-22T14:30:00.000Z',
+      updatedAt: '2026-03-22T15:00:00.000Z'
+    }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '菜单不存在',
+    examples: [
+      {
+        name: 'menuNotFound',
+        code: BUSINESS_ERROR_CODES.MENU_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '状态参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
+  @SystemLog({
+    module: '菜单管理',
+    action: '更新菜单状态',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'status', label: 'status' }
+    ]
+  })
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateMenuStatusDto
+  ) {
+    return this.menusService.updateStatus(id, dto);
   }
 
   @ApiOperation({

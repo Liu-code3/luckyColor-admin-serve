@@ -9,6 +9,7 @@ interface MenuSeedItem {
   icon: string;
   layout: string;
   isVisible: boolean;
+  status?: boolean;
   component: string;
   meta?: Record<string, unknown>;
   sort: number;

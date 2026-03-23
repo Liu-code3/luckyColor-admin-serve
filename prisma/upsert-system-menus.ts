@@ -32,6 +32,7 @@ async function main() {
         icon: item.icon,
         layout: item.layout,
         isVisible: item.isVisible,
+        status: item.status ?? true,
         component: item.component,
         redirect: null,
         meta: (item.meta ?? undefined) as Prisma.InputJsonValue | undefined,
@@ -47,6 +48,7 @@ async function main() {
         icon: item.icon,
         layout: item.layout,
         isVisible: item.isVisible,
+        status: item.status ?? true,
         component: item.component,
         meta: (item.meta ?? undefined) as Prisma.InputJsonValue | undefined,
         sort: item.sort

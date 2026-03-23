@@ -11,7 +11,8 @@ import {
   MenuListQueryDto,
   MenuTreeQueryDto,
   SyncMenusDto,
-  UpdateMenuDto
+  UpdateMenuDto,
+  UpdateMenuStatusDto
 } from './menus.dto';
 
 @Injectable()
@@ -25,11 +26,14 @@ export class MenusService {
     const current = query.page || 1;
     const size = query.size || 10;
     const title = query.title?.trim();
-    const where = title
-      ? {
-          title: { contains: title }
-        }
-      : {};
+    const where: Prisma.MenuWhereInput = {
+      title: title
+        ? {
+            contains: title
+          }
+        : undefined,
+      status: query.status
+    };
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.menu.count({ where }),
@@ -98,9 +102,12 @@ export class MenusService {
               icon: dto.icon ?? '',
               layout: dto.layout ?? '',
               isVisible: dto.isVisible,
+              status: dto.status ?? true,
               component: dto.component,
               redirect: dto.redirect ?? null,
-              meta: (dto.meta ?? undefined) as Prisma.InputJsonValue | undefined,
+              meta: (dto.meta ?? undefined) as
+                | Prisma.InputJsonValue
+                | undefined,
               sort: dto.sort ?? 0
             }
           });
@@ -142,29 +149,49 @@ export class MenusService {
       );
     }
 
-    const menu = await this.prisma.menu.update({
-      where: { id },
-      data: {
-        parentId: dto.parentId,
-        title: dto.title,
-        name: dto.name,
-        type: dto.type,
-        path: dto.path,
-        menuKey: dto.menuKey,
-        icon: dto.icon,
-        layout: dto.layout,
-        isVisible: dto.isVisible,
-        component: dto.component,
-        redirect: dto.redirect === undefined ? undefined : dto.redirect,
-        meta:
-          dto.meta === undefined
-            ? undefined
-            : (dto.meta as
-                | Prisma.InputJsonValue
-                | Prisma.NullableJsonNullValueInput),
-        sort: dto.sort
+    const menu = await this.prisma.$transaction(
+      async (tx) =>
+        this.updateMenuWithStatus(tx, id, {
+          parentId: dto.parentId,
+          title: dto.title,
+          name: dto.name,
+          type: dto.type,
+          path: dto.path,
+          menuKey: dto.menuKey,
+          icon: dto.icon,
+          layout: dto.layout,
+          isVisible: dto.isVisible,
+          component: dto.component,
+          redirect: dto.redirect === undefined ? undefined : dto.redirect,
+          meta:
+            dto.meta === undefined
+              ? undefined
+              : (dto.meta as
+                  | Prisma.InputJsonValue
+                  | Prisma.NullableJsonNullValueInput),
+          sort: dto.sort,
+          status: dto.status
+        }),
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
       }
-    });
+    );
+
+    return successResponse(this.toMenuResponse(menu));
+  }
+
+  async updateStatus(id: number, dto: UpdateMenuStatusDto) {
+    await this.ensureMenuExists(id);
+
+    const menu = await this.prisma.$transaction(
+      async (tx) =>
+        this.updateMenuWithStatus(tx, id, {
+          status: dto.status
+        }),
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      }
+    );
 
     return successResponse(this.toMenuResponse(menu));
   }
@@ -266,6 +293,42 @@ export class MenusService {
     return menu;
   }
 
+  private async updateMenuWithStatus(
+    tx: Prisma.TransactionClient,
+    id: number,
+    data: Prisma.MenuUpdateInput
+  ) {
+    if (data.status !== false) {
+      return tx.menu.update({
+        where: { id },
+        data
+      });
+    }
+
+    const menus = await tx.menu.findMany({
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+    });
+    const ids = this.collectMenuIds(id, menus);
+
+    if (ids.length > 1) {
+      await tx.menu.updateMany({
+        where: {
+          id: {
+            in: ids.filter((item) => item !== id)
+          }
+        },
+        data: {
+          status: false
+        }
+      });
+    }
+
+    return tx.menu.update({
+      where: { id },
+      data
+    });
+  }
+
   private async ensureMenuKeyAvailable(menuKey: string, excludeId?: number) {
     const menu = await this.prisma.menu.findFirst({
       where: {
@@ -300,7 +363,9 @@ export class MenusService {
   ) {
     if (parentId === null) {
       if (type === 3) {
-        throw new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID);
+        throw new BusinessException(
+          BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID
+        );
       }
 
       return;
@@ -323,7 +388,9 @@ export class MenusService {
     if (currentId !== undefined) {
       const descendantIds = new Set(this.collectMenuIds(currentId, menus));
       if (descendantIds.has(parentId)) {
-        throw new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID);
+        throw new BusinessException(
+          BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID
+        );
       }
     }
   }
@@ -474,6 +541,7 @@ export class MenusService {
       icon: menu.icon ?? '',
       layout: menu.layout ?? '',
       isVisible: menu.isVisible,
+      status: menu.status,
       component: menu.component,
       redirect: menu.redirect ?? undefined,
       meta: (menu.meta as Record<string, unknown> | null) ?? undefined,

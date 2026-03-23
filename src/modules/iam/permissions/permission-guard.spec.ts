@@ -103,7 +103,7 @@ describe('PermissionGuard', () => {
           role: {
             code: 'tenant_admin',
             status: true,
-            menus: [{ menu: { menuKey: 'main_system_role' } }]
+            menus: [{ menu: { menuKey: 'main_system_role', status: true } }]
           }
         }
       ]
@@ -132,7 +132,7 @@ describe('PermissionGuard', () => {
           role: {
             code: 'tenant_admin',
             status: true,
-            menus: [{ menu: { menuKey: 'main_system_config' } }]
+            menus: [{ menu: { menuKey: 'main_system_config', status: true } }]
           }
         }
       ]
@@ -162,7 +162,7 @@ describe('PermissionGuard', () => {
           role: {
             code: 'tenant_admin',
             status: false,
-            menus: [{ menu: { menuKey: 'main_system_menu' } }]
+            menus: [{ menu: { menuKey: 'main_system_menu', status: true } }]
           }
         }
       ]
@@ -178,6 +178,36 @@ describe('PermissionGuard', () => {
       )
     ).rejects.toThrow(
       new BusinessException(BUSINESS_ERROR_CODES.ROLE_DISABLED)
+    );
+  });
+
+  it('denies access when permission only comes from disabled menus', async () => {
+    const { guard, prisma } = createGuard({
+      permissions: ['main_system_menu'],
+      mode: 'ANY'
+    });
+    prisma.user.findFirst.mockResolvedValue({
+      roles: [
+        {
+          role: {
+            code: 'tenant_admin',
+            status: true,
+            menus: [{ menu: { menuKey: 'main_system_menu', status: false } }]
+          }
+        }
+      ]
+    });
+
+    await expect(
+      guard.canActivate(
+        createExecutionContext({
+          sub: 'user-5',
+          tenantId: 'tenant_001',
+          username: 'tenant-admin'
+        })
+      )
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.PERMISSION_DENIED)
     );
   });
 });

@@ -56,7 +56,8 @@ export class PermissionGuard implements CanActivate {
                   select: {
                     menu: {
                       select: {
-                        menuKey: true
+                        menuKey: true,
+                        status: true
                       }
                     }
                   }
@@ -86,7 +87,10 @@ export class PermissionGuard implements CanActivate {
 
     const permissionSet = new Set(
       activeRoles.flatMap((role) =>
-        role.menus.map((item) => item.menu.menuKey).filter(Boolean)
+        role.menus
+          .filter((item) => item.menu.status)
+          .map((item) => item.menu.menuKey)
+          .filter(Boolean)
       )
     );
 

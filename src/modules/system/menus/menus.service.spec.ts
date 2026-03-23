@@ -21,6 +21,7 @@ describe('MenusService', () => {
     icon: '',
     layout: '',
     isVisible: true,
+    status: true,
     component: 'dashboard/index',
     redirect: null,
     meta: null,
@@ -38,6 +39,7 @@ describe('MenusService', () => {
         findFirst: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
         findUnique: jest.fn(),
         deleteMany: jest.fn()
       },
@@ -103,6 +105,7 @@ describe('MenusService', () => {
         icon: '',
         layout: '',
         isVisible: true,
+        status: true,
         component: 'dashboard/index',
         redirect: null,
         meta: undefined,
@@ -168,6 +171,43 @@ describe('MenusService', () => {
     );
 
     expect(prisma.menu.create).not.toHaveBeenCalled();
+  });
+
+  it('applies status filter when querying menu list', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.count.mockResolvedValue(1);
+    prisma.menu.findMany.mockResolvedValue([
+      createMenu({
+        id: 8,
+        title: '角色管理',
+        status: false
+      })
+    ]);
+
+    const response = await service.list({
+      page: 1,
+      size: 10,
+      title: '角色',
+      status: false
+    });
+
+    expect(prisma.menu.count).toHaveBeenCalledWith({
+      where: {
+        title: { contains: '角色' },
+        status: false
+      }
+    });
+    expect(prisma.menu.findMany).toHaveBeenCalledWith({
+      where: {
+        title: { contains: '角色' },
+        status: false
+      },
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }],
+      skip: 0,
+      take: 10
+    });
+    expect(response.data.records[0].status).toBe(false);
   });
 
   it('rejects root button menus', async () => {
@@ -385,26 +425,26 @@ describe('MenusService', () => {
         })
       ])
       .mockResolvedValueOnce([
-      createMenu({
-        id: 1,
-        parentId: null,
-        title: '系统管理',
-        name: 'SystemManage',
-        path: '/system',
-        menuKey: 'system:root',
-        component: 'LAYOUT',
-        sort: 1
-      }),
-      createMenu({
-        id: 5,
-        parentId: 1,
-        title: '用户管理',
-        name: 'UserManage',
-        type: 2,
-        path: '/system/users',
-        menuKey: 'system:user:list',
-        sort: 10
-      })
+        createMenu({
+          id: 1,
+          parentId: null,
+          title: '系统管理',
+          name: 'SystemManage',
+          path: '/system',
+          menuKey: 'system:root',
+          component: 'LAYOUT',
+          sort: 1
+        }),
+        createMenu({
+          id: 5,
+          parentId: 1,
+          title: '用户管理',
+          name: 'UserManage',
+          type: 2,
+          path: '/system/users',
+          menuKey: 'system:user:list',
+          sort: 10
+        })
       ]);
     prisma.menu.update.mockImplementation(async ({ where, data }) =>
       createMenu({
@@ -578,5 +618,82 @@ describe('MenusService', () => {
     );
 
     expect(prisma.menu.update).not.toHaveBeenCalled();
+  });
+
+  it('cascades child menus when disabling a parent menu', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findUnique.mockResolvedValue(
+      createMenu({
+        id: 1,
+        parentId: null,
+        type: 1,
+        title: '系统管理',
+        name: 'SystemManage',
+        path: '/system',
+        menuKey: 'system:root',
+        component: 'LAYOUT'
+      })
+    );
+    prisma.menu.findMany.mockResolvedValue([
+      createMenu({
+        id: 1,
+        parentId: null,
+        type: 1,
+        title: '系统管理',
+        name: 'SystemManage',
+        path: '/system',
+        menuKey: 'system:root',
+        component: 'LAYOUT'
+      }),
+      createMenu({
+        id: 5,
+        parentId: 1,
+        type: 2,
+        title: '用户管理',
+        name: 'UserManage',
+        path: '/system/users',
+        menuKey: 'system:user:list'
+      }),
+      createMenu({
+        id: 13,
+        parentId: 5,
+        type: 3,
+        title: '新增用户',
+        name: 'UserCreate',
+        path: '',
+        menuKey: 'system:user:create',
+        component: ''
+      })
+    ]);
+    prisma.menu.updateMany.mockResolvedValue({ count: 2 });
+    prisma.menu.update.mockResolvedValue(
+      createMenu({
+        id: 1,
+        status: false
+      })
+    );
+
+    const response = await service.updateStatus(1, {
+      status: false
+    });
+
+    expect(prisma.menu.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: {
+          in: [5, 13]
+        }
+      },
+      data: {
+        status: false
+      }
+    });
+    expect(prisma.menu.update).toHaveBeenCalledWith({
+      where: { id: 1 },
+      data: {
+        status: false
+      }
+    });
+    expect(response.data.status).toBe(false);
   });
 });

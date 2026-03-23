@@ -51,6 +51,7 @@ type AuthMenuNode = {
   icon: string;
   layout: string;
   isVisible: boolean;
+  status: boolean;
   component: string;
   redirect?: string;
   meta?: Record<string, unknown>;
@@ -320,11 +321,16 @@ export class AuthService {
   private async resolveAccessibleMenus(user: AuthUserRecord) {
     const { menus } = this.resolveAccessContext(user);
     const allMenus = await this.prisma.menu.findMany({
+      where: {
+        status: true
+      },
       orderBy: [{ sort: 'asc' }, { id: 'asc' }]
     });
 
-    return this.expandMenusWithAncestors(allMenus, menus.map((item) => item.id))
-      .filter((item) => item.type !== 3);
+    return this.expandMenusWithAncestors(
+      allMenus,
+      menus.map((item) => item.id)
+    ).filter((item) => item.type !== 3);
   }
 
   private collectRoles(roles: AuthRoleRecord[]) {
@@ -351,6 +357,7 @@ export class AuthService {
 
     menus
       .slice()
+      .filter((menu) => menu.status)
       .sort((left, right) => left.sort - right.sort || left.id - right.id)
       .forEach((menu) => {
         if (!uniqueMenus.has(menu.id)) {
@@ -471,6 +478,7 @@ export class AuthService {
       icon: menu.icon ?? '',
       layout: menu.layout ?? '',
       isVisible: menu.isVisible,
+      status: menu.status,
       component: menu.component,
       redirect: menu.redirect ?? undefined,
       meta: (menu.meta as Record<string, unknown> | null) ?? undefined,
