@@ -280,6 +280,26 @@ export class MenusController {
       }
     ]
   })
+  @ApiErrorResponse({
+    status: 400,
+    description: '菜单层级关系不合法',
+    examples: [
+      {
+        name: 'menuHierarchyInvalid',
+        code: BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 409,
+    description: '菜单权限标识已存在',
+    examples: [
+      {
+        name: 'menuKeyAlreadyExists',
+        code: BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS
+      }
+    ]
+  })
   @SystemLog({
     module: '菜单管理',
     action: '创建菜单',
@@ -347,6 +367,26 @@ export class MenusController {
     targets: [
       { source: 'param', key: 'id', label: 'id' },
       { source: 'body', key: 'title', label: 'title' }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 400,
+    description: '菜单层级关系不合法',
+    examples: [
+      {
+        name: 'menuHierarchyInvalid',
+        code: BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 409,
+    description: '菜单权限标识已存在',
+    examples: [
+      {
+        name: 'menuKeyAlreadyExists',
+        code: BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS
+      }
     ]
   })
   @Patch(':id')
