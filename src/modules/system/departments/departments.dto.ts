@@ -70,6 +70,53 @@ export class DepartmentListQueryDto {
   status?: boolean;
 }
 
+export class DepartmentUsersQueryDto {
+  @ApiPropertyOptional({
+    description: '页码',
+    example: 1,
+    default: 1
+  })
+  @Type(() => Number)
+  @Min(1)
+  page = 1;
+
+  @ApiPropertyOptional({
+    description: '每页条数',
+    example: 10,
+    default: 10
+  })
+  @Type(() => Number)
+  @Min(1)
+  size = 10;
+
+  @ApiPropertyOptional({
+    description: '用户名、昵称、手机号或邮箱关键字',
+    example: 'admin'
+  })
+  @IsOptional()
+  @IsString()
+  keyword?: string;
+
+  @ApiPropertyOptional({
+    description: '用户状态，true 为启用，false 为停用',
+    example: true
+  })
+  @IsOptional()
+  @Transform(({ value }) => transformBoolean(value))
+  @IsBoolean()
+  status?: boolean;
+
+  @ApiPropertyOptional({
+    description: '是否包含子部门用户，true 为包含，false 为仅当前部门',
+    example: false,
+    default: false
+  })
+  @IsOptional()
+  @Transform(({ value }) => transformBoolean(value))
+  @IsBoolean()
+  includeChildren?: boolean;
+}
+
 export class CreateDepartmentDto {
   @ApiPropertyOptional({
     description: '部门 ID，不传则自动分配',

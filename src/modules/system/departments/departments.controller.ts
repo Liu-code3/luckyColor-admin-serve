@@ -26,6 +26,7 @@ import { RequireMenuPermission } from '../../iam/permissions/require-permissions
 import {
   CreateDepartmentDto,
   DepartmentListQueryDto,
+  DepartmentUsersQueryDto,
   UpdateDepartmentDto,
   UpdateDepartmentStatusDto
 } from './departments.dto';
@@ -35,6 +36,7 @@ import {
   DepartmentPageResponseDto,
   DepartmentTreeItemResponseDto
 } from './departments.response.dto';
+import { UserPageResponseDto } from '../users/users.response.dto';
 import { SystemLog } from '../system-logs/system-log.decorator';
 import { DepartmentsService } from './departments.service';
 
@@ -186,6 +188,103 @@ export class DepartmentsController {
   @Get(':id/descendant-ids')
   descendantIds(@Param('id', ParseIntPipe) id: number) {
     return this.departmentsService.descendantIds(id);
+  }
+
+  @ApiOperation({
+    summary: '部门详情',
+    description: '根据部门 ID 查询部门详情。'
+  })
+  @ApiOperation({
+    summary: '查询部门绑定用户',
+    description: '根据部门 ID 查询当前部门绑定用户，支持可选包含子部门用户。'
+  })
+  @ApiParam({ name: 'id', description: '部门 ID', example: 100 })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    example: 1,
+    description: '页码'
+  })
+  @ApiQuery({
+    name: 'size',
+    required: false,
+    example: 10,
+    description: '每页条数'
+  })
+  @ApiQuery({
+    name: 'keyword',
+    required: false,
+    example: 'admin',
+    description: '用户名、昵称、手机号或邮箱关键字'
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    example: true,
+    description: '用户状态，true 为启用，false 为停用'
+  })
+  @ApiQuery({
+    name: 'includeChildren',
+    required: false,
+    example: false,
+    description: '是否包含子部门用户'
+  })
+  @ApiSuccessResponse({
+    type: UserPageResponseDto,
+    description: '部门绑定用户分页响应',
+    dataExample: {
+      total: 1,
+      current: 1,
+      size: 10,
+      records: [
+        {
+          id: 'clx1234567890',
+          tenantId: 'tenant_001',
+          departmentId: 100,
+          username: 'admin',
+          nickname: '系统管理员',
+          phone: '13800000000',
+          email: 'admin@luckycolor.local',
+          avatar: 'https://static.luckycolor.local/avatar/admin.png',
+          status: true,
+          department: {
+            id: 100,
+            name: '总部',
+            code: 'headquarters'
+          },
+          lastLoginAt: '2026-03-22T16:00:00.000Z',
+          createdAt: '2026-03-22T14:30:00.000Z',
+          updatedAt: '2026-03-22T14:30:00.000Z'
+        }
+      ]
+    }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '部门不存在',
+    examples: [
+      {
+        name: 'departmentNotFound',
+        code: BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '查询参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
+  @Get(':id/users')
+  users(
+    @Param('id', ParseIntPipe) id: number,
+    @Query() query: DepartmentUsersQueryDto
+  ) {
+    return this.departmentsService.users(id, query);
   }
 
   @ApiOperation({

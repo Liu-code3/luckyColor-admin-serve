@@ -9,9 +9,16 @@ import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/
 import {
   CreateDepartmentDto,
   DepartmentListQueryDto,
+  DepartmentUsersQueryDto,
   UpdateDepartmentDto,
   UpdateDepartmentStatusDto
 } from './departments.dto';
+
+type UserWithDepartment = Prisma.UserGetPayload<{
+  include: {
+    department: true;
+  };
+}>;
 
 @Injectable()
 export class DepartmentsService {
@@ -77,6 +84,50 @@ export class DepartmentsService {
     return successResponse({
       departmentId: id,
       departmentIds
+    });
+  }
+
+  async users(id: number, query: DepartmentUsersQueryDto) {
+    const current = query.page || 1;
+    const size = query.size || 10;
+    const keyword = query.keyword?.trim();
+    const departmentIds = query.includeChildren
+      ? await this.findDescendantDepartmentIds(id)
+      : [(await this.ensureDepartmentExists(id)).id];
+
+    const where = this.buildUserWhere({
+      departmentId: {
+        in: departmentIds
+      },
+      status: query.status,
+      OR: keyword
+        ? [
+            { username: { contains: keyword } },
+            { nickname: { contains: keyword } },
+            { phone: { contains: keyword } },
+            { email: { contains: keyword } }
+          ]
+        : undefined
+    });
+
+    const [total, records] = await this.prisma.$transaction([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        include: {
+          department: true
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (current - 1) * size,
+        take: size
+      })
+    ]);
+
+    return successResponse({
+      total,
+      current,
+      size,
+      records: records.map((item) => this.toUserResponse(item))
     });
   }
 
@@ -238,6 +289,13 @@ export class DepartmentsService {
       where,
       'tenantId'
     ) as Prisma.DepartmentWhereInput;
+  }
+
+  private buildUserWhere(where: Prisma.UserWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.UserWhereInput;
   }
 
   private async validateDepartmentHierarchy(
@@ -411,6 +469,30 @@ export class DepartmentsService {
       remark: department.remark,
       createdAt: department.createdAt,
       updatedAt: department.updatedAt
+    };
+  }
+
+  private toUserResponse(user: UserWithDepartment) {
+    return {
+      id: user.id,
+      tenantId: user.tenantId,
+      departmentId: user.departmentId ?? null,
+      username: user.username,
+      nickname: user.nickname,
+      phone: user.phone,
+      email: user.email,
+      avatar: user.avatar,
+      status: user.status,
+      department: user.department
+        ? {
+            id: user.department.id,
+            name: user.department.name,
+            code: user.department.code
+          }
+        : null,
+      lastLoginAt: user.lastLoginAt,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
     };
   }
 }
