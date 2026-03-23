@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query
+} from '@nestjs/common';
 import {
   ApiBody,
   ApiOperation,
@@ -12,7 +20,11 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { CreateTenantDto, TenantListQueryDto, UpdateTenantDto } from './tenants.dto';
+import {
+  CreateTenantDto,
+  TenantListQueryDto,
+  UpdateTenantDto
+} from './tenants.dto';
 import {
   TenantInitResultResponseDto,
   TenantItemResponseDto,
@@ -162,7 +174,7 @@ export class TenantsController {
           name: 'Operations'
         }
       ],
-      menuIds: [1, 2, 3, 4, 5, 6, 7, 8, 11],
+      menuIds: [1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 14],
       dictionaryIds: [
         'tenant_1001_notice_scope_root',
         'tenant_1001_notice_scope_all'

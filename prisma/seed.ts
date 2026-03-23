@@ -137,7 +137,7 @@ async function main() {
   }
 
   const allMenuIds = menuSeedData.map((item) => item.id);
-  const tenantAdminMenuIds = [1, 2, 3, 4, 5, 6, 7, 8, 11];
+  const tenantAdminMenuIds = [1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 14];
   const tenantMemberMenuIds = [1, 2, 3, 11];
   const tenantAdminDataScopeDepartmentIds = [100, 120];
 

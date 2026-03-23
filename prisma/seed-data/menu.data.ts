@@ -194,5 +194,77 @@ export const menuSeedData: MenuSeedItem[] = [
       keepAlive: true
     },
     sort: 12
+  },
+  {
+    id: 13,
+    parentId: 4,
+    title: '配置管理',
+    name: 'systemConfig',
+    type: 2,
+    path: '/systemManagement/system/config',
+    menuKey: 'main_system_config',
+    icon: 'solar:settings-bold',
+    layout: '',
+    isVisible: true,
+    component: 'sys/config/index',
+    meta: {
+      title: '配置管理',
+      keepAlive: true
+    },
+    sort: 9
+  },
+  {
+    id: 14,
+    parentId: 4,
+    title: '公告管理',
+    name: 'systemNotice',
+    type: 2,
+    path: '/systemManagement/system/notice',
+    menuKey: 'main_system_notice',
+    icon: 'mdi:bullhorn-outline',
+    layout: '',
+    isVisible: true,
+    component: 'sys/notice/index',
+    meta: {
+      title: '公告管理',
+      keepAlive: true
+    },
+    sort: 10
+  },
+  {
+    id: 15,
+    parentId: 4,
+    title: '租户管理',
+    name: 'systemTenant',
+    type: 2,
+    path: '/systemManagement/system/tenant',
+    menuKey: 'main_system_tenant',
+    icon: 'mdi:office-building-cog-outline',
+    layout: '',
+    isVisible: true,
+    component: 'sys/tenant/index',
+    meta: {
+      title: '租户管理',
+      keepAlive: true
+    },
+    sort: 11
+  },
+  {
+    id: 16,
+    parentId: 4,
+    title: '租户套餐',
+    name: 'systemTenantPackage',
+    type: 2,
+    path: '/systemManagement/system/tenantPackage',
+    menuKey: 'main_system_tenant_package',
+    icon: 'mdi:package-variant-closed',
+    layout: '',
+    isVisible: true,
+    component: 'sys/tenantPackage/index',
+    meta: {
+      title: '租户套餐',
+      keepAlive: true
+    },
+    sort: 12
   }
 ];

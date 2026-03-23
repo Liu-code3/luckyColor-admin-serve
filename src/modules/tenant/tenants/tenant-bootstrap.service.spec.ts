@@ -132,7 +132,7 @@ describe('TenantBootstrapService', () => {
       nickname: 'Acme Admin'
     });
     prisma.userRole.create.mockResolvedValue({ tenantId: 'tenant_acme' });
-    prisma.roleMenu.createMany.mockResolvedValue({ count: 11 });
+    prisma.roleMenu.createMany.mockResolvedValue({ count: 15 });
     prisma.roleDepartmentScope.createMany.mockResolvedValue({ count: 2 });
     prisma.dictionary.createMany.mockResolvedValue({ count: 4 });
 
@@ -218,7 +218,7 @@ describe('TenantBootstrapService', () => {
       }),
       prisma
     );
-    expect(result.menuIds).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 11]);
+    expect(result.menuIds).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 14]);
     expect(result.dictionaryIds).toEqual([
       'tenant_acme_notice_scope_root',
       'tenant_acme_notice_scope_all',

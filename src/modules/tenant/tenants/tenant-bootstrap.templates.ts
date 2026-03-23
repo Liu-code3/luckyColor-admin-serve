@@ -18,7 +18,7 @@ export const DEFAULT_TENANT_ROLE_TEMPLATES = [
 ] as const;
 
 export const DEFAULT_TENANT_ROLE_MENU_CODES: Record<string, number[]> = {
-  tenant_admin: [1, 2, 3, 4, 5, 6, 7, 8, 11],
+  tenant_admin: [1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 14],
   tenant_member: [1, 2, 3, 11]
 };
 
