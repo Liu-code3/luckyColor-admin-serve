@@ -20,7 +20,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
+import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateTenantDto,
   TenantListQueryDto,
@@ -35,7 +35,7 @@ import { TenantsService } from './tenants.service';
 
 @ApiTags('租户中心 / 租户管理')
 @ApiServerErrorResponse()
-@RequirePermissions('main_system_tenant')
+@RequireMenuPermission('main_system_tenant')
 @Controller('tenants')
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}

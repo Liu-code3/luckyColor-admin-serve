@@ -22,7 +22,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
+import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
 import {
   AssignRoleDataScopeDto,
   AssignRoleMenusDto,
@@ -41,7 +41,7 @@ import { RolesService } from './roles.service';
 
 @ApiTags('系统管理 / 角色管理')
 @ApiServerErrorResponse()
-@RequirePermissions('main_system_role')
+@RequireMenuPermission('main_system_role')
 @Controller('roles')
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}

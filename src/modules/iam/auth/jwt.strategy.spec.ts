@@ -7,6 +7,13 @@ describe('JwtStrategy', () => {
     const configService = {
       get: jest.fn().mockReturnValue('jwt-secret')
     };
+    const prisma = {
+      user: {
+        findFirst: jest.fn().mockResolvedValue({
+          roles: [{ role: { status: true } }]
+        })
+      }
+    };
     const tenantContext = {
       getTenantId: jest.fn().mockReturnValue(currentTenantId),
       setTenant: jest.fn()
@@ -21,16 +28,18 @@ describe('JwtStrategy', () => {
     return {
       strategy: new JwtStrategy(
         configService as never,
+        prisma as never,
         tenantContext as never,
         tenantAccess as never
       ),
+      prisma,
       tenantContext,
       tenantAccess
     };
   }
 
   it('hydrates tenant context from token when request context is empty', async () => {
-    const { strategy, tenantContext, tenantAccess } = createStrategy();
+    const { strategy, prisma, tenantContext, tenantAccess } = createStrategy();
 
     const payload = {
       sub: 'user-1',
@@ -41,6 +50,23 @@ describe('JwtStrategy', () => {
     await expect(strategy.validate(payload)).resolves.toEqual(payload);
     expect(tenantContext.setTenant).toHaveBeenCalledWith('tenant_001', 'token');
     expect(tenantAccess.assertActiveTenant).toHaveBeenCalledWith('tenant_001');
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'user-1',
+        tenantId: 'tenant_001'
+      },
+      select: {
+        roles: {
+          select: {
+            role: {
+              select: {
+                status: true
+              }
+            }
+          }
+        }
+      }
+    });
   });
 
   it('throws when header tenant and token tenant are different', async () => {
@@ -57,5 +83,37 @@ describe('JwtStrategy', () => {
     );
 
     expect(tenantContext.setTenant).not.toHaveBeenCalled();
+  });
+
+  it('throws token invalid when token user no longer exists', async () => {
+    const { strategy, prisma } = createStrategy();
+    prisma.user.findFirst.mockResolvedValue(null);
+
+    await expect(
+      strategy.validate({
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID)
+    );
+  });
+
+  it('throws role disabled when all assigned roles are invalid', async () => {
+    const { strategy, prisma } = createStrategy();
+    prisma.user.findFirst.mockResolvedValue({
+      roles: [{ role: { status: false } }]
+    });
+
+    await expect(
+      strategy.validate({
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.ROLE_DISABLED)
+    );
   });
 });

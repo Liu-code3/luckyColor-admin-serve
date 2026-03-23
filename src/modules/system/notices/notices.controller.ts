@@ -21,7 +21,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
+import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateNoticeDto,
   NoticeListQueryDto,
@@ -36,7 +36,7 @@ import { NoticesService } from './notices.service';
 
 @ApiTags('系统管理 / 通知公告')
 @ApiServerErrorResponse()
-@RequirePermissions('main_system_notice')
+@RequireMenuPermission('main_system_notice')
 @Controller('notices')
 export class NoticesController {
   constructor(private readonly noticesService: NoticesService) {}

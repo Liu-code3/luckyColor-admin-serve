@@ -21,7 +21,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
+import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateDictionaryDto,
   DictionaryPageQueryDto,
@@ -37,7 +37,7 @@ import { DictionaryService } from './dictionary.service';
 
 @ApiTags('系统管理 / 字典管理')
 @ApiServerErrorResponse()
-@RequirePermissions('icomponent_dict')
+@RequireMenuPermission('icomponent_dict')
 @Controller('dict')
 export class DictionaryController {
   constructor(private readonly dictionaryService: DictionaryService) {}

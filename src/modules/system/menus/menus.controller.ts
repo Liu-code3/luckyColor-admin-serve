@@ -22,7 +22,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
+import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
 import { CreateMenuDto, MenuListQueryDto, UpdateMenuDto } from './menus.dto';
 import {
   MenuItemResponseDto,
@@ -34,7 +34,7 @@ import { MenusService } from './menus.service';
 
 @ApiTags('系统管理 / 菜单管理')
 @ApiServerErrorResponse()
-@RequirePermissions('main_system_menu')
+@RequireMenuPermission('main_system_menu')
 @Controller('menus')
 export class MenusController {
   constructor(private readonly menusService: MenusService) {}

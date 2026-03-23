@@ -15,6 +15,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED);
     }
 
+    if (err instanceof BusinessException) {
+      throw err;
+    }
+
     if (err || !user) {
       throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID);
     }

@@ -22,7 +22,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
+import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
 import {
   AssignUserRolesDto,
   CreateUserDto,
@@ -39,7 +39,7 @@ import { UsersService } from './users.service';
 
 @ApiTags('系统管理 / 用户管理')
 @ApiServerErrorResponse()
-@RequirePermissions('main_system_users')
+@RequireMenuPermission('main_system_users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

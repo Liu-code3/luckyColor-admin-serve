@@ -1,10 +1,12 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
+  ApiForbiddenErrorResponse,
   ApiServerErrorResponse,
   ApiSuccessResponse,
   ApiUnauthorizedErrorResponse
 } from '../../../shared/swagger/swagger-response';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { CurrentUser } from '../../iam/auth/current-user.decorator';
 import { JwtAuthGuard } from '../../iam/auth/jwt-auth.guard';
 import type { JwtPayload } from '../../iam/auth/jwt-payload.interface';
@@ -18,6 +20,31 @@ import { DashboardService } from './dashboard.service';
 @ApiTags('平台能力 / 工作台')
 @ApiServerErrorResponse()
 @ApiUnauthorizedErrorResponse()
+@ApiForbiddenErrorResponse({
+  description: '当前登录态不可访问',
+  examples: [
+    {
+      name: 'roleDisabled',
+      code: BUSINESS_ERROR_CODES.ROLE_DISABLED,
+      summary: '当前账号角色已失效'
+    },
+    {
+      name: 'tenantDisabled',
+      code: BUSINESS_ERROR_CODES.TENANT_DISABLED,
+      summary: '当前租户已被禁用'
+    },
+    {
+      name: 'tenantExpired',
+      code: BUSINESS_ERROR_CODES.TENANT_EXPIRED,
+      summary: '当前租户已过期'
+    },
+    {
+      name: 'tenantAccessDenied',
+      code: BUSINESS_ERROR_CODES.TENANT_ACCESS_DENIED,
+      summary: '当前账号不能访问该租户'
+    }
+  ]
+})
 @UseGuards(JwtAuthGuard)
 @Controller('dashboard')
 export class DashboardController {
@@ -25,7 +52,8 @@ export class DashboardController {
 
   @ApiOperation({
     summary: '获取首页工作台概览',
-    description: '返回用户卡片、在线人数、访问趋势、最近访问和通知公告等首页所需数据。'
+    description:
+      '返回用户卡片、在线人数、访问趋势、最近访问和通知公告等首页所需数据。'
   })
   @ApiSuccessResponse({
     type: DashboardOverviewResponseDto,
@@ -78,7 +106,8 @@ export class DashboardController {
 
   @ApiOperation({
     summary: '记录页面访问事件',
-    description: '工作台通过该接口上报路由访问和会话心跳，用于在线人数、PV、UV、最近访问等统计。'
+    description:
+      '工作台通过该接口上报路由访问和会话心跳，用于在线人数、PV、UV、最近访问等统计。'
   })
   @ApiBody({
     type: TrackDashboardVisitDto

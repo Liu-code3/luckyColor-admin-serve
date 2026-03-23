@@ -28,6 +28,17 @@ describe('JwtAuthGuard', () => {
     );
   });
 
+  it('passes through business exception from strategy validation', () => {
+    const guard = new JwtAuthGuard();
+    const tenantDisabledError = new BusinessException(
+      BUSINESS_ERROR_CODES.TENANT_DISABLED
+    );
+
+    expect(() =>
+      guard.handleRequest(tenantDisabledError, null, undefined, {} as never)
+    ).toThrowError(tenantDisabledError);
+  });
+
   it('returns current user when authentication succeeds', () => {
     const guard = new JwtAuthGuard();
     const user = { sub: 'user-1', username: 'admin' };

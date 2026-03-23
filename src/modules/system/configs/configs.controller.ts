@@ -21,7 +21,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
+import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
 import {
   ConfigListQueryDto,
   CreateConfigDto,
@@ -37,7 +37,7 @@ import { ConfigsService } from './configs.service';
 
 @ApiTags('系统管理 / 系统配置')
 @ApiServerErrorResponse()
-@RequirePermissions('main_system_config')
+@RequireMenuPermission('main_system_config')
 @Controller('configs')
 export class ConfigsController {
   constructor(private readonly configsService: ConfigsService) {}

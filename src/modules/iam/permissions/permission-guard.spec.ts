@@ -23,6 +23,7 @@ describe('PermissionGuard', () => {
   function createGuard(requirement?: {
     permissions: string[];
     mode: 'ANY' | 'ALL';
+    denialCode?: number;
   }) {
     const reflector = {
       getAllAndOverride: jest.fn().mockReturnValue(requirement)
@@ -122,7 +123,8 @@ describe('PermissionGuard', () => {
   it('denies access when required permissions are missing', async () => {
     const { guard, prisma } = createGuard({
       permissions: ['main_system_tenant_package'],
-      mode: 'ANY'
+      mode: 'ANY',
+      denialCode: BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED
     });
     prisma.user.findFirst.mockResolvedValue({
       roles: [
@@ -145,11 +147,11 @@ describe('PermissionGuard', () => {
         })
       )
     ).rejects.toThrow(
-      new BusinessException(BUSINESS_ERROR_CODES.PERMISSION_DENIED)
+      new BusinessException(BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED)
     );
   });
 
-  it('ignores disabled roles during permission checks', async () => {
+  it('returns role disabled when all assigned roles are invalid', async () => {
     const { guard, prisma } = createGuard({
       permissions: ['main_system_menu'],
       mode: 'ANY'
@@ -175,7 +177,7 @@ describe('PermissionGuard', () => {
         })
       )
     ).rejects.toThrow(
-      new BusinessException(BUSINESS_ERROR_CODES.PERMISSION_DENIED)
+      new BusinessException(BUSINESS_ERROR_CODES.ROLE_DISABLED)
     );
   });
 });

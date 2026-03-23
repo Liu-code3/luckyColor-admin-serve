@@ -2,7 +2,10 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { BusinessException } from '../../../shared/api/business.exception';
-import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import {
+  BUSINESS_ERROR_CODES,
+  type BusinessErrorCode
+} from '../../../shared/api/error-codes';
 import type { JwtPayload } from '../auth/jwt-payload.interface';
 import {
   PERMISSION_METADATA,
@@ -73,6 +76,10 @@ export class PermissionGuard implements CanActivate {
       .map((item) => item.role)
       .filter((role) => role.status);
 
+    if (userAccess.roles.length > 0 && activeRoles.length === 0) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.ROLE_DISABLED);
+    }
+
     if (activeRoles.some((role) => role.code === 'super_admin')) {
       return true;
     }
@@ -89,7 +96,10 @@ export class PermissionGuard implements CanActivate {
         : requirement.permissions.some((item) => permissionSet.has(item));
 
     if (!hasPermission) {
-      throw new BusinessException(BUSINESS_ERROR_CODES.PERMISSION_DENIED);
+      throw new BusinessException(
+        (requirement.denialCode as BusinessErrorCode | undefined) ??
+          BUSINESS_ERROR_CODES.PERMISSION_DENIED
+      );
     }
 
     return true;

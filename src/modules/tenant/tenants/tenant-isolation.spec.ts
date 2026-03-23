@@ -111,6 +111,11 @@ describe('Tenant isolation regression', () => {
         get: jest.fn().mockReturnValue('jwt-secret')
       } as unknown as ConfigService,
       {
+        user: {
+          findFirst: jest.fn()
+        }
+      } as never,
+      {
         getTenantId: jest.fn().mockReturnValue('tenant_002'),
         setTenant: jest.fn()
       } as never,

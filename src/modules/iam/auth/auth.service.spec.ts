@@ -351,6 +351,34 @@ describe('AuthService', () => {
     expect(response.data.user.menuCodeList).toEqual(['main_system_department']);
   });
 
+  it('throws role disabled when all assigned roles are invalid', async () => {
+    const { service, prisma } = createService();
+    prisma.user.findFirst.mockResolvedValue(
+      createUser({
+        roles: [
+          {
+            role: createRole({
+              id: 'role-disabled',
+              code: 'tenant_admin',
+              name: '租户管理员',
+              status: false
+            })
+          }
+        ]
+      })
+    );
+
+    await expect(
+      service.getAccess({
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.ROLE_DISABLED)
+    );
+  });
+
   it('returns button permission query result for requested codes', async () => {
     const { service, prisma } = createService();
     prisma.user.findFirst.mockResolvedValue(

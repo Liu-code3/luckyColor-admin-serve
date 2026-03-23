@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Req,
+  UseGuards
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -10,6 +19,7 @@ import {
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
   ApiErrorResponse,
+  ApiForbiddenErrorResponse,
   ApiServerErrorResponse,
   ApiSuccessResponse,
   ApiUnauthorizedErrorResponse
@@ -17,10 +27,7 @@ import {
 import { CurrentUser } from '../../iam/auth/current-user.decorator';
 import { JwtAuthGuard } from '../../iam/auth/jwt-auth.guard';
 import type { JwtPayload } from '../../iam/auth/jwt-payload.interface';
-import {
-  CreateSystemLogDto,
-  SystemLogListQueryDto
-} from './system-logs.dto';
+import { CreateSystemLogDto, SystemLogListQueryDto } from './system-logs.dto';
 import {
   SystemLogItemResponseDto,
   SystemLogPageResponseDto
@@ -52,6 +59,31 @@ interface RequestLike {
     }
   ]
 })
+@ApiForbiddenErrorResponse({
+  description: '当前登录态不可访问',
+  examples: [
+    {
+      name: 'roleDisabled',
+      code: BUSINESS_ERROR_CODES.ROLE_DISABLED,
+      summary: '当前账号角色已失效'
+    },
+    {
+      name: 'tenantDisabled',
+      code: BUSINESS_ERROR_CODES.TENANT_DISABLED,
+      summary: '当前租户已被禁用'
+    },
+    {
+      name: 'tenantExpired',
+      code: BUSINESS_ERROR_CODES.TENANT_EXPIRED,
+      summary: '当前租户已过期'
+    },
+    {
+      name: 'tenantAccessDenied',
+      code: BUSINESS_ERROR_CODES.TENANT_ACCESS_DENIED,
+      summary: '当前账号不能访问该租户'
+    }
+  ]
+})
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('system-logs')
@@ -60,10 +92,16 @@ export class SystemLogsController {
 
   @ApiOperation({
     summary: '系统日志分页列表',
-    description: '分页查询系统日志，支持按日志模块、操作人和日志内容关键字筛选。'
+    description:
+      '分页查询系统日志，支持按日志模块、操作人和日志内容关键字筛选。'
   })
   @ApiQuery({ name: 'page', required: false, example: 1, description: '页码' })
-  @ApiQuery({ name: 'size', required: false, example: 10, description: '每页条数' })
+  @ApiQuery({
+    name: 'size',
+    required: false,
+    example: 10,
+    description: '每页条数'
+  })
   @ApiQuery({
     name: 'module',
     required: false,

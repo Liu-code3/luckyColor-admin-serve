@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { TenantContextService } from '../../../infra/tenancy/tenant-context.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
@@ -12,6 +13,7 @@ import type { JwtPayload } from './jwt-payload.interface';
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     configService: ConfigService,
+    private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContextService,
     private readonly tenantAccess: TenantAccessService
   ) {
@@ -35,6 +37,33 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     await this.tenantAccess.assertActiveTenant(payload.tenantId);
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: payload.sub,
+        tenantId: payload.tenantId
+      },
+      select: {
+        roles: {
+          select: {
+            role: {
+              select: {
+                status: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID);
+    }
+
+    if (user.roles.length > 0 && !user.roles.some((item) => item.role.status)) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.ROLE_DISABLED);
+    }
+
     return payload;
   }
 }

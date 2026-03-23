@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
   ApiErrorResponse,
+  ApiForbiddenErrorResponse,
   ApiServerErrorResponse,
   ApiSuccessResponse,
   ApiUnauthorizedErrorResponse
@@ -18,6 +19,29 @@ import {
 import { CurrentUser } from './current-user.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import type { JwtPayload } from './jwt-payload.interface';
+
+const AUTH_RUNTIME_FORBIDDEN_EXAMPLES = [
+  {
+    name: 'roleDisabled',
+    code: BUSINESS_ERROR_CODES.ROLE_DISABLED,
+    summary: '当前账号角色已失效'
+  },
+  {
+    name: 'tenantDisabled',
+    code: BUSINESS_ERROR_CODES.TENANT_DISABLED,
+    summary: '当前租户已被禁用'
+  },
+  {
+    name: 'tenantExpired',
+    code: BUSINESS_ERROR_CODES.TENANT_EXPIRED,
+    summary: '当前租户已过期'
+  },
+  {
+    name: 'tenantAccessDenied',
+    code: BUSINESS_ERROR_CODES.TENANT_ACCESS_DENIED,
+    summary: '当前账号不能访问该租户'
+  }
+];
 
 @ApiTags('认证中心 / 登录认证')
 @ApiServerErrorResponse()
@@ -68,6 +92,10 @@ export class AuthController {
       }
     ]
   })
+  @ApiForbiddenErrorResponse({
+    description: '当前账号无法完成登录',
+    examples: AUTH_RUNTIME_FORBIDDEN_EXAMPLES
+  })
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
@@ -104,6 +132,10 @@ export class AuthController {
         summary: '登录状态无效'
       }
     ]
+  })
+  @ApiForbiddenErrorResponse({
+    description: '当前登录态不可访问',
+    examples: AUTH_RUNTIME_FORBIDDEN_EXAMPLES
   })
   @UseGuards(JwtAuthGuard)
   @Get('profile')
@@ -185,6 +217,10 @@ export class AuthController {
       }
     ]
   })
+  @ApiForbiddenErrorResponse({
+    description: '当前登录态不可访问',
+    examples: AUTH_RUNTIME_FORBIDDEN_EXAMPLES
+  })
   @UseGuards(JwtAuthGuard)
   @Get('access')
   access(@CurrentUser() user: JwtPayload) {
@@ -223,6 +259,10 @@ export class AuthController {
         summary: '登录状态无效'
       }
     ]
+  })
+  @ApiForbiddenErrorResponse({
+    description: '当前登录态不可访问',
+    examples: AUTH_RUNTIME_FORBIDDEN_EXAMPLES
   })
   @UseGuards(JwtAuthGuard)
   @Get('button-permissions')

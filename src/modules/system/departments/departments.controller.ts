@@ -22,7 +22,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
+import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateDepartmentDto,
   DepartmentListQueryDto,
@@ -38,7 +38,7 @@ import { DepartmentsService } from './departments.service';
 
 @ApiTags('系统管理 / 部门管理')
 @ApiServerErrorResponse()
-@RequirePermissions('main_system_department')
+@RequireMenuPermission('main_system_department')
 @Controller('departments')
 export class DepartmentsController {
   constructor(private readonly departmentsService: DepartmentsService) {}

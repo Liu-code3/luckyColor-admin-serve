@@ -226,7 +226,13 @@ export class AuthService {
   }
 
   private toAccessSnapshot(user: AuthUserRecord) {
-    const roles = this.collectRoles(user.roles.map((item) => item.role));
+    const assignedRoles = user.roles.map((item) => item.role);
+    const roles = this.collectRoles(assignedRoles);
+
+    if (assignedRoles.length > 0 && roles.length === 0) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.ROLE_DISABLED);
+    }
+
     const menus = this.collectMenus(
       roles.flatMap((role) => role.menus.map((item) => item.menu))
     );
