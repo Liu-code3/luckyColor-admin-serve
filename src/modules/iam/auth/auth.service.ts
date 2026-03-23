@@ -61,6 +61,14 @@ type AuthMenuNode = {
 type AuthMenuTreeNode = AuthMenuNode & {
   children?: AuthMenuTreeNode[];
 };
+export type AuthRouteNode = {
+  path: string;
+  name: string;
+  component: string;
+  redirect?: string;
+  meta: Record<string, unknown>;
+  children?: AuthRouteNode[];
+};
 
 @Injectable()
 export class AuthService {
@@ -137,6 +145,18 @@ export class AuthService {
       grantedCodeList: requestedCodes.filter((code) => permissionMap[code]),
       permissionMap
     });
+  }
+
+  async getRoutes(payload: JwtPayload) {
+    const user = await this.findUserWithAccess(payload);
+
+    if (!user) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID);
+    }
+
+    const accessibleMenus = await this.resolveAccessibleMenus(user);
+
+    return successResponse(this.buildRouteTree(accessibleMenus));
   }
 
   private async validateUser(dto: LoginDto) {
@@ -246,20 +266,7 @@ export class AuthService {
   }
 
   private toAccessSnapshot(user: AuthUserRecord) {
-    if (!user.status) {
-      throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_ACCOUNT_DISABLED);
-    }
-
-    const assignedRoles = user.roles.map((item) => item.role);
-    const roles = this.collectRoles(assignedRoles);
-
-    if (assignedRoles.length > 0 && roles.length === 0) {
-      throw new BusinessException(BUSINESS_ERROR_CODES.ROLE_DISABLED);
-    }
-
-    const menus = this.collectMenus(
-      roles.flatMap((role) => role.menus.map((item) => item.menu))
-    );
+    const { roles, menus } = this.resolveAccessContext(user);
     const menuTree = this.buildMenuTree(
       menus.filter((item) => item.type !== 3)
     );
@@ -286,6 +293,38 @@ export class AuthService {
       })),
       menuTree
     };
+  }
+
+  private resolveAccessContext(user: AuthUserRecord) {
+    if (!user.status) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_ACCOUNT_DISABLED);
+    }
+
+    const assignedRoles = user.roles.map((item) => item.role);
+    const roles = this.collectRoles(assignedRoles);
+
+    if (assignedRoles.length > 0 && roles.length === 0) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.ROLE_DISABLED);
+    }
+
+    const menus = this.collectMenus(
+      roles.flatMap((role) => role.menus.map((item) => item.menu))
+    );
+
+    return {
+      roles,
+      menus
+    };
+  }
+
+  private async resolveAccessibleMenus(user: AuthUserRecord) {
+    const { menus } = this.resolveAccessContext(user);
+    const allMenus = await this.prisma.menu.findMany({
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+    });
+
+    return this.expandMenusWithAncestors(allMenus, menus.map((item) => item.id))
+      .filter((item) => item.type !== 3);
   }
 
   private collectRoles(roles: AuthRoleRecord[]) {
@@ -352,6 +391,54 @@ export class AuthService {
     return roots.map((item) => this.removeEmptyChildren(item));
   }
 
+  private buildRouteTree(menus: AuthMenuRecord[]) {
+    const nodeMap = new Map<number, AuthRouteNode>();
+    const parentMap = new Map(menus.map((item) => [item.id, item.parentId]));
+    const roots: AuthRouteNode[] = [];
+
+    menus.forEach((menu) => {
+      nodeMap.set(menu.id, {
+        ...this.toRouteNode(menu),
+        children: []
+      });
+    });
+
+    nodeMap.forEach((node, id) => {
+      const parentId = parentMap.get(id);
+      if (!parentId) {
+        roots.push(node);
+        return;
+      }
+
+      const parent = nodeMap.get(parentId);
+      if (parent) {
+        parent.children = parent.children || [];
+        parent.children.push(node);
+        return;
+      }
+
+      roots.push(node);
+    });
+
+    return roots.map((item) => this.removeEmptyRouteChildren(item));
+  }
+
+  private removeEmptyRouteChildren(node: AuthRouteNode): AuthRouteNode {
+    const children = node.children
+      ?.slice()
+      .map((item) => this.removeEmptyRouteChildren(item));
+
+    if (!children?.length) {
+      const { children: _children, ...rest } = node;
+      return rest;
+    }
+
+    return {
+      ...node,
+      children
+    };
+  }
+
   private removeEmptyChildren(
     node: AuthMenuTreeNode
   ): AuthMenuTreeNode | AuthMenuNode {
@@ -391,5 +478,50 @@ export class AuthService {
       createdAt: menu.createdAt,
       updatedAt: menu.updatedAt
     };
+  }
+
+  private toRouteNode(menu: AuthMenuRecord): AuthRouteNode {
+    const meta = {
+      title: menu.title,
+      icon: menu.icon || undefined,
+      hidden: !menu.isVisible,
+      order: menu.sort,
+      menuKey: menu.menuKey,
+      type: menu.type,
+      layout: menu.layout || undefined,
+      ...((menu.meta as Record<string, unknown> | null) ?? {})
+    };
+
+    return {
+      path: menu.path,
+      name: menu.name,
+      component: menu.component,
+      redirect: menu.redirect ?? undefined,
+      meta
+    };
+  }
+
+  private expandMenusWithAncestors(
+    allMenus: AuthMenuRecord[],
+    selectedIds: number[]
+  ) {
+    const menuMap = new Map(allMenus.map((item) => [item.id, item]));
+    const expandedIds = new Set<number>();
+
+    selectedIds.forEach((menuId) => {
+      let current = menuMap.get(menuId);
+
+      while (current) {
+        if (expandedIds.has(current.id)) {
+          break;
+        }
+
+        expandedIds.add(current.id);
+        current =
+          current.parentId === null ? undefined : menuMap.get(current.parentId);
+      }
+    });
+
+    return allMenus.filter((item) => expandedIds.has(item.id));
   }
 }

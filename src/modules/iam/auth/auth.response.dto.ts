@@ -95,6 +95,55 @@ export class AuthAccessResponseDto {
   menuTree!: MenuTreeItemResponseDto[];
 }
 
+export class AuthRouteItemResponseDto {
+  @ApiProperty({
+    description: '路由访问路径',
+    example: '/system'
+  })
+  path!: string;
+
+  @ApiProperty({
+    description: '路由名称',
+    example: 'system'
+  })
+  name!: string;
+
+  @ApiProperty({
+    description: '前端组件标识',
+    example: 'LAYOUT'
+  })
+  component!: string;
+
+  @ApiPropertyOptional({
+    description: '路由重定向地址',
+    example: '/system/users',
+    nullable: true
+  })
+  redirect?: string;
+
+  @ApiProperty({
+    description: '路由元信息',
+    example: {
+      title: '系统管理',
+      icon: 'folder',
+      hidden: false,
+      order: 1,
+      menuKey: 'main_system',
+      type: 1,
+      layout: 'default',
+      keepAlive: true
+    },
+    additionalProperties: true
+  })
+  meta!: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    description: '子级路由节点',
+    type: () => [AuthRouteItemResponseDto]
+  })
+  children?: AuthRouteItemResponseDto[];
+}
+
 export class AuthButtonPermissionResponseDto {
   @ApiProperty({
     description: '当前登录用户拥有的全部按钮权限码',

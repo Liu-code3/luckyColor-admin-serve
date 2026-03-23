@@ -13,6 +13,7 @@ import { AuthButtonPermissionQueryDto, LoginDto } from './auth.dto';
 import {
   AuthAccessResponseDto,
   AuthButtonPermissionResponseDto,
+  AuthRouteItemResponseDto,
   AuthUserResponseDto,
   LoginResultResponseDto
 } from './auth.response.dto';
@@ -230,6 +231,75 @@ export class AuthController {
   @Get('access')
   access(@CurrentUser() user: JwtPayload) {
     return this.authService.getAccess(user);
+  }
+
+  @ApiOperation({
+    summary: '当前用户动态路由树',
+    description:
+      '返回当前登录用户可访问的前端动态路由树，仅包含目录和菜单节点，并自动补齐祖先路由节点。'
+  })
+  @ApiBearerAuth()
+  @ApiSuccessResponse({
+    type: AuthRouteItemResponseDto,
+    isArray: true,
+    description: '当前用户动态路由树',
+    dataExample: [
+      {
+        path: '/system',
+        name: 'system',
+        component: 'LAYOUT',
+        redirect: '/system/users',
+        meta: {
+          title: '系统管理',
+          icon: 'folder',
+          hidden: false,
+          order: 1,
+          menuKey: 'main_system',
+          type: 1,
+          layout: 'default'
+        },
+        children: [
+          {
+            path: '/system/users',
+            name: 'systemUsers',
+            component: 'system/users/index',
+            meta: {
+              title: '用户管理',
+              icon: 'mdi:user',
+              hidden: false,
+              order: 10,
+              menuKey: 'main_system_users',
+              type: 2,
+              keepAlive: true
+            }
+          }
+        ]
+      }
+    ]
+  })
+  @ApiUnauthorizedErrorResponse({
+    description: '登录态异常响应',
+    examples: [
+      {
+        name: 'tokenExpired',
+        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+        summary: '登录已过期'
+      },
+      {
+        name: 'tokenInvalid',
+        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
+        summary: '登录状态无效'
+      }
+    ]
+  })
+  @ApiForbiddenErrorResponse({
+    description: '当前登录态不可访问',
+    examples: AUTH_RUNTIME_FORBIDDEN_EXAMPLES
+  })
+  @UseGuards(JwtAuthGuard)
+  @Get('routes')
+  routes(@CurrentUser() user: JwtPayload) {
+    return this.authService.getRoutes(user);
   }
 
   @ApiOperation({

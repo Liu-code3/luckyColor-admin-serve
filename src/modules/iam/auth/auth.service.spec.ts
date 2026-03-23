@@ -62,6 +62,9 @@ describe('AuthService', () => {
       user: {
         findFirst: jest.fn(),
         update: jest.fn()
+      },
+      menu: {
+        findMany: jest.fn()
       }
     };
     const jwtService = {
@@ -476,6 +479,111 @@ describe('AuthService', () => {
           'system:user:delete': false
         }
       }
+    });
+  });
+
+  it('returns route tree with ancestor menus for current user', async () => {
+    const { service, prisma } = createService();
+    const rootMenu = createMenu({
+      id: 4,
+      parentId: null,
+      title: '系统管理',
+      name: 'system',
+      type: 1,
+      path: '/system',
+      menuKey: 'main_system',
+      component: 'LAYOUT',
+      redirect: '/system/users',
+      sort: 4,
+      meta: {
+        keepAlive: false
+      }
+    });
+    const childMenu = createMenu({
+      id: 5,
+      parentId: 4,
+      title: '用户管理',
+      name: 'systemUsers',
+      type: 2,
+      path: '/system/users',
+      menuKey: 'main_system_users',
+      component: 'system/users/index',
+      sort: 5,
+      meta: {
+        keepAlive: true
+      }
+    });
+    const buttonMenu = createMenu({
+      id: 13,
+      parentId: 5,
+      title: '新增用户',
+      name: 'systemUsersCreate',
+      type: 3,
+      path: '',
+      menuKey: 'system:user:create',
+      component: '',
+      sort: 13
+    });
+
+    prisma.user.findFirst.mockResolvedValue(
+      createUser({
+        roles: [
+          {
+            role: createRole({
+              menus: [{ menu: childMenu }, { menu: buttonMenu }]
+            })
+          }
+        ]
+      })
+    );
+    prisma.menu.findMany.mockResolvedValue([rootMenu, childMenu, buttonMenu]);
+
+    const response = await service.getRoutes({
+      sub: 'user-1',
+      tenantId: 'tenant_001',
+      username: 'admin'
+    });
+
+    expect(prisma.menu.findMany).toHaveBeenCalledWith({
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+    });
+    expect(response).toEqual({
+      code: 200,
+      msg: 'success',
+      data: [
+        {
+          path: '/system',
+          name: 'system',
+          component: 'LAYOUT',
+          redirect: '/system/users',
+          meta: {
+            title: '系统管理',
+            icon: 'folder',
+            hidden: false,
+            order: 4,
+            menuKey: 'main_system',
+            type: 1,
+            keepAlive: false
+          },
+          children: [
+            {
+              path: '/system/users',
+              name: 'systemUsers',
+              component: 'system/users/index',
+              redirect: undefined,
+              meta: {
+                title: '用户管理',
+                icon: 'folder',
+                hidden: false,
+                order: 5,
+                menuKey: 'main_system_users',
+                type: 2,
+                keepAlive: true
+              }
+            }
+          ]
+        }
+      ]
     });
   });
 
