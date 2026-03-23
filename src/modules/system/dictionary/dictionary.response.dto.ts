@@ -119,6 +119,58 @@ export class DictionaryTreeItemResponseDto extends DictionaryItemResponseDto {
   children?: DictionaryTreeItemResponseDto[];
 }
 
+export class DictionaryOptionItemResponseDto {
+  @ApiProperty({
+    description: '选项标签',
+    example: '启用'
+  })
+  label!: string;
+
+  @ApiProperty({
+    description: '选项值',
+    example: 'ENABLE'
+  })
+  value!: string;
+
+  @ApiPropertyOptional({
+    description: '子级选项',
+    type: () => [DictionaryOptionItemResponseDto]
+  })
+  children?: DictionaryOptionItemResponseDto[];
+}
+
+export class DictionaryOptionsResponseDto {
+  @ApiProperty({
+    description: '字典类型 ID',
+    example: 'dict_common_status'
+  })
+  typeId!: string;
+
+  @ApiProperty({
+    description: '字典类型标签',
+    example: '通用状态'
+  })
+  typeLabel!: string;
+
+  @ApiProperty({
+    description: '字典类型编码',
+    example: 'COMMON_STATUS'
+  })
+  typeCode!: string;
+
+  @ApiProperty({
+    description: '字典分类',
+    example: 'system_status'
+  })
+  category!: string;
+
+  @ApiProperty({
+    description: '可用选项列表',
+    type: [DictionaryOptionItemResponseDto]
+  })
+  options!: DictionaryOptionItemResponseDto[];
+}
+
 export class DictionaryPageResponseDto {
   @ApiProperty({
     description: '总记录数',

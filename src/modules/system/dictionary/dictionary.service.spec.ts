@@ -1,4 +1,5 @@
 import { DictionaryService } from './dictionary.service';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 
 describe('DictionaryService', () => {
   function createService() {
@@ -12,7 +13,8 @@ describe('DictionaryService', () => {
       $transaction: jest.fn()
     };
     const tenantScope = {
-      buildWhere: jest.fn().mockImplementation((where) => where)
+      buildWhere: jest.fn().mockImplementation((where) => where),
+      getTenantId: jest.fn().mockReturnValue('tenant_001')
     };
     const dictionaryCacheService = {
       getTree: jest.fn(),
@@ -53,6 +55,52 @@ describe('DictionaryService', () => {
       dictionaryCacheService,
       dictionaryTypesService,
       dictionaryItemsService
+    };
+  }
+
+  function createTypeNode(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'dict_common_status',
+      parentId: '0',
+      weight: 1,
+      name: '通用状态',
+      tenantId: null,
+      dictLabel: '通用状态',
+      dictValue: 'COMMON_STATUS',
+      category: 'system_status',
+      sortCode: 1,
+      status: true,
+      deleteFlag: '0',
+      createTime: null,
+      createUser: null,
+      updateTime: null,
+      updateUser: null,
+      createdAt: new Date('2026-03-24T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-24T10:00:00.000Z'),
+      ...overrides
+    };
+  }
+
+  function createItemNode(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'dict_enabled',
+      parentId: 'dict_common_status',
+      weight: 10,
+      name: '启用',
+      tenantId: null,
+      dictLabel: '启用',
+      dictValue: 'ENABLE',
+      category: 'system_status',
+      sortCode: 10,
+      status: true,
+      deleteFlag: '0',
+      createTime: null,
+      createUser: null,
+      updateTime: null,
+      updateUser: null,
+      createdAt: new Date('2026-03-24T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-24T10:00:00.000Z'),
+      ...overrides
     };
   }
 
@@ -160,6 +208,141 @@ describe('DictionaryService', () => {
         id: 'dict_type'
       })
     ]);
+  });
+
+  it('returns enabled options from cache tree by type code', async () => {
+    const { service, dictionaryCacheService } = createService();
+    dictionaryCacheService.getTree.mockResolvedValue([
+      {
+        ...createTypeNode(),
+        children: [
+          createItemNode(),
+          createItemNode({
+            id: 'dict_disabled',
+            dictLabel: '停用',
+            dictValue: 'DISABLED',
+            sortCode: 20,
+            status: false
+          }),
+          createItemNode({
+            id: 'dict_pending',
+            dictLabel: '待审核',
+            dictValue: 'PENDING',
+            sortCode: 30,
+            children: [
+              createItemNode({
+                id: 'dict_pending_manual',
+                parentId: 'dict_pending',
+                dictLabel: '人工审核',
+                dictValue: 'MANUAL',
+                sortCode: 31
+              })
+            ]
+          })
+        ]
+      }
+    ]);
+
+    const response = await service.getOptionsByTypeCode('COMMON_STATUS');
+
+    expect(dictionaryCacheService.getTree).toHaveBeenCalled();
+    expect(response.data).toEqual({
+      typeId: 'dict_common_status',
+      typeLabel: '通用状态',
+      typeCode: 'COMMON_STATUS',
+      category: 'system_status',
+      options: [
+        {
+          label: '启用',
+          value: 'ENABLE'
+        },
+        {
+          label: '待审核',
+          value: 'PENDING',
+          children: [
+            {
+              label: '人工审核',
+              value: 'MANUAL'
+            }
+          ]
+        }
+      ]
+    });
+  });
+
+  it('merges tenant options with global dictionary options', async () => {
+    const { service, dictionaryCacheService } = createService();
+    dictionaryCacheService.getTree.mockResolvedValue([
+      {
+        ...createTypeNode({
+          id: 'dict_common_status_global'
+        }),
+        children: [
+          createItemNode(),
+          createItemNode({
+            id: 'dict_disabled_global',
+            dictLabel: '停用',
+            dictValue: 'DISABLED',
+            sortCode: 20
+          })
+        ]
+      },
+      {
+        ...createTypeNode({
+          id: 'dict_common_status_tenant',
+          tenantId: 'tenant_001',
+          dictLabel: '租户状态'
+        }),
+        children: [
+          createItemNode({
+            id: 'dict_disabled_tenant',
+            tenantId: 'tenant_001',
+            dictLabel: '禁用',
+            dictValue: 'DISABLED',
+            sortCode: 20
+          }),
+          createItemNode({
+            id: 'dict_archived_tenant',
+            tenantId: 'tenant_001',
+            dictLabel: '归档',
+            dictValue: 'ARCHIVED',
+            sortCode: 30
+          })
+        ]
+      }
+    ]);
+
+    const response = await service.getOptionsByTypeCode('COMMON_STATUS');
+
+    expect(response.data).toEqual({
+      typeId: 'dict_common_status_tenant',
+      typeLabel: '租户状态',
+      typeCode: 'COMMON_STATUS',
+      category: 'system_status',
+      options: [
+        {
+          label: '启用',
+          value: 'ENABLE'
+        },
+        {
+          label: '禁用',
+          value: 'DISABLED'
+        },
+        {
+          label: '归档',
+          value: 'ARCHIVED'
+        }
+      ]
+    });
+  });
+
+  it('throws not found when type code does not exist', async () => {
+    const { service, dictionaryCacheService } = createService();
+    dictionaryCacheService.getTree.mockResolvedValue([]);
+
+    await expect(service.getOptionsByTypeCode('UNKNOWN_CODE')).rejects.toMatchObject({
+      code: BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND
+    });
   });
 
   it('refreshes cache after removing dictionary nodes', async () => {

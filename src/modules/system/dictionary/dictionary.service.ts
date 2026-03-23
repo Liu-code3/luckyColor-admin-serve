@@ -11,7 +11,10 @@ import {
   UpdateDictionaryDto
 } from './dictionary.dto';
 import { DictionaryCacheService } from './dictionary-cache.service';
-import type { DictionaryNode } from './dictionary.models';
+import type {
+  DictionaryNode,
+  DictionaryOptionItem
+} from './dictionary.models';
 import { DictionaryItemsService } from './dictionary-items.service';
 import { DictionaryTypesService } from './dictionary-types.service';
 
@@ -28,6 +31,24 @@ export class DictionaryService {
   async getTree() {
     const tree = await this.dictionaryCacheService.getTree();
     return successResponse(tree);
+  }
+
+  async getOptionsByTypeCode(dictValue: string) {
+    const typeCode = dictValue.trim();
+    const tree = await this.dictionaryCacheService.getTree();
+    const typeNode = this.getMergedTypeNode(typeCode, tree);
+
+    if (!typeNode.status) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
+    }
+
+    return successResponse({
+      typeId: typeNode.id,
+      typeLabel: typeNode.dictLabel,
+      typeCode: typeNode.dictValue,
+      category: typeNode.category,
+      options: this.toOptionItems(typeNode.children || [])
+    });
   }
 
   async getPage(query: DictionaryPageQueryDto) {
@@ -158,10 +179,131 @@ export class DictionaryService {
     }) as Prisma.DictionaryWhereInput;
   }
 
+  private getMergedTypeNode(dictValue: string, tree: DictionaryNode[]) {
+    const matches = tree.filter((item) => item.dictValue === dictValue);
+    if (!matches.length) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND);
+    }
+
+    return matches
+      .sort((a, b) => this.getNodePriority(a) - this.getNodePriority(b))
+      .reduce<DictionaryNode | null>(
+        (merged, item) => this.mergeDictionaryNode(merged, item),
+        null
+      ) as DictionaryNode;
+  }
+
+  private getNodePriority(node: DictionaryNode) {
+    const currentTenantId = this.tenantScope.getTenantId();
+
+    if (currentTenantId && node.tenantId === currentTenantId) {
+      return 2;
+    }
+
+    if (node.tenantId === null || node.tenantId === '-1') {
+      return 1;
+    }
+
+    return 0;
+  }
+
   private toNode(row: Dictionary): DictionaryNode {
     return row.parentId
       ? this.dictionaryItemsService.toNode(row)
       : this.dictionaryTypesService.toNode(row);
+  }
+
+  private mergeDictionaryNode(
+    current: DictionaryNode | null,
+    incoming: DictionaryNode
+  ): DictionaryNode {
+    if (!current) {
+      return this.cloneTree(incoming);
+    }
+
+    const children = this.mergeDictionaryChildren(
+      current.children || [],
+      incoming.children || []
+    );
+
+    return this.pruneChildren({
+      ...current,
+      ...incoming,
+      children
+    });
+  }
+
+  private mergeDictionaryChildren(
+    currentChildren: DictionaryNode[],
+    incomingChildren: DictionaryNode[]
+  ) {
+    const merged = new Map<string, DictionaryNode>();
+
+    currentChildren.forEach((item) => {
+      merged.set(item.dictValue, this.cloneTree(item));
+    });
+
+    incomingChildren.forEach((item) => {
+      const existing = merged.get(item.dictValue);
+      merged.set(
+        item.dictValue,
+        existing
+          ? this.mergeDictionaryNode(existing, item)
+          : this.cloneTree(item)
+      );
+    });
+
+    return this.sortByCode(Array.from(merged.values()));
+  }
+
+  private toOptionItems(nodes: DictionaryNode[]): DictionaryOptionItem[] {
+    return this.sortByCode(nodes)
+      .filter((item) => item.status)
+      .map((item) => {
+        const children: DictionaryOptionItem[] = this.toOptionItems(
+          item.children || []
+        );
+        if (!children.length) {
+          return {
+            label: item.dictLabel,
+            value: item.dictValue
+          };
+        }
+
+        return {
+          label: item.dictLabel,
+          value: item.dictValue,
+          children
+        };
+      });
+  }
+
+  private cloneTree(node: DictionaryNode): DictionaryNode {
+    const children = (node.children || []).map((item) => this.cloneTree(item));
+    if (!children.length) {
+      const { children: _children, ...rest } = node;
+      return rest;
+    }
+
+    return {
+      ...node,
+      children
+    };
+  }
+
+  private pruneChildren(node: DictionaryNode): DictionaryNode {
+    const children = (node.children || []).map((item) =>
+      this.pruneChildren(item)
+    );
+    if (!children.length) {
+      const { children: _children, ...rest } = node;
+      return rest;
+    }
+
+    return {
+      ...node,
+      children
+    };
   }
 
   private treeToData(tree: DictionaryNode[]) {

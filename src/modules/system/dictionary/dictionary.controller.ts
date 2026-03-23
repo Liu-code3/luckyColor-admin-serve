@@ -30,7 +30,9 @@ import {
 import { DictionaryCacheRefreshResponseDto } from './dictionary-cache.response.dto';
 import {
   DictionaryItemResponseDto,
+  DictionaryOptionsResponseDto,
   DictionaryPageResponseDto,
+  DictionaryOptionItemResponseDto,
   DictionaryTreeItemResponseDto
 } from './dictionary.response.dto';
 import { SystemLog } from '../system-logs/system-log.decorator';
@@ -157,6 +159,51 @@ export class DictionaryController {
   @Get('page')
   page(@Query() query: DictionaryPageQueryDto) {
     return this.dictionaryService.getPage(query);
+  }
+
+  @ApiOperation({
+    summary: '字典统一出口',
+    description: '按字典类型编码返回当前租户可见的启用字典选项，供前端枚举、系统配置和国际化场景复用。'
+  })
+  @ApiParam({
+    name: 'dictValue',
+    description: '字典类型编码',
+    example: 'COMMON_STATUS'
+  })
+  @ApiSuccessResponse({
+    type: DictionaryOptionsResponseDto,
+    extraModels: [DictionaryOptionItemResponseDto],
+    description: '字典统一出口响应',
+    dataExample: {
+      typeId: 'dict_common_status_tenant_001',
+      typeLabel: '通用状态',
+      typeCode: 'COMMON_STATUS',
+      category: 'system_status',
+      options: [
+        {
+          label: '启用',
+          value: 'ENABLE'
+        },
+        {
+          label: '停用',
+          value: 'DISABLED'
+        }
+      ]
+    }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '字典类型不存在',
+    examples: [
+      {
+        name: 'dictionaryNotFound',
+        code: BUSINESS_ERROR_CODES.DICTIONARY_NOT_FOUND
+      }
+    ]
+  })
+  @Get('options/:dictValue')
+  options(@Param('dictValue') dictValue: string) {
+    return this.dictionaryService.getOptionsByTypeCode(dictValue);
   }
 
   @ApiOperation({
