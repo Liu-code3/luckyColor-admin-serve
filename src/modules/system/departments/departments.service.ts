@@ -71,6 +71,15 @@ export class DepartmentsService {
     return successResponse(this.toDepartmentResponse(department));
   }
 
+  async descendantIds(id: number) {
+    const departmentIds = await this.findDescendantDepartmentIds(id);
+
+    return successResponse({
+      departmentId: id,
+      departmentIds
+    });
+  }
+
   async create(dto: CreateDepartmentDto) {
     const tenantId = this.tenantScope.resolveRequiredTenantValue();
 
@@ -185,6 +194,30 @@ export class DepartmentsService {
     );
 
     return successResponse(true);
+  }
+
+  async findDescendantDepartmentIds(id: number) {
+    const tenantId = this.tenantScope.requireTenantId();
+    return this.findDescendantDepartmentIdsByTenant(tenantId, id);
+  }
+
+  async findDescendantDepartmentIdsByTenant(tenantId: string, id: number) {
+    const departments = await this.prisma.department.findMany({
+      where: {
+        tenantId
+      },
+      select: {
+        id: true,
+        parentId: true
+      },
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+    });
+
+    if (!departments.some((item) => item.id === id)) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND);
+    }
+
+    return this.collectDepartmentIds(id, departments);
   }
 
   async updateStatus(id: number, dto: UpdateDepartmentStatusDto) {

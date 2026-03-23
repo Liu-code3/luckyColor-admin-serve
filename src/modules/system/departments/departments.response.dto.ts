@@ -119,3 +119,18 @@ export class DepartmentPageResponseDto {
   })
   records!: DepartmentItemResponseDto[];
 }
+
+export class DepartmentDescendantIdsResponseDto {
+  @ApiProperty({
+    description: '根部门 ID',
+    example: 100
+  })
+  departmentId!: number;
+
+  @ApiProperty({
+    description: '本部门及全部子部门 ID 列表',
+    type: [Number],
+    example: [100, 110, 120, 121]
+  })
+  departmentIds!: number[];
+}

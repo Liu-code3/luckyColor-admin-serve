@@ -3,6 +3,7 @@ import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { DepartmentsService } from '../../system/departments/departments.service';
 import type { JwtPayload } from '../auth/jwt-payload.interface';
 import type { RoleDataScope } from '../../system/roles/roles.constants';
 
@@ -36,7 +37,10 @@ export interface DataScopeProfile {
 
 @Injectable()
 export class DataScopeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly departmentsService: DepartmentsService
+  ) {}
 
   async resolveProfile(user: JwtPayload): Promise<DataScopeProfile> {
     const currentUser = await this.prisma.user.findFirst({
@@ -198,28 +202,10 @@ export class DataScopeService {
     tenantId: string,
     rootDepartmentId: number
   ) {
-    const departments = await this.prisma.department.findMany({
-      where: {
-        tenantId
-      },
-      select: {
-        id: true,
-        parentId: true
-      }
-    });
-
-    const ids = [rootDepartmentId];
-    const walk = (parentId: number) => {
-      departments
-        .filter((item) => item.parentId === parentId)
-        .forEach((item) => {
-          ids.push(item.id);
-          walk(item.id);
-        });
-    };
-
-    walk(rootDepartmentId);
-    return ids;
+    return this.departmentsService.findDescendantDepartmentIdsByTenant(
+      tenantId,
+      rootDepartmentId
+    );
   }
 
   private combineWhere(

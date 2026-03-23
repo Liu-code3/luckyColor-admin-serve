@@ -30,6 +30,7 @@ import {
   UpdateDepartmentStatusDto
 } from './departments.dto';
 import {
+  DepartmentDescendantIdsResponseDto,
   DepartmentItemResponseDto,
   DepartmentPageResponseDto,
   DepartmentTreeItemResponseDto
@@ -152,6 +153,39 @@ export class DepartmentsController {
   @Get('tree')
   tree() {
     return this.departmentsService.tree();
+  }
+
+  @ApiOperation({
+    summary: '部门详情',
+    description: '根据部门 ID 查询部门详情。'
+  })
+  @ApiOperation({
+    summary: '查询部门及子部门 ID',
+    description:
+      '根据部门 ID 递归查询本部门及全部子部门 ID，供数据权限等场景复用。'
+  })
+  @ApiParam({ name: 'id', description: '部门 ID', example: 100 })
+  @ApiSuccessResponse({
+    type: DepartmentDescendantIdsResponseDto,
+    description: '部门及子部门 ID 响应',
+    dataExample: {
+      departmentId: 100,
+      departmentIds: [100, 110, 120, 121]
+    }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '部门不存在',
+    examples: [
+      {
+        name: 'departmentNotFound',
+        code: BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND
+      }
+    ]
+  })
+  @Get(':id/descendant-ids')
+  descendantIds(@Param('id', ParseIntPipe) id: number) {
+    return this.departmentsService.descendantIds(id);
   }
 
   @ApiOperation({

@@ -7,15 +7,19 @@ describe('DataScopeService', () => {
     const prisma = {
       user: {
         findFirst: jest.fn()
-      },
-      department: {
-        findMany: jest.fn()
       }
+    };
+    const departmentsService = {
+      findDescendantDepartmentIdsByTenant: jest.fn()
     };
 
     return {
-      service: new DataScopeService(prisma as never),
-      prisma
+      service: new DataScopeService(
+        prisma as never,
+        departmentsService as never
+      ),
+      prisma,
+      departmentsService
     };
   }
 
@@ -122,16 +126,13 @@ describe('DataScopeService', () => {
   });
 
   it('builds department and children filter for descendant scope users', async () => {
-    const { service, prisma } = createService();
+    const { service, prisma, departmentsService } = createService();
     prisma.user.findFirst.mockResolvedValue({
       departmentId: 100,
       roles: [createUserRole({ dataScope: 'DEPARTMENT_AND_CHILDREN' })]
     });
-    prisma.department.findMany.mockResolvedValue([
-      { id: 100, parentId: null },
-      { id: 110, parentId: 100 },
-      { id: 120, parentId: 100 },
-      { id: 121, parentId: 120 }
+    departmentsService.findDescendantDepartmentIdsByTenant.mockResolvedValue([
+      100, 110, 120, 121
     ]);
 
     await expect(
@@ -143,6 +144,9 @@ describe('DataScopeService', () => {
     ).resolves.toEqual({
       departmentId: { in: [100, 110, 120, 121] }
     });
+    expect(
+      departmentsService.findDescendantDepartmentIdsByTenant
+    ).toHaveBeenCalledWith('tenant_001', 100);
   });
 
   it('builds custom department filter for custom scope users', async () => {

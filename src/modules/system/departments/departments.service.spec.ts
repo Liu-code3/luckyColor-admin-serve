@@ -325,4 +325,53 @@ describe('DepartmentsService', () => {
     });
     expect(response.data.status).toBe(false);
   });
+
+  it('returns current and descendant department ids', async () => {
+    const prisma = createPrismaMock();
+    const service = new DepartmentsService(
+      prisma as never,
+      createTenantScope()
+    );
+
+    prisma.department.findMany.mockResolvedValue([
+      { id: 100, parentId: null },
+      { id: 110, parentId: 100 },
+      { id: 120, parentId: 100 },
+      { id: 121, parentId: 120 }
+    ]);
+
+    const response = await service.descendantIds(100);
+
+    expect(prisma.department.findMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant_001'
+      },
+      select: {
+        id: true,
+        parentId: true
+      },
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+    });
+    expect(response.data).toEqual({
+      departmentId: 100,
+      departmentIds: [100, 110, 120, 121]
+    });
+  });
+
+  it('throws when querying descendant ids for missing department', async () => {
+    const prisma = createPrismaMock();
+    const service = new DepartmentsService(
+      prisma as never,
+      createTenantScope()
+    );
+
+    prisma.department.findMany.mockResolvedValue([
+      { id: 100, parentId: null },
+      { id: 110, parentId: 100 }
+    ]);
+
+    await expect(service.descendantIds(999)).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND)
+    );
+  });
 });
