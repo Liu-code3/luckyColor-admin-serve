@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsIn,
   IsBoolean,
   IsInt,
   IsObject,
@@ -8,6 +9,9 @@ import {
   IsString,
   Min
 } from 'class-validator';
+
+export const MENU_TREE_VIEW_VALUES = ['platform', 'tenant'] as const;
+export type MenuTreeView = (typeof MENU_TREE_VIEW_VALUES)[number];
 
 export class MenuListQueryDto {
   @ApiPropertyOptional({
@@ -268,4 +272,24 @@ export class UpdateMenuDto {
   @Type(() => Number)
   @IsInt()
   sort?: number;
+}
+
+export class MenuTreeQueryDto {
+  @ApiPropertyOptional({
+    description: '菜单树视角，platform 返回全量菜单树，tenant 返回当前租户已授权菜单树',
+    enum: MENU_TREE_VIEW_VALUES,
+    example: 'platform',
+    default: 'platform'
+  })
+  @IsOptional()
+  @IsIn(MENU_TREE_VIEW_VALUES)
+  view?: MenuTreeView;
+
+  @ApiPropertyOptional({
+    description: '角色 ID，传入后返回该角色已分配菜单树',
+    example: 'clxrole1234567890'
+  })
+  @IsOptional()
+  @IsString()
+  roleId?: string;
 }

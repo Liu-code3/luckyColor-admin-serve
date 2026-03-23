@@ -23,7 +23,12 @@ import {
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
 import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
-import { CreateMenuDto, MenuListQueryDto, UpdateMenuDto } from './menus.dto';
+import {
+  CreateMenuDto,
+  MenuListQueryDto,
+  MenuTreeQueryDto,
+  UpdateMenuDto
+} from './menus.dto';
 import {
   MenuItemResponseDto,
   MenuPageResponseDto,
@@ -155,9 +160,41 @@ export class MenusController {
       }
     ]
   })
+  @ApiQuery({
+    name: 'view',
+    required: false,
+    example: 'platform',
+    description: '菜单树视角，platform 返回全量菜单树，tenant 返回当前租户已授权菜单树'
+  })
+  @ApiQuery({
+    name: 'roleId',
+    required: false,
+    example: 'clxrole1234567890',
+    description: '角色 ID，传入后返回该角色已分配菜单树'
+  })
+  @ApiErrorResponse({
+    status: 403,
+    description: '缺少租户上下文，无法返回租户或角色视角菜单树',
+    examples: [
+      {
+        name: 'tenantAccessDenied',
+        code: BUSINESS_ERROR_CODES.TENANT_ACCESS_DENIED
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '角色不存在',
+    examples: [
+      {
+        name: 'roleNotFound',
+        code: BUSINESS_ERROR_CODES.ROLE_NOT_FOUND
+      }
+    ]
+  })
   @Get('tree')
-  tree() {
-    return this.menusService.tree();
+  tree(@Query() query: MenuTreeQueryDto) {
+    return this.menusService.tree(query);
   }
 
   @ApiOperation({

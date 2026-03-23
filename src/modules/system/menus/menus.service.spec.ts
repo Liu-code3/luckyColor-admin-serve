@@ -1,9 +1,15 @@
 import { Prisma } from '../../../generated/prisma';
+import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { MenusService } from './menus.service';
 
 describe('MenusService', () => {
+  const createTenantScope = (tenantId = 'tenant_001') =>
+    new TenantPrismaScopeService({
+      getTenantId: jest.fn().mockReturnValue(tenantId)
+    } as never);
+
   const createMenu = (overrides: Partial<Record<string, unknown>> = {}) => ({
     id: 301,
     parentId: null,
@@ -27,18 +33,29 @@ describe('MenusService', () => {
   function createPrismaMock() {
     const prisma = {
       menu: {
+        count: jest.fn(),
+        findMany: jest.fn(),
         create: jest.fn(),
-        update: jest.fn()
+        update: jest.fn(),
+        findUnique: jest.fn(),
+        deleteMany: jest.fn()
+      },
+      role: {
+        findFirst: jest.fn()
+      },
+      roleMenu: {
+        findMany: jest.fn()
       },
       $transaction: jest.fn()
     };
 
-    prisma.$transaction.mockImplementation(
-      async (
-        callback: (tx: typeof prisma) => Promise<unknown>,
-        _options?: unknown
-      ) => callback(prisma)
-    );
+    prisma.$transaction.mockImplementation(async (input: unknown) => {
+      if (Array.isArray(input)) {
+        return Promise.all(input);
+      }
+
+      return (input as (tx: typeof prisma) => Promise<unknown>)(prisma);
+    });
 
     return prisma;
   }
@@ -52,7 +69,7 @@ describe('MenusService', () => {
 
   it('uses created id as default sort when sort is omitted', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never);
+    const service = new MenusService(prisma as never, createTenantScope());
 
     prisma.menu.create.mockResolvedValue(
       createMenu({
@@ -101,7 +118,7 @@ describe('MenusService', () => {
 
   it('translates duplicate menu id conflicts into business errors', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never);
+    const service = new MenusService(prisma as never, createTenantScope());
 
     prisma.menu.create.mockRejectedValue(createUniqueConstraintError(['id']));
 
@@ -118,6 +135,139 @@ describe('MenusService', () => {
       })
     ).rejects.toThrow(
       new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS)
+    );
+  });
+
+  it('returns tenant scoped menu tree with ancestor nodes', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findMany.mockResolvedValue([
+      createMenu({
+        id: 1,
+        parentId: null,
+        title: '系统管理',
+        name: 'SystemManage',
+        path: '/system',
+        menuKey: 'system:root',
+        component: 'LAYOUT',
+        sort: 1
+      }),
+      createMenu({
+        id: 11,
+        parentId: 1,
+        title: '通知公告',
+        name: 'NoticeManage',
+        type: 2,
+        path: '/system/notices',
+        menuKey: 'system:notice:list',
+        sort: 11
+      }),
+      createMenu({
+        id: 12,
+        parentId: 11,
+        title: '新增公告',
+        name: 'NoticeCreate',
+        type: 3,
+        path: '',
+        menuKey: 'system:notice:create',
+        component: '',
+        sort: 12
+      })
+    ]);
+    prisma.roleMenu.findMany.mockResolvedValue([{ menuId: 12 }]);
+
+    const response = await service.tree({
+      view: 'tenant'
+    });
+
+    expect(prisma.roleMenu.findMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant_001'
+      }
+    });
+    expect(response.data).toEqual([
+      expect.objectContaining({
+        id: 1,
+        children: [
+          expect.objectContaining({
+            id: 11,
+            children: [
+              expect.objectContaining({
+                id: 12
+              })
+            ]
+          })
+        ]
+      })
+    ]);
+  });
+
+  it('returns role scoped menu tree for current tenant', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findMany.mockResolvedValue([
+      createMenu({
+        id: 1,
+        parentId: null,
+        title: '系统管理',
+        name: 'SystemManage',
+        path: '/system',
+        menuKey: 'system:root',
+        component: 'LAYOUT',
+        sort: 1
+      }),
+      createMenu({
+        id: 5,
+        parentId: 1,
+        title: '用户管理',
+        name: 'UserManage',
+        type: 2,
+        path: '/system/users',
+        menuKey: 'system:user:list',
+        sort: 5
+      })
+    ]);
+    prisma.role.findFirst.mockResolvedValue({
+      id: 'role-1',
+      menus: [{ menuId: 5, menu: createMenu({ id: 5, parentId: 1 }) }]
+    });
+
+    const response = await service.tree({
+      roleId: 'role-1'
+    });
+
+    expect(prisma.role.findFirst).toHaveBeenCalledWith({
+      where: {
+        AND: [{ id: 'role-1' }, { tenantId: 'tenant_001' }]
+      },
+      include: {
+        menus: {
+          include: {
+            menu: true
+          }
+        }
+      }
+    });
+    expect(response.data[0]).toEqual(
+      expect.objectContaining({
+        id: 1,
+        children: [expect.objectContaining({ id: 5 })]
+      })
+    );
+  });
+
+  it('throws when role scoped tree target does not exist', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findMany.mockResolvedValue([]);
+    prisma.role.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.tree({
+        roleId: 'missing-role'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.ROLE_NOT_FOUND)
     );
   });
 });
