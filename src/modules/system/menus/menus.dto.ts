@@ -1,13 +1,16 @@
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayNotEmpty,
+  IsArray,
   IsIn,
   IsBoolean,
   IsInt,
   IsObject,
   IsOptional,
   IsString,
-  Min
+  Min,
+  ValidateNested
 } from 'class-validator';
 
 export const MENU_TREE_VIEW_VALUES = ['platform', 'tenant'] as const;
@@ -292,4 +295,56 @@ export class MenuTreeQueryDto {
   @IsOptional()
   @IsString()
   roleId?: string;
+}
+
+export class SyncMenuItemDto {
+  @ApiProperty({
+    description: '菜单 ID',
+    example: 1001
+  })
+  @Type(() => Number)
+  @IsInt()
+  id!: number;
+
+  @ApiProperty({
+    description: '父级菜单 ID，顶级菜单传 null',
+    example: null,
+    nullable: true
+  })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  parentId!: number | null;
+
+  @ApiProperty({
+    description: '排序值',
+    example: 10
+  })
+  @Type(() => Number)
+  @IsInt()
+  sort!: number;
+}
+
+export class SyncMenusDto {
+  @ApiProperty({
+    description: '待同步的菜单树节点列表，支持批量更新父级挂载和排序值',
+    type: [SyncMenuItemDto],
+    example: [
+      {
+        id: 1000,
+        parentId: null,
+        sort: 1
+      },
+      {
+        id: 1001,
+        parentId: 1000,
+        sort: 10
+      }
+    ]
+  })
+  @IsArray()
+  @ArrayNotEmpty()
+  @ValidateNested({ each: true })
+  @Type(() => SyncMenuItemDto)
+  menus!: SyncMenuItemDto[];
 }

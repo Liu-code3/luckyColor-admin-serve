@@ -10,6 +10,7 @@ import {
   CreateMenuDto,
   MenuListQueryDto,
   MenuTreeQueryDto,
+  SyncMenusDto,
   UpdateMenuDto
 } from './menus.dto';
 
@@ -192,6 +193,71 @@ export class MenusService {
     return successResponse(true);
   }
 
+  async sync(dto: SyncMenusDto) {
+    const uniqueIds = new Set(dto.menus.map((item) => item.id));
+    if (uniqueIds.size !== dto.menus.length) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID);
+    }
+
+    return this.prisma.$transaction(
+      async (tx) => {
+        const menus = await tx.menu.findMany({
+          orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+        });
+        const menuMap = new Map(menus.map((item) => [item.id, item]));
+
+        if (dto.menus.some((item) => !menuMap.has(item.id))) {
+          throw new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND);
+        }
+
+        const syncMap = new Map(dto.menus.map((item) => [item.id, item]));
+        const nextMenus = menus.map((item) => {
+          const target = syncMap.get(item.id);
+          if (!target) {
+            return item;
+          }
+
+          return {
+            ...item,
+            parentId: target.parentId ?? null,
+            sort: target.sort
+          };
+        });
+
+        dto.menus.forEach((item) => {
+          const target = nextMenus.find((menu) => menu.id === item.id)!;
+          this.assertMenuHierarchy(
+            target.parentId,
+            target.type,
+            nextMenus,
+            target.id
+          );
+        });
+
+        for (const item of dto.menus) {
+          await tx.menu.update({
+            where: { id: item.id },
+            data: {
+              parentId: item.parentId ?? null,
+              sort: item.sort
+            }
+          });
+        }
+
+        const updatedMenus = await tx.menu.findMany({
+          orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+        });
+
+        return successResponse(
+          this.buildTree(updatedMenus.map((item) => this.toMenuResponse(item)))
+        );
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable
+      }
+    );
+  }
+
   private async ensureMenuExists(id: number) {
     const menu = await this.prisma.menu.findUnique({ where: { id } });
     if (!menu) {
@@ -219,6 +285,19 @@ export class MenusService {
     currentId?: number,
     tx: Pick<PrismaService, 'menu'> = this.prisma
   ) {
+    const menus = await tx.menu.findMany({
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+    });
+
+    this.assertMenuHierarchy(parentId, type, menus, currentId);
+  }
+
+  private assertMenuHierarchy(
+    parentId: number | null,
+    type: number,
+    menus: Array<{ id: number; parentId: number | null; type: number }>,
+    currentId?: number
+  ) {
     if (parentId === null) {
       if (type === 3) {
         throw new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID);
@@ -231,9 +310,6 @@ export class MenusService {
       throw new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID);
     }
 
-    const menus = await tx.menu.findMany({
-      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
-    });
     const parent = menus.find((item) => item.id === parentId);
 
     if (!parent) {
@@ -303,10 +379,16 @@ export class MenusService {
     menus: Array<{ id: number; parentId: number | null }>
   ) {
     const ids = [rootId];
+    const visited = new Set<number>(ids);
     const loop = (parentId: number) => {
       menus
         .filter((item) => item.parentId === parentId)
         .forEach((item) => {
+          if (visited.has(item.id)) {
+            return;
+          }
+
+          visited.add(item.id);
           ids.push(item.id);
           loop(item.id);
         });

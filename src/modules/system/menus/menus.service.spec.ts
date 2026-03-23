@@ -358,6 +358,180 @@ describe('MenusService', () => {
     );
   });
 
+  it('syncs menu parent and sort in batch', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findMany
+      .mockResolvedValueOnce([
+        createMenu({
+          id: 1,
+          parentId: null,
+          title: '系统管理',
+          name: 'SystemManage',
+          path: '/system',
+          menuKey: 'system:root',
+          component: 'LAYOUT',
+          sort: 1
+        }),
+        createMenu({
+          id: 5,
+          parentId: null,
+          title: '用户管理',
+          name: 'UserManage',
+          type: 2,
+          path: '/system/users',
+          menuKey: 'system:user:list',
+          sort: 20
+        })
+      ])
+      .mockResolvedValueOnce([
+      createMenu({
+        id: 1,
+        parentId: null,
+        title: '系统管理',
+        name: 'SystemManage',
+        path: '/system',
+        menuKey: 'system:root',
+        component: 'LAYOUT',
+        sort: 1
+      }),
+      createMenu({
+        id: 5,
+        parentId: 1,
+        title: '用户管理',
+        name: 'UserManage',
+        type: 2,
+        path: '/system/users',
+        menuKey: 'system:user:list',
+        sort: 10
+      })
+      ]);
+    prisma.menu.update.mockImplementation(async ({ where, data }) =>
+      createMenu({
+        id: where.id,
+        parentId: data.parentId,
+        sort: data.sort
+      })
+    );
+
+    const response = await service.sync({
+      menus: [
+        {
+          id: 5,
+          parentId: 1,
+          sort: 10
+        }
+      ]
+    });
+
+    expect(prisma.menu.update).toHaveBeenCalledWith({
+      where: { id: 5 },
+      data: {
+        parentId: 1,
+        sort: 10
+      }
+    });
+    expect(response.data).toEqual([
+      expect.objectContaining({
+        id: 1,
+        children: [expect.objectContaining({ id: 5, pid: 1, sort: 10 })]
+      })
+    ]);
+  });
+
+  it('rejects sync when payload contains missing menus', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findMany.mockResolvedValue([
+      createMenu({
+        id: 1,
+        parentId: null
+      })
+    ]);
+
+    await expect(
+      service.sync({
+        menus: [
+          {
+            id: 999,
+            parentId: null,
+            sort: 1
+          }
+        ]
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND)
+    );
+
+    expect(prisma.menu.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects sync when payload contains duplicate menu ids', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+
+    await expect(
+      service.sync({
+        menus: [
+          {
+            id: 5,
+            parentId: null,
+            sort: 1
+          },
+          {
+            id: 5,
+            parentId: 1,
+            sort: 2
+          }
+        ]
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID)
+    );
+  });
+
+  it('rejects sync when it creates descendant cycles', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(prisma as never, createTenantScope());
+    prisma.menu.findMany.mockResolvedValue([
+      createMenu({
+        id: 1,
+        parentId: null,
+        type: 1,
+        title: '系统管理',
+        name: 'SystemManage',
+        path: '/system',
+        menuKey: 'system:root',
+        component: 'LAYOUT'
+      }),
+      createMenu({
+        id: 5,
+        parentId: 1,
+        type: 2,
+        title: '用户管理',
+        name: 'UserManage',
+        path: '/system/users',
+        menuKey: 'system:user:list'
+      })
+    ]);
+
+    await expect(
+      service.sync({
+        menus: [
+          {
+            id: 1,
+            parentId: 5,
+            sort: 1
+          }
+        ]
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID)
+    );
+
+    expect(prisma.menu.update).not.toHaveBeenCalled();
+  });
+
   it('rejects moving a menu under its descendant', async () => {
     const prisma = createPrismaMock();
     const service = new MenusService(prisma as never, createTenantScope());

@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Put,
   Query
 } from '@nestjs/common';
 import {
@@ -27,6 +28,7 @@ import {
   CreateMenuDto,
   MenuListQueryDto,
   MenuTreeQueryDto,
+  SyncMenusDto,
   UpdateMenuDto
 } from './menus.dto';
 import {
@@ -308,6 +310,94 @@ export class MenusController {
   @Post()
   create(@Body() dto: CreateMenuDto) {
     return this.menusService.create(dto);
+  }
+
+  @ApiOperation({
+    summary: '批量同步菜单树',
+    description:
+      '批量同步菜单的父子挂载关系和排序值，适用于前端拖拽调整菜单树结构。'
+  })
+  @ApiBody({ type: SyncMenusDto })
+  @ApiSuccessResponse({
+    type: MenuTreeItemResponseDto,
+    isArray: true,
+    extraModels: [MenuItemResponseDto],
+    description: '菜单树同步后的最新结构',
+    dataExample: [
+      {
+        pid: 0,
+        id: 1000,
+        title: '系统管理',
+        name: 'SystemManage',
+        type: 1,
+        path: '/system',
+        key: 'system:root',
+        icon: 'SettingOutlined',
+        layout: 'default',
+        isVisible: true,
+        component: 'LAYOUT',
+        sort: 1,
+        createdAt: '2026-03-22T14:30:00.000Z',
+        updatedAt: '2026-03-23T10:00:00.000Z',
+        children: [
+          {
+            pid: 1000,
+            id: 1001,
+            title: '用户管理',
+            name: 'UserManage',
+            type: 2,
+            path: '/system/users',
+            key: 'system:user:list',
+            icon: 'UserOutlined',
+            layout: 'default',
+            isVisible: true,
+            component: 'system/users/index',
+            sort: 10,
+            createdAt: '2026-03-22T14:30:00.000Z',
+            updatedAt: '2026-03-23T10:00:00.000Z'
+          }
+        ]
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 400,
+    description: '菜单层级关系不合法',
+    examples: [
+      {
+        name: 'menuHierarchyInvalid',
+        code: BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '菜单不存在',
+    examples: [
+      {
+        name: 'menuNotFound',
+        code: BUSINESS_ERROR_CODES.MENU_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '批量同步参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
+  @SystemLog({
+    module: '菜单管理',
+    action: '批量同步菜单树',
+    targets: [{ source: 'body', key: 'menus', label: 'menus' }]
+  })
+  @Put('sync')
+  sync(@Body() dto: SyncMenusDto) {
+    return this.menusService.sync(dto);
   }
 
   @ApiOperation({
