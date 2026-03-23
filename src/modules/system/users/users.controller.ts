@@ -22,6 +22,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
+import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
 import {
   AssignUserRolesDto,
   CreateUserDto,
@@ -38,6 +39,7 @@ import { UsersService } from './users.service';
 
 @ApiTags('系统管理 / 用户管理')
 @ApiServerErrorResponse()
+@RequirePermissions('main_system_users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -250,7 +252,8 @@ export class UsersController {
 
   @ApiOperation({
     summary: '分配用户角色',
-    description: '根据用户 ID 覆盖更新当前用户的角色集合，传空数组表示清空全部角色。'
+    description:
+      '根据用户 ID 覆盖更新当前用户的角色集合，传空数组表示清空全部角色。'
   })
   @ApiParam({ name: 'id', description: '用户 ID', example: 'clx1234567890' })
   @ApiBody({ type: AssignUserRolesDto })

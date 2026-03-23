@@ -239,6 +239,7 @@ export class AuthService {
 
     roles
       .slice()
+      .filter((role) => role.status)
       .sort(
         (left, right) =>
           left.sort - right.sort || left.code.localeCompare(right.code)

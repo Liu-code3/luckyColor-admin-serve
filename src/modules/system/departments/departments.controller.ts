@@ -22,6 +22,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
+import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateDepartmentDto,
   DepartmentListQueryDto,
@@ -37,6 +38,7 @@ import { DepartmentsService } from './departments.service';
 
 @ApiTags('系统管理 / 部门管理')
 @ApiServerErrorResponse()
+@RequirePermissions('main_system_department')
 @Controller('departments')
 export class DepartmentsController {
   constructor(private readonly departmentsService: DepartmentsService) {}
@@ -299,7 +301,10 @@ export class DepartmentsController {
     ]
   })
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateDepartmentDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateDepartmentDto
+  ) {
     return this.departmentsService.update(id, dto);
   }
 

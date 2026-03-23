@@ -13,7 +13,7 @@ import { TENANT_STATUS_VALUES, type TenantStatus } from './tenant.constants';
 
 export class TenantListQueryDto {
   @ApiPropertyOptional({
-    description: 'page number',
+    description: '页码',
     example: 1,
     default: 1
   })
@@ -22,7 +22,7 @@ export class TenantListQueryDto {
   page = 1;
 
   @ApiPropertyOptional({
-    description: 'page size',
+    description: '每页条数',
     example: 10,
     default: 10
   })
@@ -31,15 +31,15 @@ export class TenantListQueryDto {
   size = 10;
 
   @ApiPropertyOptional({
-    description: 'keyword for tenant name or code',
-    example: 'default'
+    description: '租户名称或租户编码关键字',
+    example: '默认'
   })
   @IsOptional()
   @IsString()
   keyword?: string;
 
   @ApiPropertyOptional({
-    description: 'tenant status',
+    description: '租户状态',
     enum: TENANT_STATUS_VALUES,
     example: 'ACTIVE'
   })
@@ -50,7 +50,7 @@ export class TenantListQueryDto {
 
 export class CreateTenantDto {
   @ApiPropertyOptional({
-    description: 'tenant id, auto-generated when omitted',
+    description: '租户 ID，不传时自动生成',
     example: 'tenant_1001'
   })
   @IsOptional()
@@ -58,7 +58,7 @@ export class CreateTenantDto {
   id?: string;
 
   @ApiProperty({
-    description: 'tenant code',
+    description: '租户编码',
     example: 'acme'
   })
   @IsString()
@@ -66,16 +66,15 @@ export class CreateTenantDto {
   code!: string;
 
   @ApiProperty({
-    description: 'tenant name',
-    example: 'Acme Studio'
+    description: '租户名称',
+    example: 'Acme 科技'
   })
   @IsString()
   @IsNotEmpty()
   name!: string;
 
   @ApiPropertyOptional({
-    description:
-      'tenant package id, default active package will be used when omitted',
+    description: '租户套餐 ID，不传时默认使用首个启用套餐',
     example: 'pkg_basic'
   })
   @IsOptional()
@@ -83,7 +82,7 @@ export class CreateTenantDto {
   packageId?: string;
 
   @ApiPropertyOptional({
-    description: 'tenant status',
+    description: '租户状态',
     enum: TENANT_STATUS_VALUES,
     example: 'ACTIVE',
     default: 'ACTIVE'
@@ -93,7 +92,7 @@ export class CreateTenantDto {
   status?: TenantStatus;
 
   @ApiPropertyOptional({
-    description: 'tenant expires at',
+    description: '到期时间',
     example: '2027-03-22T00:00:00.000Z'
   })
   @IsOptional()
@@ -101,15 +100,15 @@ export class CreateTenantDto {
   expiresAt?: string;
 
   @ApiPropertyOptional({
-    description: 'contact name',
-    example: 'Alice'
+    description: '联系人姓名',
+    example: '张三'
   })
   @IsOptional()
   @IsString()
   contactName?: string;
 
   @ApiPropertyOptional({
-    description: 'contact phone',
+    description: '联系电话',
     example: '13800000003'
   })
   @IsOptional()
@@ -117,23 +116,23 @@ export class CreateTenantDto {
   contactPhone?: string;
 
   @ApiPropertyOptional({
-    description: 'contact email',
-    example: 'alice@acme.local'
+    description: '联系邮箱',
+    example: 'zhangsan@acme.local'
   })
   @IsOptional()
   @IsEmail()
   contactEmail?: string;
 
   @ApiPropertyOptional({
-    description: 'tenant remark',
-    example: 'created by platform admin'
+    description: '租户备注',
+    example: '平台管理员创建'
   })
   @IsOptional()
   @IsString()
   remark?: string;
 
   @ApiPropertyOptional({
-    description: 'admin username',
+    description: '管理员账号',
     example: 'admin',
     default: 'admin'
   })
@@ -142,7 +141,7 @@ export class CreateTenantDto {
   adminUsername?: string;
 
   @ApiProperty({
-    description: 'admin password',
+    description: '管理员密码',
     example: '123456'
   })
   @IsString()
@@ -150,8 +149,8 @@ export class CreateTenantDto {
   adminPassword!: string;
 
   @ApiPropertyOptional({
-    description: 'admin nickname',
-    example: 'Acme Admin'
+    description: '管理员昵称',
+    example: 'Acme 管理员'
   })
   @IsOptional()
   @IsString()
@@ -160,8 +159,8 @@ export class CreateTenantDto {
 
 export class UpdateTenantDto {
   @ApiPropertyOptional({
-    description: 'tenant name',
-    example: 'Acme Studio Pro'
+    description: '租户名称',
+    example: 'Acme 科技专业版'
   })
   @IsOptional()
   @IsString()
@@ -169,7 +168,7 @@ export class UpdateTenantDto {
   name?: string;
 
   @ApiPropertyOptional({
-    description: 'tenant package id',
+    description: '租户套餐 ID',
     example: 'pkg_pro'
   })
   @IsOptional()
@@ -178,7 +177,7 @@ export class UpdateTenantDto {
   packageId?: string;
 
   @ApiPropertyOptional({
-    description: 'tenant status',
+    description: '租户状态',
     enum: TENANT_STATUS_VALUES,
     example: 'FROZEN'
   })
@@ -187,7 +186,7 @@ export class UpdateTenantDto {
   status?: TenantStatus;
 
   @ApiPropertyOptional({
-    description: 'tenant expires at, pass null to clear',
+    description: '到期时间，传 null 表示清空',
     example: '2027-06-30T00:00:00.000Z',
     nullable: true
   })
@@ -196,8 +195,8 @@ export class UpdateTenantDto {
   expiresAt?: string | null;
 
   @ApiPropertyOptional({
-    description: 'contact name, pass null to clear',
-    example: 'Alice',
+    description: '联系人姓名，传 null 表示清空',
+    example: '李四',
     nullable: true
   })
   @IsOptional()
@@ -205,8 +204,8 @@ export class UpdateTenantDto {
   contactName?: string | null;
 
   @ApiPropertyOptional({
-    description: 'contact phone, pass null to clear',
-    example: '13800000003',
+    description: '联系电话，传 null 表示清空',
+    example: '13900000000',
     nullable: true
   })
   @IsOptional()
@@ -214,8 +213,8 @@ export class UpdateTenantDto {
   contactPhone?: string | null;
 
   @ApiPropertyOptional({
-    description: 'contact email, pass null to clear',
-    example: 'alice@acme.local',
+    description: '联系邮箱，传 null 表示清空',
+    example: 'lisi@acme.local',
     nullable: true
   })
   @IsOptional()
@@ -223,8 +222,8 @@ export class UpdateTenantDto {
   contactEmail?: string | null;
 
   @ApiPropertyOptional({
-    description: 'tenant remark, pass null to clear',
-    example: 'renewed by platform admin',
+    description: '租户备注，传 null 表示清空',
+    example: '续费并升级套餐',
     nullable: true
   })
   @IsOptional()

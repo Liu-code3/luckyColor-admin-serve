@@ -22,6 +22,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
+import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
 import {
   AssignRoleDataScopeDto,
   AssignRoleMenusDto,
@@ -40,6 +41,7 @@ import { RolesService } from './roles.service';
 
 @ApiTags('系统管理 / 角色管理')
 @ApiServerErrorResponse()
+@RequirePermissions('main_system_role')
 @Controller('roles')
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
@@ -103,7 +105,11 @@ export class RolesController {
     summary: '角色详情',
     description: '根据角色 ID 查询角色详情。'
   })
-  @ApiParam({ name: 'id', description: '角色 ID', example: 'clxrole1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '角色 ID',
+    example: 'clxrole1234567890'
+  })
   @ApiSuccessResponse({
     type: RoleItemResponseDto,
     description: '角色详情响应',
@@ -139,7 +145,11 @@ export class RolesController {
     summary: '角色数据权限范围',
     description: '根据角色 ID 查询当前角色的数据权限范围及自定义部门。'
   })
-  @ApiParam({ name: 'id', description: '角色 ID', example: 'clxrole1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '角色 ID',
+    example: 'clxrole1234567890'
+  })
   @ApiSuccessResponse({
     type: RoleDataScopeResponseDto,
     description: '角色数据权限范围响应',
@@ -184,7 +194,11 @@ export class RolesController {
     summary: '角色已分配菜单',
     description: '根据角色 ID 查询当前已分配的菜单 ID 列表和菜单明细。'
   })
-  @ApiParam({ name: 'id', description: '角色 ID', example: 'clxrole1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '角色 ID',
+    example: 'clxrole1234567890'
+  })
   @ApiSuccessResponse({
     type: RoleMenuAssignmentResponseDto,
     description: '角色菜单分配详情响应',
@@ -309,7 +323,11 @@ export class RolesController {
     summary: '更新角色',
     description: '根据角色 ID 更新角色信息，并可同步更新数据权限范围。'
   })
-  @ApiParam({ name: 'id', description: '角色 ID', example: 'clxrole1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '角色 ID',
+    example: 'clxrole1234567890'
+  })
   @ApiBody({ type: UpdateRoleDto })
   @ApiSuccessResponse({
     type: RoleItemResponseDto,
@@ -388,7 +406,11 @@ export class RolesController {
     summary: '分配角色数据权限',
     description: '根据角色 ID 单独配置当前角色的数据权限范围。'
   })
-  @ApiParam({ name: 'id', description: '角色 ID', example: 'clxrole1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '角色 ID',
+    example: 'clxrole1234567890'
+  })
   @ApiBody({ type: AssignRoleDataScopeDto })
   @ApiSuccessResponse({
     type: RoleDataScopeResponseDto,
@@ -458,15 +480,23 @@ export class RolesController {
     ]
   })
   @Put(':id/data-scope')
-  assignDataScope(@Param('id') id: string, @Body() dto: AssignRoleDataScopeDto) {
+  assignDataScope(
+    @Param('id') id: string,
+    @Body() dto: AssignRoleDataScopeDto
+  ) {
     return this.rolesService.assignDataScope(id, dto);
   }
 
   @ApiOperation({
     summary: '分配角色菜单',
-    description: '根据角色 ID 覆盖更新当前角色的菜单权限集合，传空数组表示清空全部菜单权限。'
+    description:
+      '根据角色 ID 覆盖更新当前角色的菜单权限集合，传空数组表示清空全部菜单权限。'
   })
-  @ApiParam({ name: 'id', description: '角色 ID', example: 'clxrole1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '角色 ID',
+    example: 'clxrole1234567890'
+  })
   @ApiBody({ type: AssignRoleMenusDto })
   @ApiSuccessResponse({
     type: RoleMenuAssignmentResponseDto,
@@ -543,7 +573,11 @@ export class RolesController {
     summary: '删除角色',
     description: '根据角色 ID 删除角色。'
   })
-  @ApiParam({ name: 'id', description: '角色 ID', example: 'clxrole1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '角色 ID',
+    example: 'clxrole1234567890'
+  })
   @ApiSuccessResponse({
     description: '角色删除结果',
     dataSchema: {

@@ -233,11 +233,11 @@ export const menuSeedData: MenuSeedItem[] = [
   },
   {
     id: 15,
-    parentId: 4,
+    parentId: 17,
     title: '租户管理',
     name: 'systemTenant',
     type: 2,
-    path: '/systemManagement/system/tenant',
+    path: '/tenantCenter/tenant',
     menuKey: 'main_system_tenant',
     icon: 'mdi:office-building-cog-outline',
     layout: '',
@@ -247,15 +247,15 @@ export const menuSeedData: MenuSeedItem[] = [
       title: '租户管理',
       keepAlive: true
     },
-    sort: 11
+    sort: 1
   },
   {
     id: 16,
-    parentId: 4,
+    parentId: 17,
     title: '租户套餐',
     name: 'systemTenantPackage',
     type: 2,
-    path: '/systemManagement/system/tenantPackage',
+    path: '/tenantCenter/tenantPackage',
     menuKey: 'main_system_tenant_package',
     icon: 'mdi:package-variant-closed',
     layout: '',
@@ -265,6 +265,20 @@ export const menuSeedData: MenuSeedItem[] = [
       title: '租户套餐',
       keepAlive: true
     },
-    sort: 12
+    sort: 2
+  },
+  {
+    id: 17,
+    parentId: null,
+    title: '租户中心',
+    name: 'tenantCenter',
+    type: 1,
+    path: '/tenantCenter',
+    menuKey: 'main_tenant',
+    icon: 'mdi:domain',
+    layout: '',
+    isVisible: true,
+    component: 'sys',
+    sort: 5
   }
 ];

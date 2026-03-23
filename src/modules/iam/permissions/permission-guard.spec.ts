@@ -1,0 +1,181 @@
+import { Reflector } from '@nestjs/core';
+import { BusinessException } from '../../../shared/api/business.exception';
+import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { PermissionGuard } from './permission-guard';
+
+describe('PermissionGuard', () => {
+  function createExecutionContext(user?: {
+    sub: string;
+    tenantId: string;
+    username: string;
+  }) {
+    return {
+      getHandler: jest.fn(),
+      getClass: jest.fn(),
+      switchToHttp: jest.fn().mockReturnValue({
+        getRequest: jest.fn().mockReturnValue({
+          user
+        })
+      })
+    } as never;
+  }
+
+  function createGuard(requirement?: {
+    permissions: string[];
+    mode: 'ANY' | 'ALL';
+  }) {
+    const reflector = {
+      getAllAndOverride: jest.fn().mockReturnValue(requirement)
+    };
+    const prisma = {
+      user: {
+        findFirst: jest.fn()
+      }
+    };
+
+    return {
+      guard: new PermissionGuard(
+        reflector as unknown as Reflector,
+        prisma as never
+      ),
+      reflector,
+      prisma
+    };
+  }
+
+  it('allows access when route does not declare permissions', async () => {
+    const { guard, prisma } = createGuard();
+
+    await expect(guard.canActivate(createExecutionContext())).resolves.toBe(
+      true
+    );
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('throws token invalid when current request has no authenticated user', async () => {
+    const { guard } = createGuard({
+      permissions: ['main_system_users'],
+      mode: 'ANY'
+    });
+
+    await expect(guard.canActivate(createExecutionContext())).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID)
+    );
+  });
+
+  it('allows access for super admin role', async () => {
+    const { guard, prisma } = createGuard({
+      permissions: ['main_system_tenant'],
+      mode: 'ANY'
+    });
+    prisma.user.findFirst.mockResolvedValue({
+      roles: [
+        {
+          role: {
+            code: 'super_admin',
+            status: true,
+            menus: []
+          }
+        }
+      ]
+    });
+
+    await expect(
+      guard.canActivate(
+        createExecutionContext({
+          sub: 'user-1',
+          tenantId: 'tenant_001',
+          username: 'admin'
+        })
+      )
+    ).resolves.toBe(true);
+  });
+
+  it('allows access when any configured permission matches', async () => {
+    const { guard, prisma } = createGuard({
+      permissions: ['main_system_users', 'main_system_role'],
+      mode: 'ANY'
+    });
+    prisma.user.findFirst.mockResolvedValue({
+      roles: [
+        {
+          role: {
+            code: 'tenant_admin',
+            status: true,
+            menus: [{ menu: { menuKey: 'main_system_role' } }]
+          }
+        }
+      ]
+    });
+
+    await expect(
+      guard.canActivate(
+        createExecutionContext({
+          sub: 'user-2',
+          tenantId: 'tenant_001',
+          username: 'tenant-admin'
+        })
+      )
+    ).resolves.toBe(true);
+  });
+
+  it('denies access when required permissions are missing', async () => {
+    const { guard, prisma } = createGuard({
+      permissions: ['main_system_tenant_package'],
+      mode: 'ANY'
+    });
+    prisma.user.findFirst.mockResolvedValue({
+      roles: [
+        {
+          role: {
+            code: 'tenant_admin',
+            status: true,
+            menus: [{ menu: { menuKey: 'main_system_config' } }]
+          }
+        }
+      ]
+    });
+
+    await expect(
+      guard.canActivate(
+        createExecutionContext({
+          sub: 'user-3',
+          tenantId: 'tenant_001',
+          username: 'tenant-admin'
+        })
+      )
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.PERMISSION_DENIED)
+    );
+  });
+
+  it('ignores disabled roles during permission checks', async () => {
+    const { guard, prisma } = createGuard({
+      permissions: ['main_system_menu'],
+      mode: 'ANY'
+    });
+    prisma.user.findFirst.mockResolvedValue({
+      roles: [
+        {
+          role: {
+            code: 'tenant_admin',
+            status: false,
+            menus: [{ menu: { menuKey: 'main_system_menu' } }]
+          }
+        }
+      ]
+    });
+
+    await expect(
+      guard.canActivate(
+        createExecutionContext({
+          sub: 'user-4',
+          tenantId: 'tenant_001',
+          username: 'tenant-admin'
+        })
+      )
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.PERMISSION_DENIED)
+    );
+  });
+});

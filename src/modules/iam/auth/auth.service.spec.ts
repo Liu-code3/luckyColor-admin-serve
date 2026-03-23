@@ -304,6 +304,53 @@ describe('AuthService', () => {
     );
   });
 
+  it('filters disabled roles from access snapshot', async () => {
+    const { service, prisma } = createService();
+    const activeRole = createRole({
+      id: 'role-active',
+      code: 'tenant_admin',
+      name: '租户管理员',
+      sort: 10,
+      menus: [
+        {
+          menu: createMenu({
+            id: 6,
+            parentId: 4,
+            title: '部门管理',
+            name: 'department',
+            type: 2,
+            path: '/systemManagement/system/department',
+            menuKey: 'main_system_department',
+            sort: 6
+          })
+        }
+      ]
+    });
+    const disabledRole = createRole({
+      id: 'role-disabled',
+      code: 'tenant_member',
+      name: '普通成员',
+      sort: 20,
+      status: false,
+      menus: [{ menu: createMenu() }]
+    });
+
+    prisma.user.findFirst.mockResolvedValue(
+      createUser({
+        roles: [{ role: disabledRole }, { role: activeRole }]
+      })
+    );
+
+    const response = await service.getAccess({
+      sub: 'user-1',
+      tenantId: 'tenant_001',
+      username: 'admin'
+    });
+
+    expect(response.data.user.roleCodes).toEqual(['tenant_admin']);
+    expect(response.data.user.menuCodeList).toEqual(['main_system_department']);
+  });
+
   it('rejects login when password verification fails', async () => {
     const { service, prisma, passwordService } = createService();
     prisma.user.findFirst.mockResolvedValue(createUser());

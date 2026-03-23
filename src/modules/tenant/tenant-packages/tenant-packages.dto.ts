@@ -12,7 +12,7 @@ import {
 
 export class TenantPackageListQueryDto {
   @ApiPropertyOptional({
-    description: 'page number',
+    description: '页码',
     example: 1,
     default: 1
   })
@@ -21,7 +21,7 @@ export class TenantPackageListQueryDto {
   page = 1;
 
   @ApiPropertyOptional({
-    description: 'page size',
+    description: '每页条数',
     example: 10,
     default: 10
   })
@@ -30,15 +30,15 @@ export class TenantPackageListQueryDto {
   size = 10;
 
   @ApiPropertyOptional({
-    description: 'keyword for package name or code',
-    example: 'basic'
+    description: '套餐名称或套餐编码关键字',
+    example: '基础'
   })
   @IsOptional()
   @IsString()
   keyword?: string;
 
   @ApiPropertyOptional({
-    description: 'package status',
+    description: '套餐状态，`true` 表示启用，`false` 表示停用',
     example: true
   })
   @IsOptional()
@@ -49,7 +49,7 @@ export class TenantPackageListQueryDto {
 
 export class CreateTenantPackageDto {
   @ApiPropertyOptional({
-    description: 'package id, auto-generated when omitted',
+    description: '套餐 ID，不传时自动按编码生成',
     example: 'pkg_basic'
   })
   @IsOptional()
@@ -57,7 +57,7 @@ export class CreateTenantPackageDto {
   id?: string;
 
   @ApiProperty({
-    description: 'package code',
+    description: '套餐编码',
     example: 'basic'
   })
   @IsString()
@@ -65,7 +65,7 @@ export class CreateTenantPackageDto {
   code!: string;
 
   @ApiProperty({
-    description: 'package name',
+    description: '套餐名称',
     example: '基础版套餐'
   })
   @IsString()
@@ -73,7 +73,7 @@ export class CreateTenantPackageDto {
   name!: string;
 
   @ApiPropertyOptional({
-    description: 'package status',
+    description: '套餐状态，默认启用',
     example: true,
     default: true
   })
@@ -83,7 +83,7 @@ export class CreateTenantPackageDto {
   status?: boolean;
 
   @ApiPropertyOptional({
-    description: 'max users',
+    description: '最大用户数',
     example: 50
   })
   @IsOptional()
@@ -93,7 +93,7 @@ export class CreateTenantPackageDto {
   maxUsers?: number;
 
   @ApiPropertyOptional({
-    description: 'max roles',
+    description: '最大角色数',
     example: 20
   })
   @IsOptional()
@@ -103,7 +103,7 @@ export class CreateTenantPackageDto {
   maxRoles?: number;
 
   @ApiPropertyOptional({
-    description: 'max menus',
+    description: '最大菜单数',
     example: 100
   })
   @IsOptional()
@@ -113,7 +113,7 @@ export class CreateTenantPackageDto {
   maxMenus?: number;
 
   @ApiPropertyOptional({
-    description: 'feature flags',
+    description: '功能开关配置',
     example: {
       watermark: true,
       dictionary: true,
@@ -125,7 +125,7 @@ export class CreateTenantPackageDto {
   featureFlags?: Record<string, unknown>;
 
   @ApiPropertyOptional({
-    description: 'remark',
+    description: '备注',
     example: '默认基础租户套餐'
   })
   @IsOptional()
@@ -135,7 +135,7 @@ export class CreateTenantPackageDto {
 
 export class UpdateTenantPackageDto {
   @ApiPropertyOptional({
-    description: 'package code',
+    description: '套餐编码',
     example: 'pro'
   })
   @IsOptional()
@@ -144,7 +144,7 @@ export class UpdateTenantPackageDto {
   code?: string;
 
   @ApiPropertyOptional({
-    description: 'package name',
+    description: '套餐名称',
     example: '专业版套餐'
   })
   @IsOptional()
@@ -153,7 +153,7 @@ export class UpdateTenantPackageDto {
   name?: string;
 
   @ApiPropertyOptional({
-    description: 'package status',
+    description: '套餐状态，`true` 表示启用，`false` 表示停用',
     example: false
   })
   @IsOptional()
@@ -162,7 +162,7 @@ export class UpdateTenantPackageDto {
   status?: boolean;
 
   @ApiPropertyOptional({
-    description: 'max users',
+    description: '最大用户数',
     example: 200
   })
   @IsOptional()
@@ -172,7 +172,7 @@ export class UpdateTenantPackageDto {
   maxUsers?: number;
 
   @ApiPropertyOptional({
-    description: 'max roles',
+    description: '最大角色数',
     example: 50
   })
   @IsOptional()
@@ -182,7 +182,7 @@ export class UpdateTenantPackageDto {
   maxRoles?: number;
 
   @ApiPropertyOptional({
-    description: 'max menus',
+    description: '最大菜单数',
     example: 300
   })
   @IsOptional()
@@ -192,7 +192,7 @@ export class UpdateTenantPackageDto {
   maxMenus?: number;
 
   @ApiPropertyOptional({
-    description: 'feature flags',
+    description: '功能开关配置',
     example: {
       watermark: true,
       dictionary: true,
@@ -205,7 +205,7 @@ export class UpdateTenantPackageDto {
   featureFlags?: Record<string, unknown>;
 
   @ApiPropertyOptional({
-    description: 'remark, pass null to clear',
+    description: '备注，传 null 表示清空',
     example: '升级后的套餐能力',
     nullable: true
   })

@@ -21,6 +21,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
+import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
 import {
   ConfigListQueryDto,
   CreateConfigDto,
@@ -36,6 +37,7 @@ import { ConfigsService } from './configs.service';
 
 @ApiTags('系统管理 / 系统配置')
 @ApiServerErrorResponse()
+@RequirePermissions('main_system_config')
 @Controller('configs')
 export class ConfigsController {
   constructor(private readonly configsService: ConfigsService) {}
@@ -98,7 +100,11 @@ export class ConfigsController {
     summary: '配置详情',
     description: '根据配置 ID 查询配置详情。'
   })
-  @ApiParam({ name: 'id', description: '配置 ID', example: 'clxconfig1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '配置 ID',
+    example: 'clxconfig1234567890'
+  })
   @ApiSuccessResponse({
     type: ConfigItemResponseDto,
     description: '配置详情响应',
@@ -205,7 +211,11 @@ export class ConfigsController {
     summary: '更新配置',
     description: '根据配置 ID 更新系统配置。'
   })
-  @ApiParam({ name: 'id', description: '配置 ID', example: 'clxconfig1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '配置 ID',
+    example: 'clxconfig1234567890'
+  })
   @ApiBody({ type: UpdateConfigDto })
   @ApiSuccessResponse({
     type: ConfigItemResponseDto,
@@ -269,7 +279,11 @@ export class ConfigsController {
     summary: '删除配置',
     description: '根据配置 ID 删除系统配置。'
   })
-  @ApiParam({ name: 'id', description: '配置 ID', example: 'clxconfig1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '配置 ID',
+    example: 'clxconfig1234567890'
+  })
   @ApiSuccessResponse({
     description: '配置删除结果',
     dataSchema: {

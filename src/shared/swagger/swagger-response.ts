@@ -83,6 +83,11 @@ interface ApiUnauthorizedResponseOptions {
   examples?: ApiErrorExampleOption[];
 }
 
+interface ApiForbiddenResponseOptions {
+  description?: string;
+  examples?: ApiErrorExampleOption[];
+}
+
 function buildDataSchema(options: ApiSuccessResponseOptions): SwaggerSchema {
   if (options.dataSchema) {
     return options.dataSchema;
@@ -206,6 +211,22 @@ export function ApiUnauthorizedErrorResponse(
         name: 'unauthorized',
         code: 401,
         summary: getErrorMessageByCode(401)
+      }
+    ]
+  });
+}
+
+export function ApiForbiddenErrorResponse(
+  options: ApiForbiddenResponseOptions = {}
+) {
+  return ApiErrorResponse({
+    status: 403,
+    description: options.description ?? '当前账号没有访问权限',
+    examples: options.examples ?? [
+      {
+        name: 'forbidden',
+        code: 403,
+        summary: getErrorMessageByCode(403)
       }
     ]
   });

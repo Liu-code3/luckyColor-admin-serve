@@ -4,14 +4,16 @@ import { menuSeedData } from './seed-data/menu.data';
 
 const prisma = new PrismaClient();
 
-const SYSTEM_MANAGEMENT_MENU_IDS = [13, 14, 15, 16];
-const TENANT_ADMIN_MENU_IDS = [13, 14];
+const TENANT_CENTER_MENU_IDS = [15, 16, 17];
+const SYSTEM_MANAGEMENT_MENU_IDS = [13, 14];
 
 async function main() {
   await prisma.$executeRawUnsafe(buildSetDatabaseTimeZoneSql());
 
-  const menus = menuSeedData.filter((item) =>
-    SYSTEM_MANAGEMENT_MENU_IDS.includes(item.id)
+  const menus = menuSeedData.filter(
+    (item) =>
+      SYSTEM_MANAGEMENT_MENU_IDS.includes(item.id) ||
+      TENANT_CENTER_MENU_IDS.includes(item.id)
   );
 
   for (const item of menus) {
@@ -65,11 +67,23 @@ async function main() {
     }
   });
 
+  const existingTenantRoleBindings = await prisma.roleMenu.findMany({
+    where: {
+      menuId: {
+        in: [15, 16]
+      }
+    },
+    select: {
+      tenantId: true,
+      roleId: true
+    }
+  });
+
   const roleMenuRows = roles.flatMap((role) => {
     const menuIds =
       role.code === 'super_admin'
-        ? SYSTEM_MANAGEMENT_MENU_IDS
-        : TENANT_ADMIN_MENU_IDS;
+        ? TENANT_CENTER_MENU_IDS
+        : SYSTEM_MANAGEMENT_MENU_IDS;
 
     return menuIds.map((menuId) => ({
       tenantId: role.tenantId,
@@ -78,15 +92,30 @@ async function main() {
     }));
   });
 
-  if (roleMenuRows.length > 0) {
+  const tenantCenterParentRows = Array.from(
+    new Map(
+      existingTenantRoleBindings.map((item) => [
+        `${item.tenantId}:${item.roleId}:17`,
+        {
+          tenantId: item.tenantId,
+          roleId: item.roleId,
+          menuId: 17
+        }
+      ])
+    ).values()
+  );
+
+  const allRoleMenuRows = [...roleMenuRows, ...tenantCenterParentRows];
+
+  if (allRoleMenuRows.length > 0) {
     await prisma.roleMenu.createMany({
-      data: roleMenuRows,
+      data: allRoleMenuRows,
       skipDuplicates: true
     });
   }
 
   console.log(
-    `Upserted ${menus.length} system menus and synced ${roleMenuRows.length} role-menu bindings.`
+    `Upserted ${menus.length} menus and synced ${allRoleMenuRows.length} role-menu bindings.`
   );
 }
 

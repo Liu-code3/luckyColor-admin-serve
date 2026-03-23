@@ -21,6 +21,7 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
+import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateTenantPackageDto,
   TenantPackageListQueryDto,
@@ -34,41 +35,42 @@ import { TenantPackagesService } from './tenant-packages.service';
 
 @ApiTags('租户中心 / 租户套餐')
 @ApiServerErrorResponse()
+@RequirePermissions('main_system_tenant_package')
 @Controller('tenant-packages')
 export class TenantPackagesController {
   constructor(private readonly tenantPackagesService: TenantPackagesService) {}
 
   @ApiOperation({
-    summary: 'tenant package page list',
-    description: 'query tenant packages by keyword and status'
+    summary: '租户套餐分页列表',
+    description: '分页查询租户套餐，支持按套餐名称、套餐编码和状态筛选'
   })
   @ApiQuery({
     name: 'page',
     required: false,
     example: 1,
-    description: 'page number'
+    description: '页码'
   })
   @ApiQuery({
     name: 'size',
     required: false,
     example: 10,
-    description: 'page size'
+    description: '每页条数'
   })
   @ApiQuery({
     name: 'keyword',
     required: false,
-    example: 'basic',
-    description: 'keyword for package name or code'
+    example: '基础',
+    description: '套餐名称或套餐编码关键字'
   })
   @ApiQuery({
     name: 'status',
     required: false,
     example: true,
-    description: 'package status'
+    description: '套餐状态'
   })
   @ApiSuccessResponse({
     type: TenantPackagePageResponseDto,
-    description: 'tenant package page response',
+    description: '租户套餐分页列表',
     dataExample: {
       total: 1,
       current: 1,
@@ -96,7 +98,7 @@ export class TenantPackagesController {
   })
   @ApiErrorResponse({
     status: 422,
-    description: 'invalid params',
+    description: '请求参数不合法',
     examples: [
       {
         name: 'invalidParams',
@@ -110,13 +112,36 @@ export class TenantPackagesController {
   }
 
   @ApiOperation({
-    summary: 'create tenant package',
-    description: 'create a tenant package for tenant lifecycle management'
+    summary: '创建租户套餐',
+    description: '创建租户套餐，用于租户生命周期和能力控制'
   })
-  @ApiBody({ type: CreateTenantPackageDto })
+  @ApiBody({
+    type: CreateTenantPackageDto,
+    description: '创建租户套餐请求体',
+    examples: {
+      default: {
+        summary: '创建套餐示例',
+        value: {
+          code: 'pro',
+          name: '专业版套餐',
+          status: true,
+          maxUsers: 200,
+          maxRoles: 50,
+          maxMenus: 300,
+          featureFlags: {
+            watermark: true,
+            dictionary: true,
+            notices: true,
+            analytics: true
+          },
+          remark: '适用于成长型租户'
+        }
+      }
+    }
+  })
   @ApiSuccessResponse({
     type: TenantPackageItemResponseDto,
-    description: 'tenant package create response',
+    description: '创建后的租户套餐信息',
     dataExample: {
       id: 'pkg_pro',
       code: 'pro',
@@ -138,7 +163,7 @@ export class TenantPackagesController {
   })
   @ApiErrorResponse({
     status: 409,
-    description: 'package id or code already exists',
+    description: '套餐 ID 或套餐编码已存在',
     examples: [
       {
         name: 'tenantPackageExists',
@@ -148,7 +173,7 @@ export class TenantPackagesController {
   })
   @ApiErrorResponse({
     status: 422,
-    description: 'invalid params',
+    description: '请求参数不合法',
     examples: [
       {
         name: 'invalidParams',
@@ -162,13 +187,13 @@ export class TenantPackagesController {
   }
 
   @ApiOperation({
-    summary: 'tenant package detail',
-    description: 'query tenant package detail by package id'
+    summary: '租户套餐详情',
+    description: '根据套餐 ID 查询租户套餐详情'
   })
-  @ApiParam({ name: 'id', description: 'package id', example: 'pkg_basic' })
+  @ApiParam({ name: 'id', description: '套餐 ID', example: 'pkg_basic' })
   @ApiSuccessResponse({
     type: TenantPackageItemResponseDto,
-    description: 'tenant package detail response',
+    description: '租户套餐详情',
     dataExample: {
       id: 'pkg_basic',
       code: 'basic',
@@ -189,7 +214,7 @@ export class TenantPackagesController {
   })
   @ApiErrorResponse({
     status: 404,
-    description: 'tenant package not found',
+    description: '租户套餐不存在',
     examples: [
       {
         name: 'tenantPackageNotFound',
@@ -203,14 +228,35 @@ export class TenantPackagesController {
   }
 
   @ApiOperation({
-    summary: 'update tenant package',
-    description: 'patch tenant package status, quota and feature flags'
+    summary: '更新租户套餐',
+    description: '更新租户套餐状态、容量配置和功能开关'
   })
-  @ApiParam({ name: 'id', description: 'package id', example: 'pkg_basic' })
-  @ApiBody({ type: UpdateTenantPackageDto })
+  @ApiParam({ name: 'id', description: '套餐 ID', example: 'pkg_basic' })
+  @ApiBody({
+    type: UpdateTenantPackageDto,
+    description: '更新租户套餐请求体',
+    examples: {
+      default: {
+        summary: '更新套餐示例',
+        value: {
+          name: '基础版套餐 Plus',
+          status: false,
+          maxUsers: 80,
+          maxRoles: 30,
+          maxMenus: 150,
+          featureFlags: {
+            watermark: true,
+            dictionary: true,
+            notices: true
+          },
+          remark: '暂停销售中的旧套餐'
+        }
+      }
+    }
+  })
   @ApiSuccessResponse({
     type: TenantPackageItemResponseDto,
-    description: 'tenant package update response',
+    description: '更新后的租户套餐信息',
     dataExample: {
       id: 'pkg_basic',
       code: 'basic',
@@ -231,7 +277,7 @@ export class TenantPackagesController {
   })
   @ApiErrorResponse({
     status: 404,
-    description: 'tenant package not found',
+    description: '租户套餐不存在',
     examples: [
       {
         name: 'tenantPackageNotFound',
@@ -241,7 +287,7 @@ export class TenantPackagesController {
   })
   @ApiErrorResponse({
     status: 409,
-    description: 'package code already exists',
+    description: '套餐编码已存在',
     examples: [
       {
         name: 'tenantPackageExists',
@@ -251,7 +297,7 @@ export class TenantPackagesController {
   })
   @ApiErrorResponse({
     status: 422,
-    description: 'invalid params',
+    description: '请求参数不合法',
     examples: [
       {
         name: 'invalidParams',
@@ -265,12 +311,12 @@ export class TenantPackagesController {
   }
 
   @ApiOperation({
-    summary: 'delete tenant package',
-    description: 'delete tenant package when it is not referenced by any tenant'
+    summary: '删除租户套餐',
+    description: '删除未被任何租户使用的套餐'
   })
-  @ApiParam({ name: 'id', description: 'package id', example: 'pkg_basic' })
+  @ApiParam({ name: 'id', description: '套餐 ID', example: 'pkg_basic' })
   @ApiSuccessResponse({
-    description: 'tenant package delete result',
+    description: '租户套餐删除结果',
     dataSchema: {
       type: 'boolean',
       example: true
@@ -279,7 +325,7 @@ export class TenantPackagesController {
   })
   @ApiErrorResponse({
     status: 404,
-    description: 'tenant package not found',
+    description: '租户套餐不存在',
     examples: [
       {
         name: 'tenantPackageNotFound',
@@ -289,7 +335,7 @@ export class TenantPackagesController {
   })
   @ApiErrorResponse({
     status: 409,
-    description: 'tenant package is currently used by tenants',
+    description: '租户套餐已被租户使用，无法删除',
     examples: [
       {
         name: 'tenantPackageInUse',

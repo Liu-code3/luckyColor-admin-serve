@@ -21,17 +21,22 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
+import { RequirePermissions } from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateNoticeDto,
   NoticeListQueryDto,
   UpdateNoticeDto
 } from './notices.dto';
-import { NoticeItemResponseDto, NoticePageResponseDto } from './notices.response.dto';
+import {
+  NoticeItemResponseDto,
+  NoticePageResponseDto
+} from './notices.response.dto';
 import { SystemLog } from '../system-logs/system-log.decorator';
 import { NoticesService } from './notices.service';
 
 @ApiTags('系统管理 / 通知公告')
 @ApiServerErrorResponse()
+@RequirePermissions('main_system_notice')
 @Controller('notices')
 export class NoticesController {
   constructor(private readonly noticesService: NoticesService) {}
@@ -94,7 +99,11 @@ export class NoticesController {
     summary: '公告详情',
     description: '根据公告 ID 查询公告详情。'
   })
-  @ApiParam({ name: 'id', description: '公告 ID', example: 'clxnotice1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '公告 ID',
+    example: 'clxnotice1234567890'
+  })
   @ApiSuccessResponse({
     type: NoticeItemResponseDto,
     description: '公告详情响应',
@@ -169,7 +178,11 @@ export class NoticesController {
     summary: '更新公告',
     description: '根据公告 ID 更新通知公告。'
   })
-  @ApiParam({ name: 'id', description: '公告 ID', example: 'clxnotice1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '公告 ID',
+    example: 'clxnotice1234567890'
+  })
   @ApiBody({ type: UpdateNoticeDto })
   @ApiSuccessResponse({
     type: NoticeItemResponseDto,
@@ -223,7 +236,11 @@ export class NoticesController {
     summary: '删除公告',
     description: '根据公告 ID 删除通知公告。'
   })
-  @ApiParam({ name: 'id', description: '公告 ID', example: 'clxnotice1234567890' })
+  @ApiParam({
+    name: 'id',
+    description: '公告 ID',
+    example: 'clxnotice1234567890'
+  })
   @ApiSuccessResponse({
     description: '公告删除结果',
     dataSchema: {
