@@ -39,6 +39,15 @@ export class RoleListQueryDto {
   @IsOptional()
   @IsString()
   keyword?: string;
+
+  @ApiPropertyOptional({
+    description: '状态，true 启用，false 停用',
+    example: true
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  status?: boolean;
 }
 
 export class CreateRoleDto {
@@ -206,4 +215,14 @@ export class AssignRoleDataScopeDto {
   @Type(() => Number)
   @IsInt({ each: true })
   departmentIds?: number[];
+}
+
+export class UpdateRoleStatusDto {
+  @ApiProperty({
+    description: '状态，true 启用，false 停用',
+    example: true
+  })
+  @Type(() => Boolean)
+  @IsBoolean()
+  status!: boolean;
 }

@@ -11,6 +11,7 @@ import {
   AssignRoleMenusDto,
   CreateRoleDto,
   RoleListQueryDto,
+  UpdateRoleStatusDto,
   UpdateRoleDto
 } from './roles.dto';
 import { type RoleDataScope } from './roles.constants';
@@ -36,15 +37,29 @@ export class RolesService {
     const current = query.page || 1;
     const size = query.size || 10;
     const keyword = query.keyword?.trim();
+    const filters: Prisma.RoleWhereInput[] = [];
+
+    if (keyword) {
+      filters.push({
+        OR: [
+          { name: { contains: keyword } },
+          { code: { contains: keyword } }
+        ]
+      });
+    }
+
+    if (query.status !== undefined) {
+      filters.push({
+        status: query.status
+      });
+    }
+
     const where = this.buildRoleWhere(
-      keyword
-        ? {
-            OR: [
-              { name: { contains: keyword } },
-              { code: { contains: keyword } }
-            ]
-          }
-        : undefined
+      filters.length === 0
+        ? undefined
+        : filters.length === 1
+          ? filters[0]
+          : { AND: filters }
     );
 
     const [total, records] = await this.prisma.$transaction([
@@ -162,6 +177,20 @@ export class RolesService {
     await this.ensureRoleExists(id);
     await this.prisma.role.delete({ where: { id } });
     return successResponse(true);
+  }
+
+  async updateStatus(id: string, dto: UpdateRoleStatusDto) {
+    await this.ensureRoleExists(id);
+
+    const role = await this.prisma.role.update({
+      where: { id },
+      data: {
+        status: dto.status
+      }
+    });
+
+    const updated = await this.findRoleWithDataScope(role.id);
+    return successResponse(this.toRoleResponse(updated!));
   }
 
   async menus(id: string) {

@@ -28,6 +28,7 @@ import {
   AssignRoleMenusDto,
   CreateRoleDto,
   RoleListQueryDto,
+  UpdateRoleStatusDto,
   UpdateRoleDto
 } from './roles.dto';
 import {
@@ -62,6 +63,12 @@ export class RolesController {
     required: false,
     example: 'admin',
     description: '角色名称或编码关键字'
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    example: true,
+    description: '角色状态，true 为启用，false 为停用'
   })
   @ApiSuccessResponse({
     type: RolePageResponseDto,
@@ -400,6 +407,66 @@ export class RolesController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateRoleDto) {
     return this.rolesService.update(id, dto);
+  }
+
+  @ApiOperation({
+    summary: '修改角色状态',
+    description: '根据角色 ID 启用或停用角色。'
+  })
+  @ApiParam({
+    name: 'id',
+    description: '角色 ID',
+    example: 'clxrole1234567890'
+  })
+  @ApiBody({ type: UpdateRoleStatusDto })
+  @ApiSuccessResponse({
+    type: RoleItemResponseDto,
+    description: '角色状态修改成功响应',
+    dataExample: {
+      id: 'clxrole1234567890',
+      tenantId: 'tenant_001',
+      name: '租户管理员',
+      code: 'tenant_admin',
+      sort: 10,
+      status: false,
+      dataScope: 'CUSTOM',
+      dataScopeDeptIds: [100, 120],
+      remark: '负责租户内的管理工作',
+      createdAt: '2026-03-22T14:30:00.000Z',
+      updatedAt: '2026-03-22T15:00:00.000Z'
+    }
+  })
+  @ApiErrorResponse({
+    status: 404,
+    description: '角色不存在',
+    examples: [
+      {
+        name: 'roleNotFound',
+        code: BUSINESS_ERROR_CODES.ROLE_NOT_FOUND
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '状态参数校验失败',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
+  @SystemLog({
+    module: '角色管理',
+    action: '修改角色状态',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'status', label: 'status' }
+    ]
+  })
+  @Patch(':id/status')
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateRoleStatusDto) {
+    return this.rolesService.updateStatus(id, dto);
   }
 
   @ApiOperation({

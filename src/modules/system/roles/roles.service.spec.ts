@@ -68,6 +68,7 @@ describe('RolesService', () => {
       role: {
         findFirst: jest.fn(),
         findMany: jest.fn(),
+        count: jest.fn(),
         update: jest.fn(),
         create: jest.fn()
       },
@@ -88,10 +89,13 @@ describe('RolesService', () => {
       $transaction: jest.fn()
     };
 
-    prisma.$transaction.mockImplementation(
-      async (callback: (tx: typeof prisma) => Promise<unknown>) =>
-        callback(prisma)
-    );
+    prisma.$transaction.mockImplementation(async (input: unknown) => {
+      if (Array.isArray(input)) {
+        return Promise.all(input);
+      }
+
+      return (input as (tx: typeof prisma) => Promise<unknown>)(prisma);
+    });
 
     return prisma;
   }
@@ -164,6 +168,81 @@ describe('RolesService', () => {
         ]
       }
     });
+  });
+
+  it('filters role list by status', async () => {
+    const prisma = createPrismaMock();
+    const service = new RolesService(prisma as never, createTenantScope());
+    prisma.role.count.mockResolvedValue(1);
+    prisma.role.findMany.mockResolvedValue([
+      {
+        ...createRole({
+          id: 'role-2',
+          name: '租户管理员',
+          code: 'tenant_admin',
+          status: false
+        }),
+        dataScopeDepartments: []
+      }
+    ]);
+
+    const response = await service.list({
+      page: 1,
+      size: 10,
+      status: false
+    });
+
+    expect(prisma.role.count).toHaveBeenCalledWith({
+      where: {
+        AND: [{ status: false }, { tenantId: 'tenant_001' }]
+      }
+    });
+    expect(prisma.role.findMany).toHaveBeenCalledWith({
+      where: {
+        AND: [{ status: false }, { tenantId: 'tenant_001' }]
+      },
+      include: {
+        dataScopeDepartments: {
+          include: {
+            department: true
+          }
+        }
+      },
+      orderBy: [{ sort: 'asc' }, { createdAt: 'desc' }],
+      skip: 0,
+      take: 10
+    });
+    expect(response.data.records[0].status).toBe(false);
+  });
+
+  it('updates role status', async () => {
+    const prisma = createPrismaMock();
+    const service = new RolesService(prisma as never, createTenantScope());
+    prisma.role.findFirst
+      .mockResolvedValueOnce(createRole())
+      .mockResolvedValueOnce({
+        ...createRole({
+          status: false
+        }),
+        dataScopeDepartments: []
+      });
+    prisma.role.update.mockResolvedValue(
+      createRole({
+        status: false
+      })
+    );
+
+    const response = await service.updateStatus('role-1', {
+      status: false
+    });
+
+    expect(prisma.role.update).toHaveBeenCalledWith({
+      where: { id: 'role-1' },
+      data: {
+        status: false
+      }
+    });
+    expect(response.data.status).toBe(false);
   });
 
   it('returns data scope details for a role', async () => {
