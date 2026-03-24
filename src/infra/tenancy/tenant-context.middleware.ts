@@ -1,10 +1,13 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
+import { BusinessException } from '../../shared/api/business.exception';
+import { BUSINESS_ERROR_CODES } from '../../shared/api/error-codes';
 import { TenantAccessService } from '../../modules/tenant/tenants/tenant-access.service';
 import { AppConfigService } from '../../shared/config/app-config.service';
 import { TenantContextService } from './tenant-context.service';
 
 interface TenantRequestLike {
   header(name: string): string | undefined;
+  hostname?: string;
 }
 
 @Injectable()
@@ -18,10 +21,15 @@ export class TenantContextMiddleware implements NestMiddleware {
   async use(request: TenantRequestLike, _response: unknown, next: () => void) {
     const rawTenantId = request.header(this.appConfig.tenantHeader);
     const headerTenantId = rawTenantId?.trim() || null;
+    const domainTenantId = headerTenantId
+      ? null
+      : await this.resolveTenantIdFromDomain(request);
     const defaultTenantId = this.appConfig.defaultTenantId;
-    const tenantId = headerTenantId ?? defaultTenantId;
+    const tenantId = headerTenantId ?? domainTenantId ?? defaultTenantId;
     const source = headerTenantId
       ? 'header'
+      : domainTenantId
+        ? 'domain'
       : defaultTenantId
         ? 'default'
         : 'none';
@@ -39,5 +47,49 @@ export class TenantContextMiddleware implements NestMiddleware {
         next();
       }
     );
+  }
+
+  private async resolveTenantIdFromDomain(request: TenantRequestLike) {
+    const suffix = this.appConfig.tenantDomainSuffix;
+    if (!suffix) {
+      return null;
+    }
+
+    const hostname = this.readHostname(request);
+    const tenantCode = this.extractTenantCode(hostname, suffix);
+    if (!tenantCode) {
+      return null;
+    }
+
+    const tenant = await this.tenantAccess.findByCode(tenantCode);
+    if (!tenant) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.TENANT_NOT_FOUND);
+    }
+
+    return tenant.id;
+  }
+
+  private readHostname(request: TenantRequestLike) {
+    const rawHost = request.hostname ?? request.header('host') ?? '';
+    return rawHost.trim().toLowerCase().replace(/:\d+$/, '');
+  }
+
+  private extractTenantCode(hostname: string, suffix: string) {
+    const normalizedSuffix = suffix.trim().toLowerCase();
+    if (!hostname || !normalizedSuffix || hostname === normalizedSuffix) {
+      return null;
+    }
+
+    const domainSuffix = `.${normalizedSuffix}`;
+    if (!hostname.endsWith(domainSuffix)) {
+      return null;
+    }
+
+    const tenantCode = hostname.slice(0, -domainSuffix.length);
+    if (!tenantCode || tenantCode.includes('.')) {
+      return null;
+    }
+
+    return tenantCode;
   }
 }

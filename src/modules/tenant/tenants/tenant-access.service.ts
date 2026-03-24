@@ -17,6 +17,15 @@ export class TenantAccessService {
     });
   }
 
+  findByCode(code: string) {
+    return this.prisma.tenant.findUnique({
+      where: { code },
+      include: {
+        tenantPackage: true
+      }
+    });
+  }
+
   async assertActiveTenant(id: string) {
     const tenant = await this.findById(id);
     if (!tenant) {

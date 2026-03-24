@@ -46,6 +46,10 @@ export class AppConfigService {
     return this.getOrThrow('TENANT_HEADER');
   }
 
+  get tenantDomainSuffix() {
+    return this.configService.get<string>('TENANT_DOMAIN_SUFFIX') ?? null;
+  }
+
   get defaultTenantId() {
     return this.configService.get<string>('DEFAULT_TENANT_ID') ?? null;
   }

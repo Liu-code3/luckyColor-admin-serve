@@ -5,7 +5,7 @@ import { JwtStrategy } from './jwt.strategy';
 describe('JwtStrategy', () => {
   function createStrategy(currentTenantId: string | null = null) {
     const configService = {
-      get: jest.fn().mockReturnValue('jwt-secret')
+      jwtSecret: 'jwt-secret'
     };
     const prisma = {
       user: {

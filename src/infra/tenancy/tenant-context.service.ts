@@ -3,7 +3,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 
 export interface TenantContextStore {
   tenantId: string | null;
-  source: 'header' | 'token' | 'default' | 'none';
+  source: 'header' | 'domain' | 'token' | 'default' | 'none';
 }
 
 @Injectable()

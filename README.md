@@ -35,6 +35,13 @@ pnpm verify
 - 基础字典：至少包含 `COMMON_STATUS`、`MENU_TYPE`、`NOTICE_TYPE`
 - 初始化契约清单：集中维护在 `prisma/seed-manifest.ts`
 
+租户识别优先级：
+
+- 请求头 `TENANT_HEADER`
+- 域名后缀 `TENANT_DOMAIN_SUFFIX`
+- 登录态 Token
+- 默认租户 `DEFAULT_TENANT_ID`
+
 ## 启动
 
 ```powershell

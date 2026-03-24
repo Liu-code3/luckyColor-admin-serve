@@ -7,6 +7,7 @@ export interface AppEnvironmentVariables {
   REDIS_URL: string;
   TENANT_ENABLED: boolean;
   TENANT_HEADER: string;
+  TENANT_DOMAIN_SUFFIX?: string;
   DEFAULT_TENANT_ID?: string;
   APP_TIME_ZONE: string;
 }
@@ -35,11 +36,13 @@ export function validateEnvironment(
   );
   const tenantHeader =
     readOptionalString(rawConfig.TENANT_HEADER) ?? DEFAULT_TENANT_HEADER;
+  const tenantDomainSuffix = readOptionalString(rawConfig.TENANT_DOMAIN_SUFFIX);
   const defaultTenantId = readOptionalString(rawConfig.DEFAULT_TENANT_ID);
   const appTimeZone =
     readOptionalString(rawConfig.APP_TIME_ZONE) ?? DEFAULT_APP_TIME_ZONE;
 
   ensureValidTenantHeader(tenantHeader);
+  ensureValidDomainSuffix(tenantDomainSuffix);
   ensureValidTimeZoneOffset(appTimeZone);
 
   return {
@@ -51,6 +54,7 @@ export function validateEnvironment(
     REDIS_URL: redisUrl,
     TENANT_ENABLED: tenantEnabled,
     TENANT_HEADER: tenantHeader,
+    TENANT_DOMAIN_SUFFIX: tenantDomainSuffix || undefined,
     DEFAULT_TENANT_ID: defaultTenantId || undefined,
     APP_TIME_ZONE: appTimeZone
   };
@@ -116,6 +120,23 @@ function ensureValidTenantHeader(headerName: string) {
   if (!/^[A-Za-z0-9-]+$/.test(headerName)) {
     throw new Error(
       'Environment variable TENANT_HEADER must be a valid HTTP header name.'
+    );
+  }
+}
+
+function ensureValidDomainSuffix(domainSuffix: string | null) {
+  if (!domainSuffix) {
+    return;
+  }
+
+  if (
+    !/^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*$/.test(domainSuffix) ||
+    domainSuffix.startsWith('.') ||
+    domainSuffix.endsWith('.') ||
+    domainSuffix.includes(':')
+  ) {
+    throw new Error(
+      'Environment variable TENANT_DOMAIN_SUFFIX must be a plain host suffix like example.com.'
     );
   }
 }

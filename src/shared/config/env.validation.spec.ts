@@ -16,6 +16,7 @@ describe('validateEnvironment', () => {
       REDIS_URL: 'redis://127.0.0.1:6379',
       TENANT_ENABLED: true,
       TENANT_HEADER: 'x-tenant-id',
+      TENANT_DOMAIN_SUFFIX: undefined,
       DEFAULT_TENANT_ID: undefined,
       APP_TIME_ZONE: '+08:00'
     });
@@ -54,6 +55,16 @@ describe('validateEnvironment', () => {
       })
     ).toThrow(
       'Environment variable TENANT_ENABLED must be either "true" or "false".'
+    );
+
+    expect(() =>
+      validateEnvironment({
+        DATABASE_URL: 'mysql://root:123456@127.0.0.1:3306/test',
+        JWT_SECRET: 'test-secret',
+        TENANT_DOMAIN_SUFFIX: 'tenant.example.com:3001'
+      })
+    ).toThrow(
+      'Environment variable TENANT_DOMAIN_SUFFIX must be a plain host suffix like example.com.'
     );
 
     expect(() =>
