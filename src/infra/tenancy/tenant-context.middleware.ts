@@ -4,11 +4,7 @@ import { BUSINESS_ERROR_CODES } from '../../shared/api/error-codes';
 import { TenantAccessService } from '../../modules/tenant/tenants/tenant-access.service';
 import { AppConfigService } from '../../shared/config/app-config.service';
 import { TenantContextService } from './tenant-context.service';
-
-interface TenantRequestLike {
-  header(name: string): string | undefined;
-  hostname?: string;
-}
+import type { TenantRequestLike } from './tenant-context.types';
 
 @Injectable()
 export class TenantContextMiddleware implements NestMiddleware {
@@ -33,12 +29,13 @@ export class TenantContextMiddleware implements NestMiddleware {
       : defaultTenantId
         ? 'default'
         : 'none';
+    request.tenantContext = {
+      tenantId,
+      source
+    };
 
     return this.tenantContext.run(
-      {
-        tenantId,
-        source
-      },
+      request.tenantContext,
       async () => {
         if (tenantId) {
           await this.tenantAccess.assertActiveTenant(tenantId);

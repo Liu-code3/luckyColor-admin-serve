@@ -42,6 +42,11 @@ pnpm verify
 - 登录态 Token
 - 默认租户 `DEFAULT_TENANT_ID`
 
+租户上下文注入：
+
+- 服务层统一通过 `TenantContextService` 或 `TenantPrismaScopeService` 获取当前租户
+- 控制器层统一通过 `CurrentTenant` decorator 读取 `tenantId` 和 `source`
+
 ## 启动
 
 ```powershell

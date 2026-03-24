@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { AsyncLocalStorage } from 'node:async_hooks';
-
-export interface TenantContextStore {
-  tenantId: string | null;
-  source: 'header' | 'domain' | 'token' | 'default' | 'none';
-}
+import { BusinessException } from '../../shared/api/business.exception';
+import { BUSINESS_ERROR_CODES } from '../../shared/api/error-codes';
+import type {
+  TenantContextSource,
+  TenantContextStore
+} from './tenant-context.types';
 
 @Injectable()
 export class TenantContextService {
@@ -18,17 +19,37 @@ export class TenantContextService {
     return this.storage.getStore();
   }
 
+  getSnapshot(): TenantContextStore {
+    return this.storage.getStore() ?? {
+      tenantId: null,
+      source: 'none'
+    };
+  }
+
   getTenantId() {
-    return this.storage.getStore()?.tenantId ?? null;
+    return this.getSnapshot().tenantId;
+  }
+
+  getSource(): TenantContextSource {
+    return this.getSnapshot().source;
   }
 
   hasTenant() {
     return !!this.getTenantId();
   }
 
+  requireTenant() {
+    const snapshot = this.getSnapshot();
+    if (!snapshot.tenantId) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.TENANT_ACCESS_DENIED);
+    }
+
+    return snapshot;
+  }
+
   setTenant(
     tenantId: string | null,
-    source: TenantContextStore['source'] = tenantId ? 'token' : 'none'
+    source: TenantContextSource = tenantId ? 'token' : 'none'
   ) {
     const store = this.storage.getStore();
     if (store) {

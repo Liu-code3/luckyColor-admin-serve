@@ -39,6 +39,7 @@ describe('TenantContextMiddleware', () => {
   function createRequest(headers: Record<string, string> = {}, hostname?: string) {
     return {
       hostname,
+      tenantContext: undefined,
       header(name: string) {
         return headers[name];
       }
@@ -72,6 +73,7 @@ describe('TenantContextMiddleware', () => {
       },
       expect.any(Function)
     );
+    expect(next).toHaveBeenCalled();
     expect(tenantAccess.assertActiveTenant).toHaveBeenCalledWith(
       'tenant_header'
     );
@@ -106,6 +108,7 @@ describe('TenantContextMiddleware', () => {
       },
       expect.any(Function)
     );
+    expect(next).toHaveBeenCalled();
     expect(tenantAccess.assertActiveTenant).toHaveBeenCalledWith('tenant_acme');
   });
 
@@ -135,6 +138,7 @@ describe('TenantContextMiddleware', () => {
       },
       expect.any(Function)
     );
+    expect(next).toHaveBeenCalled();
     expect(tenantAccess.assertActiveTenant).toHaveBeenCalledWith(
       'tenant_default'
     );
@@ -162,5 +166,30 @@ describe('TenantContextMiddleware', () => {
     );
 
     expect(tenantAccess.assertActiveTenant).not.toHaveBeenCalled();
+  });
+
+  it('hydrates request.tenantContext for downstream decorators and handlers', async () => {
+    const { middleware, tenantAccess } = createMiddleware({
+      tenantDomainSuffix: 'example.com'
+    });
+    const request = createRequest(
+      {
+        host: 'acme.example.com'
+      },
+      'acme.example.com'
+    );
+    const next = jest.fn();
+    tenantAccess.findByCode.mockResolvedValue({
+      id: 'tenant_acme',
+      code: 'acme'
+    });
+
+    await middleware.use(request, {}, next);
+
+    expect(request.tenantContext).toEqual({
+      tenantId: 'tenant_acme',
+      source: 'domain'
+    });
+    expect(next).toHaveBeenCalled();
   });
 });
