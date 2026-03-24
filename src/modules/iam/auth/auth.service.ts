@@ -1,46 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
-import { PasswordService } from '../../../infra/security/password.service';
-import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { AppConfigService } from '../../../shared/config/app-config.service';
 import { MENU_TYPE_BUTTON } from '../../../shared/constants/menu.constants';
+import { AuthLoginService } from './auth-login.service';
 import { AuthButtonPermissionQueryDto, LoginDto } from './auth.dto';
 import type { JwtPayload } from './jwt-payload.interface';
+import {
+  AUTH_USER_ACCESS_INCLUDE,
+  type AuthMenuRecord,
+  type AuthRoleRecord,
+  type AuthUserRecord
+} from './auth.types';
 
-type AuthUserRecord = Prisma.UserGetPayload<{
-  include: {
-    roles: {
-      include: {
-        role: {
-          include: {
-            menus: {
-              include: {
-                menu: true;
-              };
-            };
-          };
-        };
-      };
-    };
-  };
-}>;
-
-type AuthRoleRecord = Prisma.RoleGetPayload<{
-  include: {
-    menus: {
-      include: {
-        menu: true;
-      };
-    };
-  };
-}>;
-
-type AuthMenuRecord = Prisma.MenuGetPayload<Record<string, never>>;
 type AuthMenuNode = {
   pid: number;
   id: number;
@@ -78,16 +53,12 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly appConfig: AppConfigService,
-    private readonly tenantScope: TenantPrismaScopeService,
-    private readonly passwordService: PasswordService
+    private readonly authLogin: AuthLoginService
   ) {}
 
   async login(dto: LoginDto) {
-    const user = await this.validateUser(dto);
-
-    if (!user) {
-      throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_LOGIN_FAILED);
-    }
+    const user = await this.authLogin.authenticate(dto);
+    const accessSnapshot = this.toAccessSnapshot(user);
 
     const payload: JwtPayload = {
       sub: user.id,
@@ -95,7 +66,6 @@ export class AuthService {
       username: user.username
     };
     const accessToken = await this.jwtService.signAsync(payload);
-    const accessSnapshot = this.toAccessSnapshot(user);
 
     return successResponse({
       accessToken,
@@ -161,124 +131,13 @@ export class AuthService {
     return successResponse(this.buildRouteTree(accessibleMenus));
   }
 
-  private async validateUser(dto: LoginDto) {
-    const user = await this.prisma.user.findFirst({
-      where: this.buildUserWhere({
-        username: dto.username
-      }),
-      include: {
-        roles: {
-          include: {
-            role: {
-              include: {
-                menus: {
-                  include: {
-                    menu: true
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    });
-
-    if (!user) {
-      return null;
-    }
-
-    if (!user.status) {
-      throw new BusinessException(BUSINESS_ERROR_CODES.AUTH_ACCOUNT_DISABLED);
-    }
-
-    if (!this.passwordService.isHash(user.password)) {
-      if (user.password !== dto.password) {
-        return null;
-      }
-
-      const passwordHash = await this.passwordService.hash(dto.password);
-      const lastLoginAt = new Date();
-      await this.prisma.user.update({
-        where: {
-          id: user.id
-        },
-        data: {
-          password: passwordHash,
-          lastLoginAt
-        }
-      });
-
-      return {
-        ...user,
-        password: passwordHash,
-        lastLoginAt
-      };
-    }
-
-    const isPasswordValid = await this.passwordService.verify(
-      user.password,
-      dto.password
-    );
-
-    if (!isPasswordValid) {
-      return null;
-    }
-
-    const lastLoginAt = new Date();
-    await this.prisma.user.update({
-      where: {
-        id: user.id
-      },
-      data: {
-        lastLoginAt
-      }
-    });
-
-    return {
-      ...user,
-      lastLoginAt
-    };
-  }
-
   private findUserWithAccess(payload: JwtPayload) {
     return this.prisma.user.findFirst({
-      where: this.buildUserWhereForTenant(payload.tenantId, {
-        id: payload.sub
-      }),
-      include: {
-        roles: {
-          include: {
-            role: {
-              include: {
-                menus: {
-                  include: {
-                    menu: true
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+      where: {
+        AND: [{ id: payload.sub }, { tenantId: payload.tenantId }]
+      },
+      include: AUTH_USER_ACCESS_INCLUDE
     });
-  }
-
-  private buildUserWhere(where: Prisma.UserWhereInput = {}) {
-    return this.tenantScope.buildRequiredWhere(
-      where,
-      'tenantId'
-    ) as Prisma.UserWhereInput;
-  }
-
-  private buildUserWhereForTenant(
-    tenantId: string,
-    where: Prisma.UserWhereInput = {}
-  ) {
-    return this.tenantScope.buildWhereForTenant(
-      where,
-      tenantId,
-      'tenantId'
-    ) as Prisma.UserWhereInput;
   }
 
   private toAccessSnapshot(user: AuthUserRecord) {

@@ -4,6 +4,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { BusinessException } from '../../../shared/api/business.exception';
 import { AppConfigService } from '../../../shared/config/app-config.service';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { AuthLoginService } from '../../iam/auth/auth-login.service';
 import { AuthService } from '../../iam/auth/auth.service';
 import { DataScopeService } from '../../iam/data-scopes/data-scope.service';
 import { JwtStrategy } from '../../iam/auth/jwt.strategy';
@@ -30,6 +31,11 @@ describe('Tenant isolation regression', () => {
         update: jest.fn()
       }
     };
+    const passwordService = {
+      isHash: jest.fn().mockReturnValue(true),
+      hash: jest.fn(),
+      verify: jest.fn().mockResolvedValue(true)
+    };
     const service = new AuthService(
       prisma as never,
       {
@@ -38,12 +44,11 @@ describe('Tenant isolation regression', () => {
       {
         jwtExpiresIn: '2h'
       } as unknown as AppConfigService,
-      createTenantScope('tenant_002'),
-      {
-        isHash: jest.fn().mockReturnValue(true),
-        hash: jest.fn(),
-        verify: jest.fn().mockResolvedValue(true)
-      } as unknown as PasswordService
+      new AuthLoginService(
+        prisma as never,
+        createTenantScope('tenant_002'),
+        passwordService as unknown as PasswordService
+      ) as never
     );
 
     const response = await service.login({
@@ -53,8 +58,7 @@ describe('Tenant isolation regression', () => {
 
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
       where: {
-        tenantId: 'tenant_002',
-        username: 'admin'
+        AND: [{ username: 'admin' }, { tenantId: 'tenant_002' }]
       },
       include: {
         roles: {

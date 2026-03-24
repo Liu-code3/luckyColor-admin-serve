@@ -1,6 +1,7 @@
 import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { AuthLoginService } from './auth-login.service';
 import { AuthService } from './auth.service';
 
 describe('AuthService', () => {
@@ -79,20 +80,23 @@ describe('AuthService', () => {
       hash: jest.fn().mockResolvedValue('hashed-password'),
       verify: jest.fn().mockResolvedValue(true)
     };
+    const authLogin = new AuthLoginService(
+      prisma as never,
+      createTenantScope(),
+      passwordService as never
+    );
 
     const service = new AuthService(
       prisma as never,
       jwtService as never,
       configService as never,
-      createTenantScope(),
-      passwordService as never
+      authLogin as never
     );
 
     return {
       service,
       prisma,
       jwtService,
-      configService,
       passwordService
     };
   }
