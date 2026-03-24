@@ -6,7 +6,7 @@
 - Prisma
 - MySQL
 
-## 开发提交约定
+## 开发提交流程
 
 - 后端项目每次新增功能或修改功能后，必须完成一次 Git 提交。
 - 分支管理遵循 `gitflow`。
@@ -24,6 +24,16 @@ pnpm verify
 
 - `pnpm typecheck`
 - `pnpm build`
+
+## 本地初始化结果
+
+执行 `pnpm db:setup` 后，默认会初始化：
+
+- 默认管理员账号：`admin / 123456`
+- 基础角色：`super_admin`、`tenant_admin`、`tenant_member`
+- 基础菜单：系统管理、用户管理、菜单管理、数据字典等入口
+- 基础字典：至少包含 `COMMON_STATUS`、`MENU_TYPE`、`NOTICE_TYPE`
+- 初始化契约清单：集中维护在 `prisma/seed-manifest.ts`
 
 ## 启动
 

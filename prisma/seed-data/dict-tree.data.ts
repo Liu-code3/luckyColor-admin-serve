@@ -3088,6 +3088,44 @@ export const dictTreeData = {
           deleteFlag: 'NOT_DELETE'
         }
       ]
+    },
+    {
+      id: 'bootstrap_notice_type',
+      parentId: '0',
+      weight: 108,
+      name: '\u901a\u77e5\u7c7b\u578b',
+      tenantId: '-1',
+      dictLabel: '\u901a\u77e5\u7c7b\u578b',
+      dictValue: 'NOTICE_TYPE',
+      category: 'FRM',
+      sortCode: 108,
+      deleteFlag: 'NOT_DELETE',
+      children: [
+        {
+          id: 'bootstrap_notice_type_system',
+          parentId: 'bootstrap_notice_type',
+          weight: 10,
+          name: '\u7cfb\u7edf\u901a\u77e5',
+          tenantId: '-1',
+          dictLabel: '\u7cfb\u7edf\u901a\u77e5',
+          dictValue: 'system',
+          category: 'FRM',
+          sortCode: 10,
+          deleteFlag: 'NOT_DELETE'
+        },
+        {
+          id: 'bootstrap_notice_type_release',
+          parentId: 'bootstrap_notice_type',
+          weight: 20,
+          name: '\u7248\u672c\u53d1\u5e03',
+          tenantId: '-1',
+          dictLabel: '\u7248\u672c\u53d1\u5e03',
+          dictValue: 'release',
+          category: 'FRM',
+          sortCode: 20,
+          deleteFlag: 'NOT_DELETE'
+        }
+      ]
     }
   ]
 };

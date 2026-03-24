@@ -10,25 +10,20 @@ import { systemConfigSeedData } from './seed-data/system-config.data';
 import { tenantPackageSeedData } from './seed-data/tenant-package.data';
 import { tenantAuditLogSeedData } from './seed-data/tenant-audit-log.data';
 import { tenantSeedData } from './seed-data/tenant.data';
-
-interface DictionarySeedNode {
-  id: string;
-  parentId: string;
-  weight: number;
-  name: string;
-  tenantId?: string;
-  dictLabel: string;
-  dictValue: string;
-  category: string;
-  sortCode: number;
-  status?: boolean;
-  deleteFlag: string;
-  createTime?: string;
-  createUser?: string;
-  updateTime?: string;
-  updateUser?: string;
-  children?: DictionarySeedNode[];
-}
+import {
+  DEFAULT_TENANT_ID,
+  LOCAL_ADMIN_SEED,
+  REQUIRED_BOOTSTRAP_DICT_VALUES,
+  REQUIRED_BOOTSTRAP_ROLE_CODES,
+  TENANT_ADMIN_DATA_SCOPE_DEPARTMENT_IDS,
+  TENANT_ADMIN_MENU_IDS,
+  TENANT_MEMBER_MENU_IDS,
+  type BootstrapRoleCode
+} from './seed-manifest';
+import {
+  type DictionarySeedNode,
+  flattenDictionaryNodes
+} from './seed.helpers';
 
 const prisma = new PrismaClient();
 
@@ -38,6 +33,8 @@ async function main() {
   const dictionaryRows = flattenDictionaryNodes(
     dictTreeData.data as DictionarySeedNode[]
   );
+
+  assertBootstrapContract(dictionaryRows);
 
   await prisma.roleDepartmentScope.deleteMany();
   await prisma.roleMenu.deleteMany();
@@ -78,6 +75,7 @@ async function main() {
   const roles = await prisma.role.findMany({
     orderBy: { sort: 'asc' }
   });
+  const roleIdByCode = buildRoleIdByCode(roles);
 
   await prisma.department.createMany({
     data: departmentSeedData
@@ -85,14 +83,14 @@ async function main() {
 
   const adminUser = await prisma.user.create({
     data: {
-      tenantId: 'tenant_001',
-      departmentId: 100,
-      username: 'admin',
-      password: await hashPassword('123456'),
-      nickname: '系统管理员',
-      phone: '13800000000',
-      email: 'admin@luckycolor.local',
-      avatar: 'https://static.luckycolor.local/avatar/admin.png',
+      tenantId: LOCAL_ADMIN_SEED.tenantId,
+      departmentId: LOCAL_ADMIN_SEED.departmentId,
+      username: LOCAL_ADMIN_SEED.username,
+      password: await hashPassword(LOCAL_ADMIN_SEED.password),
+      nickname: LOCAL_ADMIN_SEED.nickname,
+      phone: LOCAL_ADMIN_SEED.phone,
+      email: LOCAL_ADMIN_SEED.email,
+      avatar: LOCAL_ADMIN_SEED.avatar,
       status: true,
       lastLoginAt: null
     }
@@ -130,112 +128,141 @@ async function main() {
     data: dictionaryRows
   });
 
-  const superAdminRole = roles.find((item) => item.code === 'super_admin');
-  const tenantAdminRole = roles.find((item) => item.code === 'tenant_admin');
-  const tenantMemberRole = roles.find((item) => item.code === 'tenant_member');
-
-  if (superAdminRole) {
-    await prisma.userRole.create({
-      data: {
-        userId: adminUser.id,
-        tenantId: 'tenant_001',
-        roleId: superAdminRole.id
-      }
-    });
-  }
-
-  const allMenuIds = menuSeedData.map((item) => item.id);
-  const tenantAdminMenuIds = [1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 14];
-  const tenantMemberMenuIds = [1, 2, 3, 11];
-  const tenantAdminDataScopeDepartmentIds = [100, 120];
-
-  const roleMenuAssignments = [
-    {
-      role: superAdminRole,
-      menuIds: allMenuIds
-    },
-    {
-      role: tenantAdminRole,
-      menuIds: tenantAdminMenuIds
-    },
-    {
-      role: tenantMemberRole,
-      menuIds: tenantMemberMenuIds
+  await prisma.userRole.create({
+    data: {
+      userId: adminUser.id,
+      tenantId: LOCAL_ADMIN_SEED.tenantId,
+      roleId: roleIdByCode.super_admin
     }
-  ]
-    .filter((item) => item.role)
-    .flatMap((item) =>
-      item.menuIds.map((menuId) => ({
-        roleId: item.role!.id,
-        tenantId: 'tenant_001',
-        menuId
-      }))
-    );
+  });
 
-  if (roleMenuAssignments.length) {
+  const roleMenuAssignments = buildRoleMenuAssignments(
+    roleIdByCode,
+    menuSeedData.map((item) => item.id)
+  );
+
+  if (roleMenuAssignments.length > 0) {
     await prisma.roleMenu.createMany({
       data: roleMenuAssignments
     });
   }
 
-  if (tenantAdminRole) {
-    await prisma.roleDepartmentScope.createMany({
-      data: tenantAdminDataScopeDepartmentIds.map((departmentId) => ({
-        roleId: tenantAdminRole.id,
-        tenantId: 'tenant_001',
-        departmentId
-      }))
-    });
+  await prisma.roleDepartmentScope.createMany({
+    data: TENANT_ADMIN_DATA_SCOPE_DEPARTMENT_IDS.map((departmentId) => ({
+      roleId: roleIdByCode.tenant_admin,
+      tenantId: DEFAULT_TENANT_ID,
+      departmentId
+    }))
+  });
+}
+
+function assertBootstrapContract(
+  dictionaryRows: Array<{
+    dictValue: string;
+  }>
+) {
+  assertSubset(
+    [DEFAULT_TENANT_ID, LOCAL_ADMIN_SEED.tenantId],
+    tenantSeedData.map((item) => item.id),
+    'bootstrap tenant ids'
+  );
+  assertSubset(
+    [LOCAL_ADMIN_SEED.departmentId, ...TENANT_ADMIN_DATA_SCOPE_DEPARTMENT_IDS],
+    departmentSeedData.map((item) => item.id),
+    'bootstrap department ids'
+  );
+  assertSubset(
+    [...TENANT_ADMIN_MENU_IDS, ...TENANT_MEMBER_MENU_IDS],
+    menuSeedData.map((item) => item.id),
+    'bootstrap menu ids'
+  );
+  assertSubset(
+    [...REQUIRED_BOOTSTRAP_ROLE_CODES],
+    roleSeedData.map((item) => item.code),
+    'bootstrap role codes'
+  );
+  assertSubset(
+    [...REQUIRED_BOOTSTRAP_DICT_VALUES],
+    dictionaryRows.map((item) => item.dictValue),
+    'bootstrap dictionary values'
+  );
+}
+
+function buildRoleIdByCode(
+  roles: Array<{
+    id: string;
+    code: string;
+  }>
+): Record<BootstrapRoleCode, string> {
+  const roleMap = new Map(roles.map((item) => [item.code, item.id]));
+
+  return REQUIRED_BOOTSTRAP_ROLE_CODES.reduce(
+    (result, code) => {
+      result[code] = getRequiredMapValue(roleMap, code, 'bootstrap role');
+      return result;
+    },
+    {} as Record<BootstrapRoleCode, string>
+  );
+}
+
+function buildRoleMenuAssignments(
+  roleIdByCode: Record<BootstrapRoleCode, string>,
+  allMenuIds: number[]
+) {
+  assertSubset(TENANT_ADMIN_MENU_IDS, allMenuIds, 'tenant admin menu ids');
+  assertSubset(TENANT_MEMBER_MENU_IDS, allMenuIds, 'tenant member menu ids');
+
+  return [
+    {
+      roleId: roleIdByCode.super_admin,
+      menuIds: allMenuIds
+    },
+    {
+      roleId: roleIdByCode.tenant_admin,
+      menuIds: [...TENANT_ADMIN_MENU_IDS]
+    },
+    {
+      roleId: roleIdByCode.tenant_member,
+      menuIds: [...TENANT_MEMBER_MENU_IDS]
+    }
+  ].flatMap((item) =>
+    item.menuIds.map((menuId) => ({
+      roleId: item.roleId,
+      tenantId: DEFAULT_TENANT_ID,
+      menuId
+    }))
+  );
+}
+
+function assertSubset<T extends string | number>(
+  requiredValues: readonly T[],
+  availableValues: readonly T[],
+  label: string
+) {
+  const availableValueSet = new Set(availableValues);
+  const missingValues = requiredValues.filter(
+    (value) => !availableValueSet.has(value)
+  );
+
+  if (missingValues.length > 0) {
+    throw new Error(
+      `Missing required ${label}: ${missingValues.join(', ')}`
+    );
   }
 }
 
-function flattenDictionaryNodes(nodes: DictionarySeedNode[]) {
-  const result: Array<{
-    id: string;
-    parentId: string | null;
-    weight: number;
-    name: string;
-    tenantId: string | null;
-    dictLabel: string;
-    dictValue: string;
-    category: string;
-    sortCode: number;
-    status: boolean;
-    deleteFlag: string;
-    createTime: string | null;
-    createUser: string | null;
-    updateTime: string | null;
-    updateUser: string | null;
-  }> = [];
+function getRequiredMapValue<T>(
+  map: Map<string, T>,
+  key: string,
+  label: string
+) {
+  const value = map.get(key);
 
-  const walk = (items: DictionarySeedNode[]) => {
-    items.forEach((item) => {
-      result.push({
-        id: item.id,
-        parentId: item.parentId === '0' ? null : item.parentId,
-        weight: item.weight,
-        name: item.name,
-        tenantId: item.tenantId ?? null,
-        dictLabel: item.dictLabel,
-        dictValue: item.dictValue,
-        category: item.category,
-        sortCode: item.sortCode,
-        status: item.status ?? true,
-        deleteFlag: item.deleteFlag,
-        createTime: item.createTime ?? null,
-        createUser: item.createUser ?? null,
-        updateTime: item.updateTime ?? null,
-        updateUser: item.updateUser ?? null
-      });
+  if (value === undefined) {
+    throw new Error(`Missing required ${label}: ${key}`);
+  }
 
-      if (item.children?.length) {
-        walk(item.children);
-      }
-    });
-  };
-
-  walk(nodes);
-  return result;
+  return value;
 }
 
 main()
