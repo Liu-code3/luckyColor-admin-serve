@@ -8,9 +8,9 @@ describe('TenantContextMiddleware', () => {
     tenantDomainSuffix?: string | null;
   }) {
     const tenantContext = {
-      run: jest.fn().mockImplementation((_store, callback: () => unknown) =>
-        callback()
-      )
+      run: jest
+        .fn()
+        .mockImplementation((_store, callback: () => unknown) => callback())
     };
     const tenantAccess = {
       findByCode: jest.fn(),
@@ -36,7 +36,10 @@ describe('TenantContextMiddleware', () => {
     };
   }
 
-  function createRequest(headers: Record<string, string> = {}, hostname?: string) {
+  function createRequest(
+    headers: Record<string, string> = {},
+    hostname?: string
+  ) {
     return {
       hostname,
       tenantContext: undefined,
@@ -191,5 +194,26 @@ describe('TenantContextMiddleware', () => {
       source: 'domain'
     });
     expect(next).toHaveBeenCalled();
+  });
+
+  it('blocks request pipeline when tenant access check fails', async () => {
+    const { middleware, tenantAccess } = createMiddleware();
+    const next = jest.fn();
+    tenantAccess.assertActiveTenant.mockRejectedValue(
+      new BusinessException(BUSINESS_ERROR_CODES.TENANT_FROZEN)
+    );
+
+    await expect(
+      middleware.use(
+        createRequest({
+          'x-tenant-id': 'tenant_frozen'
+        }),
+        {},
+        next
+      )
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.TENANT_FROZEN)
+    );
+    expect(next).not.toHaveBeenCalled();
   });
 });

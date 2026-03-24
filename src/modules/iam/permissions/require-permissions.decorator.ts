@@ -41,6 +41,11 @@ function createForbiddenExamples(
       summary: '褰撳墠绉熸埛宸茶繃鏈?'
     },
     {
+      name: 'tenantFrozen',
+      code: BUSINESS_ERROR_CODES.TENANT_FROZEN,
+      summary: '褰撳墠绉熸埛宸茶鍐荤粨'
+    },
+    {
       name: 'tenantAccessDenied',
       code: BUSINESS_ERROR_CODES.TENANT_ACCESS_DENIED,
       summary: '褰撳墠璐﹀彿涓嶈兘璁块棶璇ョ鎴?'

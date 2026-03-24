@@ -2,7 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
-import { TENANT_STATUS_ACTIVE } from '../../../shared/constants/status.constants';
+import {
+  TENANT_STATUS_ACTIVE,
+  TENANT_STATUS_DISABLED,
+  TENANT_STATUS_FROZEN,
+  type TenantStatus
+} from '../../../shared/constants/status.constants';
 
 @Injectable()
 export class TenantAccessService {
@@ -32,14 +37,28 @@ export class TenantAccessService {
       throw new BusinessException(BUSINESS_ERROR_CODES.TENANT_NOT_FOUND);
     }
 
-    if (tenant.status !== TENANT_STATUS_ACTIVE) {
-      throw new BusinessException(BUSINESS_ERROR_CODES.TENANT_DISABLED);
-    }
+    this.assertTenantStatusAccessible(tenant.status as TenantStatus);
 
     if (tenant.expiresAt && tenant.expiresAt.getTime() < Date.now()) {
       throw new BusinessException(BUSINESS_ERROR_CODES.TENANT_EXPIRED);
     }
 
     return tenant;
+  }
+
+  private assertTenantStatusAccessible(status: TenantStatus) {
+    if (status === TENANT_STATUS_ACTIVE) {
+      return;
+    }
+
+    if (status === TENANT_STATUS_DISABLED) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.TENANT_DISABLED);
+    }
+
+    if (status === TENANT_STATUS_FROZEN) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.TENANT_FROZEN);
+    }
+
+    throw new BusinessException(BUSINESS_ERROR_CODES.STATUS_NOT_ALLOWED);
   }
 }

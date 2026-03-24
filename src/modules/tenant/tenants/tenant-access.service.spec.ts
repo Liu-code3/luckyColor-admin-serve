@@ -51,6 +51,19 @@ describe('TenantAccessService', () => {
     );
   });
 
+  it('throws when tenant is frozen', async () => {
+    const { service, prisma } = createService();
+    prisma.tenant.findUnique.mockResolvedValue({
+      id: 'tenant_001',
+      status: 'FROZEN',
+      expiresAt: null
+    });
+
+    await expect(service.assertActiveTenant('tenant_001')).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.TENANT_FROZEN)
+    );
+  });
+
   it('returns tenant when tenant is active and not expired', async () => {
     const { service, prisma } = createService();
     const tenant = {

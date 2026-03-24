@@ -39,6 +39,11 @@ import { DashboardService } from './dashboard.service';
       summary: '当前租户已过期'
     },
     {
+      name: 'tenantFrozen',
+      code: BUSINESS_ERROR_CODES.TENANT_FROZEN,
+      summary: '当前租户已被冻结'
+    },
+    {
       name: 'tenantAccessDenied',
       code: BUSINESS_ERROR_CODES.TENANT_ACCESS_DENIED,
       summary: '当前账号不能访问该租户'
