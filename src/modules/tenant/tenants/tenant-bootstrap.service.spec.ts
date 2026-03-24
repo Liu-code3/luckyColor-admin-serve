@@ -10,6 +10,9 @@ describe('TenantBootstrapService', () => {
         findUnique: jest.fn(),
         create: jest.fn()
       },
+      menu: {
+        findMany: jest.fn()
+      },
       tenantPackage: {
         findUnique: jest.fn(),
         findFirst: jest.fn()
@@ -66,6 +69,19 @@ describe('TenantBootstrapService', () => {
     );
 
     prisma.tenant.findUnique.mockResolvedValue(null);
+    prisma.menu.findMany.mockResolvedValue([
+      { id: 1, menuKey: 'main_analysis' },
+      { id: 2, menuKey: 'main_analysis' },
+      { id: 3, menuKey: 'main_analysis_technology' },
+      { id: 4, menuKey: 'main_system' },
+      { id: 5, menuKey: 'main_system_users' },
+      { id: 6, menuKey: 'main_system_department' },
+      { id: 7, menuKey: 'main_system_menu' },
+      { id: 8, menuKey: 'main_system_role' },
+      { id: 11, menuKey: 'icomponent_dict' },
+      { id: 13, menuKey: 'main_system_config' },
+      { id: 14, menuKey: 'main_system_notice' }
+    ]);
     prisma.tenantPackage.findFirst.mockResolvedValue({
       id: 'pkg_basic',
       code: 'basic',
@@ -206,7 +222,50 @@ describe('TenantBootstrapService', () => {
         lastLoginAt: null
       }
     });
-    expect(prisma.roleMenu.createMany).toHaveBeenCalled();
+    expect(prisma.menu.findMany).toHaveBeenCalledWith({
+      where: {
+        menuKey: {
+          in: [
+            'main_analysis',
+            'main_analysis_technology',
+            'main_system',
+            'main_system_users',
+            'main_system_department',
+            'main_system_menu',
+            'main_system_role',
+            'icomponent_dict',
+            'main_system_config',
+            'main_system_notice'
+          ]
+        }
+      },
+      orderBy: {
+        id: 'asc'
+      },
+      select: {
+        id: true,
+        menuKey: true
+      }
+    });
+    expect(prisma.roleMenu.createMany).toHaveBeenCalledWith({
+      data: [
+        { tenantId: 'tenant_acme', roleId: 'role-admin', menuId: 1 },
+        { tenantId: 'tenant_acme', roleId: 'role-admin', menuId: 2 },
+        { tenantId: 'tenant_acme', roleId: 'role-admin', menuId: 3 },
+        { tenantId: 'tenant_acme', roleId: 'role-admin', menuId: 4 },
+        { tenantId: 'tenant_acme', roleId: 'role-admin', menuId: 5 },
+        { tenantId: 'tenant_acme', roleId: 'role-admin', menuId: 6 },
+        { tenantId: 'tenant_acme', roleId: 'role-admin', menuId: 7 },
+        { tenantId: 'tenant_acme', roleId: 'role-admin', menuId: 8 },
+        { tenantId: 'tenant_acme', roleId: 'role-admin', menuId: 11 },
+        { tenantId: 'tenant_acme', roleId: 'role-admin', menuId: 13 },
+        { tenantId: 'tenant_acme', roleId: 'role-admin', menuId: 14 },
+        { tenantId: 'tenant_acme', roleId: 'role-member', menuId: 1 },
+        { tenantId: 'tenant_acme', roleId: 'role-member', menuId: 2 },
+        { tenantId: 'tenant_acme', roleId: 'role-member', menuId: 3 },
+        { tenantId: 'tenant_acme', roleId: 'role-member', menuId: 11 }
+      ]
+    });
     expect(prisma.roleDepartmentScope.createMany).toHaveBeenCalledWith({
       data: [
         { tenantId: 'tenant_acme', roleId: 'role-admin', departmentId: 201 },
@@ -273,5 +332,36 @@ describe('TenantBootstrapService', () => {
     ).rejects.toThrow(
       new BusinessException(BUSINESS_ERROR_CODES.TENANT_PACKAGE_NOT_FOUND)
     );
+  });
+
+  it('throws when bootstrap menus are missing', async () => {
+    const prisma = createPrismaMock();
+    const service = new TenantBootstrapService(
+      prisma as never,
+      { record: jest.fn() } as never,
+      { hash: jest.fn() } as never
+    );
+
+    prisma.tenant.findUnique.mockResolvedValue(null);
+    prisma.tenantPackage.findFirst.mockResolvedValue({
+      id: 'pkg_basic',
+      code: 'basic',
+      status: true
+    });
+    prisma.menu.findMany.mockResolvedValue([
+      { id: 1, menuKey: 'main_analysis' },
+      { id: 3, menuKey: 'main_analysis_technology' }
+    ]);
+
+    await expect(
+      service.initializeTenant({
+        code: 'acme',
+        name: 'Acme Studio',
+        adminPassword: '123456'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND)
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

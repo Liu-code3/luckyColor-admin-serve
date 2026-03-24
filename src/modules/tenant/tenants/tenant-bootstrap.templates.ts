@@ -22,10 +22,25 @@ export const DEFAULT_TENANT_ROLE_TEMPLATES = [
   }
 ] as const;
 
-export const DEFAULT_TENANT_ROLE_MENU_CODES: Record<string, number[]> = {
-  tenant_admin: [1, 2, 3, 4, 5, 6, 7, 8, 11, 13, 14],
-  tenant_member: [1, 2, 3, 11]
-};
+export const DEFAULT_TENANT_ROLE_MENU_KEYS = {
+  tenant_admin: [
+    'main_analysis',
+    'main_analysis_technology',
+    'main_system',
+    'main_system_users',
+    'main_system_department',
+    'main_system_menu',
+    'main_system_role',
+    'icomponent_dict',
+    'main_system_config',
+    'main_system_notice'
+  ],
+  tenant_member: [
+    'main_analysis',
+    'main_analysis_technology',
+    'icomponent_dict'
+  ]
+} as const satisfies Record<string, readonly string[]>;
 
 export const DEFAULT_TENANT_DICTIONARY_SEEDS = [
   {

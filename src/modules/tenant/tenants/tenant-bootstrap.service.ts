@@ -11,7 +11,7 @@ import { CreateTenantDto } from './tenants.dto';
 import {
   buildDefaultTenantDepartments,
   buildDefaultTenantDictionaries,
-  DEFAULT_TENANT_ROLE_MENU_CODES,
+  DEFAULT_TENANT_ROLE_MENU_KEYS,
   DEFAULT_TENANT_ROLE_TEMPLATES
 } from './tenant-bootstrap.templates';
 
@@ -26,6 +26,7 @@ export class TenantBootstrapService {
   async initializeTenant(dto: CreateTenantDto) {
     await this.ensureTenantCodeAvailable(dto.code);
     const tenantPackage = await this.resolveTenantPackage(dto.packageId);
+    const roleMenuIdsByCode = await this.resolveBootstrapRoleMenuIds();
 
     return this.prisma.$transaction(async (tx) => {
       const tenantId =
@@ -136,7 +137,7 @@ export class TenantBootstrapService {
       }
 
       const roleMenuRows = roles.flatMap((role) =>
-        (DEFAULT_TENANT_ROLE_MENU_CODES[role.code] ?? []).map((menuId) => ({
+        (roleMenuIdsByCode.get(role.code) ?? []).map((menuId) => ({
           tenantId: tenant.id,
           roleId: role.id,
           menuId
@@ -254,5 +255,50 @@ export class TenantBootstrapService {
     }
 
     return defaultPackage;
+  }
+
+  private async resolveBootstrapRoleMenuIds() {
+    const uniqueMenuKeys = Array.from(
+      new Set(Object.values(DEFAULT_TENANT_ROLE_MENU_KEYS).flat())
+    );
+    const menus = await this.prisma.menu.findMany({
+      where: {
+        menuKey: {
+          in: uniqueMenuKeys
+        }
+      },
+      orderBy: {
+        id: 'asc'
+      },
+      select: {
+        id: true,
+        menuKey: true
+      }
+    });
+
+    const menuIdsByKey = new Map<string, number[]>();
+
+    for (const menu of menus) {
+      const menuIds = menuIdsByKey.get(menu.menuKey) ?? [];
+      menuIds.push(menu.id);
+      menuIdsByKey.set(menu.menuKey, menuIds);
+    }
+
+    const missingMenuKeys = uniqueMenuKeys.filter(
+      (menuKey) => !menuIdsByKey.has(menuKey)
+    );
+
+    if (missingMenuKeys.length > 0) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND);
+    }
+
+    return new Map(
+      Object.entries(DEFAULT_TENANT_ROLE_MENU_KEYS).map(
+        ([roleCode, menuKeys]) => [
+          roleCode,
+          menuKeys.flatMap((menuKey) => menuIdsByKey.get(menuKey) ?? [])
+        ]
+      )
+    );
   }
 }
