@@ -37,6 +37,7 @@ async function main() {
   assertBootstrapContract(dictionaryRows);
 
   await prisma.roleDepartmentScope.deleteMany();
+  await prisma.rolePermission.deleteMany();
   await prisma.roleMenu.deleteMany();
   await prisma.userRole.deleteMany();
   await prisma.tenantAuditLog.deleteMany();
