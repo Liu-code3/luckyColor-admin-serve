@@ -17,6 +17,7 @@
     "test:e2e": "jest --runInBand --testPathPattern=test/e2e",
     "test:watch": "jest --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify": "pnpm typecheck && pnpm build",
     "prisma:generate": "prisma generate",
     "menus:sync-system": "ts-node --project tsconfig.json prisma/upsert-system-menus.ts",
     "password:backfill": "node --env-file=.env -r ts-node/register prisma/backfill-user-password-hashes.ts",

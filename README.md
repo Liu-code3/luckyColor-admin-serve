@@ -12,6 +12,19 @@
 - 分支管理遵循 `gitflow`。
 - `git commit message` 使用简洁明了的中文。
 
+## 提交前检查
+
+每个小任务提交前至少执行一次：
+
+```powershell
+pnpm verify
+```
+
+当前 `pnpm verify` 会串行执行：
+
+- `pnpm typecheck`
+- `pnpm build`
+
 ## 启动
 
 ```powershell
