@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
@@ -8,6 +7,8 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { AppConfigService } from '../../../shared/config/app-config.service';
+import { MENU_TYPE_BUTTON } from '../../../shared/constants/menu.constants';
 import { AuthButtonPermissionQueryDto, LoginDto } from './auth.dto';
 import type { JwtPayload } from './jwt-payload.interface';
 
@@ -76,7 +77,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly appConfig: AppConfigService,
     private readonly tenantScope: TenantPrismaScopeService,
     private readonly passwordService: PasswordService
   ) {}
@@ -99,7 +100,7 @@ export class AuthService {
     return successResponse({
       accessToken,
       tokenType: 'Bearer',
-      expiresIn: this.configService.get<string>('JWT_EXPIRES_IN') || '2h',
+      expiresIn: this.appConfig.jwtExpiresIn,
       user: accessSnapshot.user
     });
   }
@@ -269,7 +270,7 @@ export class AuthService {
   private toAccessSnapshot(user: AuthUserRecord) {
     const { roles, menus } = this.resolveAccessContext(user);
     const menuTree = this.buildMenuTree(
-      menus.filter((item) => item.type !== 3)
+      menus.filter((item) => item.type !== MENU_TYPE_BUTTON)
     );
 
     return {
@@ -280,10 +281,10 @@ export class AuthService {
         nickname: user.nickname,
         roleCodes: roles.map((item) => item.code),
         menuCodeList: menus
-          .filter((item) => item.type !== 3)
+          .filter((item) => item.type !== MENU_TYPE_BUTTON)
           .map((item) => item.menuKey),
         buttonCodeList: menus
-          .filter((item) => item.type === 3)
+          .filter((item) => item.type === MENU_TYPE_BUTTON)
           .map((item) => item.menuKey)
       },
       roles: roles.map((item) => ({
@@ -330,7 +331,7 @@ export class AuthService {
     return this.expandMenusWithAncestors(
       allMenus,
       menus.map((item) => item.id)
-    ).filter((item) => item.type !== 3);
+    ).filter((item) => item.type !== MENU_TYPE_BUTTON);
   }
 
   private collectRoles(roles: AuthRoleRecord[]) {

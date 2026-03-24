@@ -5,6 +5,7 @@ import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { PasswordService } from '../../../infra/security/password.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { TENANT_STATUS_ACTIVE } from '../../../shared/constants/status.constants';
 import { TenantAuditService } from './tenant-audit.service';
 import { CreateTenantDto } from './tenants.dto';
 import {
@@ -35,7 +36,7 @@ export class TenantBootstrapService {
           id: tenantId,
           code: dto.code,
           name: dto.name,
-          status: dto.status ?? 'ACTIVE',
+          status: dto.status ?? TENANT_STATUS_ACTIVE,
           expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
           contactName: dto.contactName ?? null,
           contactPhone: dto.contactPhone ?? null,

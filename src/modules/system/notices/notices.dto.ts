@@ -1,6 +1,10 @@
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, Min } from 'class-validator';
+import {
+  NOTICE_STATUS_VALUES,
+  type NoticeStatus
+} from '../../../shared/constants/status.constants';
 
 export class NoticeListQueryDto {
   @ApiPropertyOptional({
@@ -60,7 +64,8 @@ export class CreateNoticeDto {
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
-  status?: boolean;
+  @IsIn(NOTICE_STATUS_VALUES)
+  status?: NoticeStatus;
 
   @ApiPropertyOptional({
     description: '发布人',
@@ -111,7 +116,8 @@ export class UpdateNoticeDto {
   @IsOptional()
   @Type(() => Boolean)
   @IsBoolean()
-  status?: boolean;
+  @IsIn(NOTICE_STATUS_VALUES)
+  status?: NoticeStatus;
 
   @ApiPropertyOptional({
     description: '发布人',

@@ -7,6 +7,10 @@ import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
 import {
+  ROLE_DATA_SCOPE_ALL,
+  ROLE_DATA_SCOPE_CUSTOM
+} from '../../../shared/constants/access.constants';
+import {
   AssignRoleDataScopeDto,
   AssignRoleMenusDto,
   CreateRoleDto,
@@ -109,7 +113,7 @@ export class RolesService {
             code: dto.code,
             sort: dto.sort ?? 0,
             status: dto.status ?? true,
-            dataScope: dto.dataScope ?? 'ALL',
+            dataScope: dto.dataScope ?? ROLE_DATA_SCOPE_ALL,
             remark: dto.remark ?? null
           }
         });
@@ -117,7 +121,7 @@ export class RolesService {
         await this.syncDataScope(
           tx,
           role.id,
-          dto.dataScope ?? 'ALL',
+          dto.dataScope ?? ROLE_DATA_SCOPE_ALL,
           dto.dataScopeDeptIds,
           tenantId
         );
@@ -320,7 +324,10 @@ export class RolesService {
   ) {
     const uniqueDepartmentIds = Array.from(new Set(departmentIds));
 
-    if (dataScope === 'CUSTOM' && uniqueDepartmentIds.length === 0) {
+    if (
+      dataScope === ROLE_DATA_SCOPE_CUSTOM &&
+      uniqueDepartmentIds.length === 0
+    ) {
       throw new BusinessException(
         BUSINESS_ERROR_CODES.DATA_SCOPE_CONFIG_INVALID
       );
@@ -347,7 +354,10 @@ export class RolesService {
       throw new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND);
     }
 
-    if (dataScope !== 'CUSTOM' && uniqueDepartmentIds.length > 0) {
+    if (
+      dataScope !== ROLE_DATA_SCOPE_CUSTOM &&
+      uniqueDepartmentIds.length > 0
+    ) {
       throw new BusinessException(
         BUSINESS_ERROR_CODES.DATA_SCOPE_CONFIG_INVALID
       );
@@ -360,7 +370,7 @@ export class RolesService {
       }
     });
 
-    if (dataScope === 'CUSTOM') {
+    if (dataScope === ROLE_DATA_SCOPE_CUSTOM) {
       await tx.roleDepartmentScope.createMany({
         data: uniqueDepartmentIds.map((departmentId) => ({
           roleId,

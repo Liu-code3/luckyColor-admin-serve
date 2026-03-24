@@ -1,10 +1,15 @@
+import {
+  ROLE_DATA_SCOPE_CUSTOM,
+  ROLE_DATA_SCOPE_SELF
+} from '../../../shared/constants/access.constants';
+
 export const DEFAULT_TENANT_ROLE_TEMPLATES = [
   {
     name: 'Tenant Admin',
     code: 'tenant_admin',
     sort: 10,
     status: true,
-    dataScope: 'CUSTOM',
+    dataScope: ROLE_DATA_SCOPE_CUSTOM,
     remark: 'Default tenant administrator role'
   },
   {
@@ -12,7 +17,7 @@ export const DEFAULT_TENANT_ROLE_TEMPLATES = [
     code: 'tenant_member',
     sort: 20,
     status: true,
-    dataScope: 'SELF',
+    dataScope: ROLE_DATA_SCOPE_SELF,
     remark: 'Default tenant member role'
   }
 ] as const;

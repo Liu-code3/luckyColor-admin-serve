@@ -4,9 +4,11 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './shared/filters/all-exceptions.filter';
+import { AppConfigService } from './shared/config/app-config.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const appConfig = app.get(AppConfigService);
   app.setGlobalPrefix('api');
   app.enableCors({
     origin: true,
@@ -41,7 +43,7 @@ async function bootstrap() {
     }
   });
 
-  const port = Number(process.env.PORT || 3001);
+  const port = appConfig.port;
   await app.listen(port);
   Logger.log(`Server running at http://127.0.0.1:${port}/api`, 'Bootstrap');
   Logger.log(`Swagger docs at http://127.0.0.1:${port}/docs`, 'Bootstrap');

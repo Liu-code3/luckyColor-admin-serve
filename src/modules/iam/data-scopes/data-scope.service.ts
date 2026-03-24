@@ -3,6 +3,14 @@ import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import {
+  ROLE_DATA_SCOPE_ALL,
+  ROLE_DATA_SCOPE_CUSTOM,
+  ROLE_DATA_SCOPE_DEPARTMENT,
+  ROLE_DATA_SCOPE_DEPARTMENT_AND_CHILDREN,
+  ROLE_DATA_SCOPE_SELF,
+  SUPER_ADMIN_ROLE_CODE
+} from '../../../shared/constants/access.constants';
 import { DepartmentsService } from '../../system/departments/departments.service';
 import type { JwtPayload } from '../auth/jwt-payload.interface';
 import type { RoleDataScope } from '../../system/roles/roles.constants';
@@ -83,11 +91,11 @@ export class DataScopeService {
     const profile = await this.resolveProfile(user);
 
     switch (profile.scope) {
-      case 'ALL':
+      case ROLE_DATA_SCOPE_ALL:
         return where;
-      case 'SELF':
+      case ROLE_DATA_SCOPE_SELF:
         return this.combineWhere(where, { id: user.sub });
-      case 'DEPARTMENT':
+      case ROLE_DATA_SCOPE_DEPARTMENT:
         if (!profile.userDepartmentId) {
           throw new BusinessException(BUSINESS_ERROR_CODES.DATA_SCOPE_DENIED);
         }
@@ -95,7 +103,7 @@ export class DataScopeService {
         return this.combineWhere(where, {
           departmentId: profile.userDepartmentId
         });
-      case 'DEPARTMENT_AND_CHILDREN': {
+      case ROLE_DATA_SCOPE_DEPARTMENT_AND_CHILDREN: {
         if (!profile.userDepartmentId) {
           throw new BusinessException(BUSINESS_ERROR_CODES.DATA_SCOPE_DENIED);
         }
@@ -109,7 +117,7 @@ export class DataScopeService {
           departmentId: { in: departmentIds }
         });
       }
-      case 'CUSTOM':
+      case ROLE_DATA_SCOPE_CUSTOM:
         if (!profile.departmentIds.length) {
           throw new BusinessException(
             BUSINESS_ERROR_CODES.DATA_SCOPE_CONFIG_INVALID
@@ -135,17 +143,17 @@ export class DataScopeService {
       throw new BusinessException(BUSINESS_ERROR_CODES.DATA_SCOPE_DENIED);
     }
 
-    if (activeRoles.some((role) => role.code === 'super_admin')) {
+    if (activeRoles.some((role) => role.code === SUPER_ADMIN_ROLE_CODE)) {
       return {
-        scope: 'ALL',
+        scope: ROLE_DATA_SCOPE_ALL,
         departmentIds: [],
         userDepartmentId: user.departmentId
       };
     }
 
-    if (activeRoles.some((role) => role.dataScope === 'ALL')) {
+    if (activeRoles.some((role) => role.dataScope === ROLE_DATA_SCOPE_ALL)) {
       return {
-        scope: 'ALL',
+        scope: ROLE_DATA_SCOPE_ALL,
         departmentIds: [],
         userDepartmentId: user.departmentId
       };
@@ -154,7 +162,7 @@ export class DataScopeService {
     const customDepartmentIds = Array.from(
       new Set(
         activeRoles
-          .filter((role) => role.dataScope === 'CUSTOM')
+          .filter((role) => role.dataScope === ROLE_DATA_SCOPE_CUSTOM)
           .flatMap((role) =>
             role.dataScopeDepartments.map((item) => item.departmentId)
           )
@@ -163,33 +171,37 @@ export class DataScopeService {
 
     if (customDepartmentIds.length > 0) {
       return {
-        scope: 'CUSTOM',
+        scope: ROLE_DATA_SCOPE_CUSTOM,
         departmentIds: customDepartmentIds,
         userDepartmentId: user.departmentId
       };
     }
 
     if (
-      activeRoles.some((role) => role.dataScope === 'DEPARTMENT_AND_CHILDREN')
+      activeRoles.some(
+        (role) => role.dataScope === ROLE_DATA_SCOPE_DEPARTMENT_AND_CHILDREN
+      )
     ) {
       return {
-        scope: 'DEPARTMENT_AND_CHILDREN',
+        scope: ROLE_DATA_SCOPE_DEPARTMENT_AND_CHILDREN,
         departmentIds: [],
         userDepartmentId: user.departmentId
       };
     }
 
-    if (activeRoles.some((role) => role.dataScope === 'DEPARTMENT')) {
+    if (
+      activeRoles.some((role) => role.dataScope === ROLE_DATA_SCOPE_DEPARTMENT)
+    ) {
       return {
-        scope: 'DEPARTMENT',
+        scope: ROLE_DATA_SCOPE_DEPARTMENT,
         departmentIds: [],
         userDepartmentId: user.departmentId
       };
     }
 
-    if (activeRoles.some((role) => role.dataScope === 'SELF')) {
+    if (activeRoles.some((role) => role.dataScope === ROLE_DATA_SCOPE_SELF)) {
       return {
-        scope: 'SELF',
+        scope: ROLE_DATA_SCOPE_SELF,
         departmentIds: [],
         userDepartmentId: user.departmentId
       };

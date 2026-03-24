@@ -5,6 +5,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { NOTICE_STATUS_DRAFT } from '../../../shared/constants/status.constants';
 import {
   CreateNoticeDto,
   NoticeListQueryDto,
@@ -60,7 +61,7 @@ export class NoticesService {
   }
 
   async create(dto: CreateNoticeDto) {
-    const isPublished = dto.status ?? false;
+    const isPublished = dto.status ?? NOTICE_STATUS_DRAFT;
     const notice = await this.prisma.notice.create({
       data: {
         tenantId: this.tenantScope.resolveRequiredTenantValue(),

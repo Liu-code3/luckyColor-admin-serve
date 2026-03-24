@@ -7,6 +7,9 @@ import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
 import {
+  MENU_TYPE_BUTTON
+} from '../../../shared/constants/menu.constants';
+import {
   CreateMenuDto,
   MenuListQueryDto,
   MenuTreeQueryDto,
@@ -362,7 +365,7 @@ export class MenusService {
     currentId?: number
   ) {
     if (parentId === null) {
-      if (type === 3) {
+      if (type === MENU_TYPE_BUTTON) {
         throw new BusinessException(
           BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID
         );
@@ -381,7 +384,7 @@ export class MenusService {
       throw new BusinessException(BUSINESS_ERROR_CODES.MENU_NOT_FOUND);
     }
 
-    if (parent.type === 3) {
+    if (parent.type === MENU_TYPE_BUTTON) {
       throw new BusinessException(BUSINESS_ERROR_CODES.MENU_HIERARCHY_INVALID);
     }
 

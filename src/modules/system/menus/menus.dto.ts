@@ -3,8 +3,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayNotEmpty,
   IsArray,
-  IsIn,
   IsBoolean,
+  IsIn,
   IsInt,
   IsObject,
   IsOptional,
@@ -12,9 +12,12 @@ import {
   Min,
   ValidateNested
 } from 'class-validator';
-
-export const MENU_TREE_VIEW_VALUES = ['platform', 'tenant'] as const;
-export type MenuTreeView = (typeof MENU_TREE_VIEW_VALUES)[number];
+import {
+  MENU_TREE_VIEW_VALUES,
+  MENU_TYPE_VALUES,
+  type MenuTreeView,
+  type MenuType
+} from '../../../shared/constants/menu.constants';
 
 function transformBoolean(value: unknown) {
   if (value === undefined || value === null || value === '') {
@@ -117,7 +120,8 @@ export class CreateMenuDto {
   })
   @Type(() => Number)
   @IsInt()
-  type!: number;
+  @IsIn(MENU_TYPE_VALUES)
+  type!: MenuType;
 
   @ApiProperty({
     description: '访问路径',
@@ -238,7 +242,8 @@ export class UpdateMenuDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  type?: number;
+  @IsIn(MENU_TYPE_VALUES)
+  type?: MenuType;
 
   @ApiPropertyOptional({
     description: '访问路径',

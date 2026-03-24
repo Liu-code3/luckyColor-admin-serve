@@ -20,12 +20,17 @@ import { SystemLogsModule } from './modules/system/system-logs/system-logs.modul
 import { UsersModule } from './modules/system/users/users.module';
 import { TenantPackagesModule } from './modules/tenant/tenant-packages/tenant-packages.module';
 import { TenantsModule } from './modules/tenant/tenants/tenants.module';
+import { AppConfigModule } from './shared/config/app-config.module';
+import { validateEnvironment } from './shared/config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true
+      isGlobal: true,
+      cache: true,
+      validate: validateEnvironment
     }),
+    AppConfigModule,
     RedisModule,
     PrismaModule,
     PasswordModule,

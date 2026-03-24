@@ -72,7 +72,7 @@ describe('AuthService', () => {
       signAsync: jest.fn().mockResolvedValue('signed-token')
     };
     const configService = {
-      get: jest.fn().mockReturnValue('2h')
+      jwtExpiresIn: '2h'
     };
     const passwordService = {
       isHash: jest.fn().mockReturnValue(true),

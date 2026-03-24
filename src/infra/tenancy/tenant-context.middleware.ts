@@ -1,6 +1,6 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { TenantAccessService } from '../../modules/tenant/tenants/tenant-access.service';
-import { TENANT_ID_HEADER } from './tenant.constants';
+import { AppConfigService } from '../../shared/config/app-config.service';
 import { TenantContextService } from './tenant-context.service';
 
 interface TenantRequestLike {
@@ -11,13 +11,14 @@ interface TenantRequestLike {
 export class TenantContextMiddleware implements NestMiddleware {
   constructor(
     private readonly tenantContext: TenantContextService,
-    private readonly tenantAccess: TenantAccessService
+    private readonly tenantAccess: TenantAccessService,
+    private readonly appConfig: AppConfigService
   ) {}
 
   async use(request: TenantRequestLike, _response: unknown, next: () => void) {
-    const rawTenantId = request.header(TENANT_ID_HEADER);
+    const rawTenantId = request.header(this.appConfig.tenantHeader);
     const headerTenantId = rawTenantId?.trim() || null;
-    const defaultTenantId = process.env.DEFAULT_TENANT_ID?.trim() || null;
+    const defaultTenantId = this.appConfig.defaultTenantId;
     const tenantId = headerTenantId ?? defaultTenantId;
     const source = headerTenantId
       ? 'header'

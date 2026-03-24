@@ -6,6 +6,7 @@ import {
   BUSINESS_ERROR_CODES,
   type BusinessErrorCode
 } from '../../../shared/api/error-codes';
+import { SUPER_ADMIN_ROLE_CODE } from '../../../shared/constants/access.constants';
 import type { JwtPayload } from '../auth/jwt-payload.interface';
 import {
   PERMISSION_METADATA,
@@ -81,7 +82,7 @@ export class PermissionGuard implements CanActivate {
       throw new BusinessException(BUSINESS_ERROR_CODES.ROLE_DISABLED);
     }
 
-    if (activeRoles.some((role) => role.code === 'super_admin')) {
+    if (activeRoles.some((role) => role.code === SUPER_ADMIN_ROLE_CODE)) {
       return true;
     }
 

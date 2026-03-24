@@ -1,8 +1,8 @@
-import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { PasswordService } from '../../../infra/security/password.service';
 import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { BusinessException } from '../../../shared/api/business.exception';
+import { AppConfigService } from '../../../shared/config/app-config.service';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { AuthService } from '../../iam/auth/auth.service';
 import { DataScopeService } from '../../iam/data-scopes/data-scope.service';
@@ -24,8 +24,10 @@ describe('Tenant isolation regression', () => {
           username: 'admin',
           password: '123456',
           nickname: 'Tenant 2 Admin',
+          status: true,
           roles: []
-        })
+        }),
+        update: jest.fn()
       }
     };
     const service = new AuthService(
@@ -34,8 +36,8 @@ describe('Tenant isolation regression', () => {
         signAsync: jest.fn().mockResolvedValue('tenant-2-token')
       } as unknown as JwtService,
       {
-        get: jest.fn().mockReturnValue('2h')
-      } as unknown as ConfigService,
+        jwtExpiresIn: '2h'
+      } as unknown as AppConfigService,
       createTenantScope('tenant_002'),
       {
         isHash: jest.fn().mockReturnValue(true),
@@ -117,8 +119,8 @@ describe('Tenant isolation regression', () => {
   it('does not allow admin-style tenant bypass when header tenant and token tenant differ', async () => {
     const strategy = new JwtStrategy(
       {
-        get: jest.fn().mockReturnValue('jwt-secret')
-      } as unknown as ConfigService,
+        jwtSecret: 'jwt-secret'
+      } as unknown as AppConfigService,
       {
         user: {
           findFirst: jest.fn()

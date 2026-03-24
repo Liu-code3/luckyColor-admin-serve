@@ -1,4 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  MENU_TYPE_VALUES,
+  type MenuType
+} from '../../../shared/constants/menu.constants';
 
 export class MenuItemResponseDto {
   @ApiProperty({
@@ -27,9 +31,10 @@ export class MenuItemResponseDto {
 
   @ApiProperty({
     description: '菜单类型，1 目录，2 菜单，3 按钮',
-    example: 2
+    example: 2,
+    enum: MENU_TYPE_VALUES
   })
-  type!: number;
+  type!: MenuType;
 
   @ApiProperty({
     description: '访问路径',

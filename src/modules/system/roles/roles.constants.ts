@@ -1,9 +1,10 @@
-export const ROLE_DATA_SCOPE_VALUES = [
-  'ALL',
-  'DEPARTMENT',
-  'DEPARTMENT_AND_CHILDREN',
-  'SELF',
-  'CUSTOM'
-] as const;
-
-export type RoleDataScope = (typeof ROLE_DATA_SCOPE_VALUES)[number];
+export {
+  ROLE_DATA_SCOPE_ALL,
+  ROLE_DATA_SCOPE_CUSTOM,
+  ROLE_DATA_SCOPE_DEPARTMENT,
+  ROLE_DATA_SCOPE_DEPARTMENT_AND_CHILDREN,
+  ROLE_DATA_SCOPE_SELF,
+  ROLE_DATA_SCOPE_VALUES,
+  SUPER_ADMIN_ROLE_CODE,
+  type RoleDataScope
+} from '../../../shared/constants/access.constants';

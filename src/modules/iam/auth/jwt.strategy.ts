@@ -1,18 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { TenantContextService } from '../../../infra/tenancy/tenant-context.service';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { AppConfigService } from '../../../shared/config/app-config.service';
 import { TenantAccessService } from '../../tenant/tenants/tenant-access.service';
 import type { JwtPayload } from './jwt-payload.interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    configService: ConfigService,
+    appConfig: AppConfigService,
     private readonly prisma: PrismaService,
     private readonly tenantContext: TenantContextService,
     private readonly tenantAccess: TenantAccessService
@@ -20,8 +20,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey:
-        configService.get<string>('JWT_SECRET') || 'luckycolor-admin-secret'
+      secretOrKey: appConfig.jwtSecret
     });
   }
 
