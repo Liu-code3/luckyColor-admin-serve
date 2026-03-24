@@ -145,8 +145,7 @@ describe('AuthService', () => {
 
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
       where: {
-        tenantId: 'tenant_001',
-        username: 'admin'
+        AND: [{ username: 'admin' }, { tenantId: 'tenant_001' }]
       },
       include: {
         roles: {

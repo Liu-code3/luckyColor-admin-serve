@@ -381,8 +381,16 @@ describe('RolesService', () => {
       departmentIds: [100, 120]
     });
 
+    expect(prisma.department.findMany).toHaveBeenCalledWith({
+      where: {
+        AND: [{ id: { in: [100, 120] } }, { tenantId: 'tenant_001' }]
+      },
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+    });
     expect(prisma.roleDepartmentScope.deleteMany).toHaveBeenCalledWith({
-      where: { roleId: 'role-1', tenantId: 'tenant_001' }
+      where: {
+        AND: [{ roleId: 'role-1' }, { tenantId: 'tenant_001' }]
+      }
     });
     expect(prisma.roleDepartmentScope.createMany).toHaveBeenCalledWith({
       data: [
@@ -492,7 +500,9 @@ describe('RolesService', () => {
     const response = await service.assignMenus('role-1', { menuIds: [1, 11] });
 
     expect(prisma.roleMenu.deleteMany).toHaveBeenCalledWith({
-      where: { roleId: 'role-1', tenantId: 'tenant_001' }
+      where: {
+        AND: [{ roleId: 'role-1' }, { tenantId: 'tenant_001' }]
+      }
     });
     expect(prisma.roleMenu.createMany).toHaveBeenCalledWith({
       data: [

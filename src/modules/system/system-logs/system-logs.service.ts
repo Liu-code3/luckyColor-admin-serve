@@ -83,20 +83,15 @@ export class SystemLogsService {
     dto: CreateSystemLogDto,
     request?: RequestLike
   ) {
-    const tenantId = this.tenantScope.requireTenantId();
     const operator = await this.prisma.user.findFirst({
-      where: {
-        id: user.sub,
-        tenantId
-      },
+      where: this.buildUserWhere({ id: user.sub }),
       select: {
         nickname: true
       }
     });
     const clientInfo = extractRequestClientInfo(request);
     const log = await this.prisma.systemLog.create({
-      data: {
-        tenantId,
+      data: this.tenantScope.buildRequiredData({
         operatorUserId: user.sub,
         operatorName: operator?.nickname?.trim() || user.username,
         module: dto.module.trim(),
@@ -105,7 +100,7 @@ export class SystemLogsService {
         region: dto.region?.trim() || '未知',
         browserVersion: clientInfo.browserVersion,
         terminalSystem: clientInfo.terminalSystem
-      }
+      })
     });
 
     return successResponse(this.toResponse(log));
@@ -116,6 +111,13 @@ export class SystemLogsService {
       where,
       'tenantId'
     ) as Prisma.SystemLogWhereInput;
+  }
+
+  private buildUserWhere(where: Prisma.UserWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.UserWhereInput;
   }
 
   private toResponse(log: {

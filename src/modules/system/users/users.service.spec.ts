@@ -270,7 +270,9 @@ describe('UsersService', () => {
       orderBy: [{ sort: 'asc' }, { createdAt: 'desc' }]
     });
     expect(prisma.userRole.deleteMany).toHaveBeenCalledWith({
-      where: { userId: 'user-1', tenantId: 'tenant_001' }
+      where: {
+        AND: [{ userId: 'user-1' }, { tenantId: 'tenant_001' }]
+      }
     });
     expect(prisma.userRole.createMany).toHaveBeenCalledWith({
       data: [
@@ -316,7 +318,9 @@ describe('UsersService', () => {
 
     expect(prisma.role.findMany).not.toHaveBeenCalled();
     expect(prisma.userRole.deleteMany).toHaveBeenCalledWith({
-      where: { userId: 'user-1', tenantId: 'tenant_001' }
+      where: {
+        AND: [{ userId: 'user-1' }, { tenantId: 'tenant_001' }]
+      }
     });
     expect(prisma.userRole.createMany).not.toHaveBeenCalled();
     expect(response).toEqual({

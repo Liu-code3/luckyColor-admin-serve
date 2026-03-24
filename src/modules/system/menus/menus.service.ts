@@ -431,17 +431,21 @@ export class MenusService {
   private async resolveTenantScopedMenus(
     allMenus: Prisma.MenuGetPayload<Record<string, never>>[]
   ) {
-    const tenantId = this.tenantScope.requireTenantId();
     const roleMenus = await this.prisma.roleMenu.findMany({
-      where: {
-        tenantId
-      }
+      where: this.buildRoleMenuWhere()
     });
 
     return this.expandMenusWithAncestors(
       allMenus,
       roleMenus.map((item) => item.menuId)
     );
+  }
+
+  private buildRoleMenuWhere(where: Prisma.RoleMenuWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.RoleMenuWhereInput;
   }
 
   private collectMenuIds(

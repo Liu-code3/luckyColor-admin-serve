@@ -36,6 +36,31 @@ export class TenantPrismaScopeService {
       return where;
     }
 
+    return this.buildWhereForTenant(where, tenantId, tenantField, options);
+  }
+
+  resolveTenantValue(value?: string | null) {
+    return this.tenantContext.getTenantId() ?? value ?? null;
+  }
+
+  buildRequiredWhere(
+    where: Record<string, unknown> | undefined,
+    tenantField = 'tenantId'
+  ) {
+    const tenantId = this.requireTenantId();
+    return this.buildWhereForTenant(where, tenantId, tenantField);
+  }
+
+  resolveRequiredTenantValue() {
+    return this.requireTenantId();
+  }
+
+  buildWhereForTenant(
+    where: Record<string, unknown> | undefined,
+    tenantId: string,
+    tenantField = 'tenantId',
+    options: BuildTenantWhereOptions = {}
+  ) {
     const tenantWhere = this.createTenantConstraint(
       tenantField,
       tenantId,
@@ -51,30 +76,28 @@ export class TenantPrismaScopeService {
     };
   }
 
-  resolveTenantValue(value?: string | null) {
-    return this.tenantContext.getTenantId() ?? value ?? null;
-  }
-
-  buildRequiredWhere(
-    where: Record<string, unknown> | undefined,
-    tenantField = 'tenantId'
+  buildDataForTenant<
+    T extends Record<string, unknown>,
+    TTenantField extends string = 'tenantId'
+  >(
+    data: T,
+    tenantId: string,
+    tenantField: TTenantField = 'tenantId' as TTenantField
   ) {
-    const tenantId = this.requireTenantId();
-    const tenantWhere = {
-      [tenantField]: tenantId
-    };
-
-    if (!where || Object.keys(where).length === 0) {
-      return tenantWhere;
-    }
-
     return {
-      AND: [where, tenantWhere]
-    };
+      ...data,
+      [tenantField]: tenantId
+    } as T & Record<TTenantField, string>;
   }
 
-  resolveRequiredTenantValue() {
-    return this.requireTenantId();
+  buildRequiredData<
+    T extends Record<string, unknown>,
+    TTenantField extends string = 'tenantId'
+  >(
+    data: T,
+    tenantField: TTenantField = 'tenantId' as TTenantField
+  ) {
+    return this.buildDataForTenant(data, this.requireTenantId(), tenantField);
   }
 
   private createTenantConstraint(

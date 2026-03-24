@@ -70,4 +70,49 @@ describe('TenantPrismaScopeService', () => {
       AND: [{ id: 'user-1' }, { tenantId: 'tenant_001' }]
     });
   });
+
+  it('builds tenant where clause for an explicit tenant id', () => {
+    const { service } = createService(null);
+
+    expect(
+      service.buildWhereForTenant(
+        {
+          id: 'user-2'
+        },
+        'tenant_002',
+        'tenantId'
+      )
+    ).toEqual({
+      AND: [{ id: 'user-2' }, { tenantId: 'tenant_002' }]
+    });
+  });
+
+  it('injects tenant id into write payloads', () => {
+    const { service } = createService('tenant_001');
+
+    expect(
+      service.buildRequiredData({
+        userId: 'user-1',
+        roleId: 'role-1'
+      })
+    ).toEqual({
+      tenantId: 'tenant_001',
+      userId: 'user-1',
+      roleId: 'role-1'
+    });
+
+    expect(
+      service.buildDataForTenant(
+        {
+          roleId: 'role-2',
+          menuId: 11
+        },
+        'tenant_002'
+      )
+    ).toEqual({
+      tenantId: 'tenant_002',
+      roleId: 'role-2',
+      menuId: 11
+    });
+  });
 });

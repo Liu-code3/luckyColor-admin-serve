@@ -92,8 +92,7 @@ export class UsersService {
 
     try {
       const user = await this.prisma.user.create({
-        data: {
-          tenantId: this.tenantScope.resolveRequiredTenantValue(),
+        data: this.tenantScope.buildRequiredData({
           departmentId: dto.departmentId ?? null,
           username,
           password: await this.passwordService.hash(dto.password),
@@ -102,7 +101,7 @@ export class UsersService {
           email: email ?? null,
           avatar: avatar ?? null,
           status: dto.status ?? true
-        },
+        }),
         include: {
           department: true
         }
@@ -224,8 +223,6 @@ export class UsersService {
   }
 
   async assignRoles(id: string, dto: AssignUserRolesDto) {
-    const tenantId = this.tenantScope.requireTenantId();
-
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findFirst({
         where: this.buildUserWhere({ id })
@@ -253,19 +250,17 @@ export class UsersService {
       }
 
       await tx.userRole.deleteMany({
-        where: {
-          userId: id,
-          tenantId
-        }
+        where: this.buildUserRoleWhere({ userId: id })
       });
 
       if (dto.roleIds.length > 0) {
         await tx.userRole.createMany({
-          data: dto.roleIds.map((roleId) => ({
-            userId: id,
-            roleId,
-            tenantId
-          }))
+          data: dto.roleIds.map((roleId) =>
+            this.tenantScope.buildRequiredData({
+              userId: id,
+              roleId
+            })
+          )
         });
       }
 
@@ -292,6 +287,13 @@ export class UsersService {
       where,
       'tenantId'
     ) as Prisma.DepartmentWhereInput;
+  }
+
+  private buildUserRoleWhere(where: Prisma.UserRoleWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.UserRoleWhereInput;
   }
 
   private buildUserListWhere(query: UserListQueryDto, keyword?: string) {

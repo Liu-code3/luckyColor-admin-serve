@@ -103,27 +103,24 @@ export class RolesService {
   async create(dto: CreateRoleDto) {
     await this.ensureRoleCodeAvailable(dto.code);
 
-    const tenantId = this.tenantScope.resolveRequiredTenantValue();
     try {
       return await this.prisma.$transaction(async (tx) => {
         const role = await tx.role.create({
-          data: {
-            tenantId,
+          data: this.tenantScope.buildRequiredData({
             name: dto.name,
             code: dto.code,
             sort: dto.sort ?? 0,
             status: dto.status ?? true,
             dataScope: dto.dataScope ?? ROLE_DATA_SCOPE_ALL,
             remark: dto.remark ?? null
-          }
+          })
         });
 
         await this.syncDataScope(
           tx,
           role.id,
           dto.dataScope ?? ROLE_DATA_SCOPE_ALL,
-          dto.dataScopeDeptIds,
-          tenantId
+          dto.dataScopeDeptIds
         );
 
         const created = await this.findRoleWithDataScope(role.id, tx);
@@ -144,7 +141,6 @@ export class RolesService {
       await this.ensureRoleCodeAvailable(dto.code, id);
     }
 
-    const tenantId = this.tenantScope.requireTenantId();
     try {
       return await this.prisma.$transaction(async (tx) => {
         await tx.role.update({
@@ -164,8 +160,7 @@ export class RolesService {
             tx,
             id,
             dto.dataScope ?? (existing.dataScope as RoleDataScope),
-            dto.dataScopeDeptIds ?? this.extractDepartmentIds(existing),
-            tenantId
+            dto.dataScopeDeptIds ?? this.extractDepartmentIds(existing)
           );
         }
 
@@ -223,8 +218,6 @@ export class RolesService {
   }
 
   async assignMenus(id: string, dto: AssignRoleMenusDto) {
-    const tenantId = this.tenantScope.requireTenantId();
-
     return this.prisma.$transaction(async (tx) => {
       const role = await tx.role.findFirst({
         where: this.buildRoleWhere({ id })
@@ -248,19 +241,17 @@ export class RolesService {
       }
 
       await tx.roleMenu.deleteMany({
-        where: {
-          roleId: id,
-          tenantId
-        }
+        where: this.buildRoleMenuWhere({ roleId: id })
       });
 
       if (dto.menuIds.length > 0) {
         await tx.roleMenu.createMany({
-          data: dto.menuIds.map((menuId) => ({
-            roleId: id,
-            menuId,
-            tenantId
-          }))
+          data: dto.menuIds.map((menuId) =>
+            this.tenantScope.buildRequiredData({
+              roleId: id,
+              menuId
+            })
+          )
         });
       }
 
@@ -278,8 +269,6 @@ export class RolesService {
   }
 
   async assignDataScope(id: string, dto: AssignRoleDataScopeDto) {
-    const tenantId = this.tenantScope.requireTenantId();
-
     return this.prisma.$transaction(async (tx) => {
       const role = await tx.role.findFirst({
         where: this.buildRoleWhere({ id })
@@ -299,8 +288,7 @@ export class RolesService {
         tx,
         id,
         dto.dataScope,
-        dto.departmentIds,
-        tenantId
+        dto.departmentIds
       );
 
       const updated = await this.findRoleWithDataScope(id, tx);
@@ -315,12 +303,27 @@ export class RolesService {
     ) as Prisma.RoleWhereInput;
   }
 
+  private buildRoleMenuWhere(where: Prisma.RoleMenuWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.RoleMenuWhereInput;
+  }
+
+  private buildRoleDepartmentScopeWhere(
+    where: Prisma.RoleDepartmentScopeWhereInput = {}
+  ) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.RoleDepartmentScopeWhereInput;
+  }
+
   private async syncDataScope(
     tx: Pick<PrismaService, 'department' | 'roleDepartmentScope'>,
     roleId: string,
     dataScope: RoleDataScope,
-    departmentIds: number[] = [],
-    tenantId: string
+    departmentIds: number[] = []
   ) {
     const uniqueDepartmentIds = Array.from(new Set(departmentIds));
 
@@ -336,16 +339,12 @@ export class RolesService {
     const departments =
       uniqueDepartmentIds.length > 0
         ? await tx.department.findMany({
-            where: {
-              AND: [
-                {
-                  id: { in: uniqueDepartmentIds }
-                },
-                {
-                  tenantId
-                }
-              ]
-            },
+            where: this.tenantScope.buildRequiredWhere(
+              {
+                id: { in: uniqueDepartmentIds }
+              },
+              'tenantId'
+            ) as Prisma.DepartmentWhereInput,
             orderBy: [{ sort: 'asc' }, { id: 'asc' }]
           })
         : [];
@@ -364,19 +363,17 @@ export class RolesService {
     }
 
     await tx.roleDepartmentScope.deleteMany({
-      where: {
-        roleId,
-        tenantId
-      }
+      where: this.buildRoleDepartmentScopeWhere({ roleId })
     });
 
     if (dataScope === ROLE_DATA_SCOPE_CUSTOM) {
       await tx.roleDepartmentScope.createMany({
-        data: uniqueDepartmentIds.map((departmentId) => ({
-          roleId,
-          departmentId,
-          tenantId
-        }))
+        data: uniqueDepartmentIds.map((departmentId) =>
+          this.tenantScope.buildRequiredData({
+            roleId,
+            departmentId
+          })
+        )
       });
     }
   }

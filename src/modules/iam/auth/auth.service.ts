@@ -162,13 +162,10 @@ export class AuthService {
   }
 
   private async validateUser(dto: LoginDto) {
-    const tenantId = this.tenantScope.requireTenantId();
-
     const user = await this.prisma.user.findFirst({
-      where: {
-        tenantId,
+      where: this.buildUserWhere({
         username: dto.username
-      },
+      }),
       include: {
         roles: {
           include: {
@@ -245,10 +242,9 @@ export class AuthService {
 
   private findUserWithAccess(payload: JwtPayload) {
     return this.prisma.user.findFirst({
-      where: {
-        id: payload.sub,
-        tenantId: payload.tenantId
-      },
+      where: this.buildUserWhereForTenant(payload.tenantId, {
+        id: payload.sub
+      }),
       include: {
         roles: {
           include: {
@@ -265,6 +261,24 @@ export class AuthService {
         }
       }
     });
+  }
+
+  private buildUserWhere(where: Prisma.UserWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.UserWhereInput;
+  }
+
+  private buildUserWhereForTenant(
+    tenantId: string,
+    where: Prisma.UserWhereInput = {}
+  ) {
+    return this.tenantScope.buildWhereForTenant(
+      where,
+      tenantId,
+      'tenantId'
+    ) as Prisma.UserWhereInput;
   }
 
   private toAccessSnapshot(user: AuthUserRecord) {

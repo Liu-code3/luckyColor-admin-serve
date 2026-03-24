@@ -132,8 +132,6 @@ export class DepartmentsService {
   }
 
   async create(dto: CreateDepartmentDto) {
-    const tenantId = this.tenantScope.resolveRequiredTenantValue();
-
     try {
       const department = await this.prisma.$transaction(
         async (tx) => {
@@ -145,9 +143,8 @@ export class DepartmentsService {
           );
 
           const created = await tx.department.create({
-            data: {
+            data: this.tenantScope.buildRequiredData({
               id: dto.id,
-              tenantId,
               parentId: dto.parentId ?? null,
               name: dto.name,
               code: dto.code,
@@ -157,7 +154,7 @@ export class DepartmentsService {
               sort: dto.sort ?? 0,
               status: dto.status ?? true,
               remark: dto.remark ?? null
-            }
+            })
           });
 
           if (dto.sort !== undefined) {
@@ -248,15 +245,15 @@ export class DepartmentsService {
   }
 
   async findDescendantDepartmentIds(id: number) {
-    const tenantId = this.tenantScope.requireTenantId();
-    return this.findDescendantDepartmentIdsByTenant(tenantId, id);
+    return this.findDescendantDepartmentIdsByTenant(
+      this.tenantScope.requireTenantId(),
+      id
+    );
   }
 
   async findDescendantDepartmentIdsByTenant(tenantId: string, id: number) {
     const departments = await this.prisma.department.findMany({
-      where: {
-        tenantId
-      },
+      where: this.buildDepartmentWhereForTenant(tenantId),
       select: {
         id: true,
         parentId: true
@@ -287,6 +284,17 @@ export class DepartmentsService {
   private buildDepartmentWhere(where: Prisma.DepartmentWhereInput = {}) {
     return this.tenantScope.buildRequiredWhere(
       where,
+      'tenantId'
+    ) as Prisma.DepartmentWhereInput;
+  }
+
+  private buildDepartmentWhereForTenant(
+    tenantId: string,
+    where: Prisma.DepartmentWhereInput = {}
+  ) {
+    return this.tenantScope.buildWhereForTenant(
+      where,
+      tenantId,
       'tenantId'
     ) as Prisma.DepartmentWhereInput;
   }

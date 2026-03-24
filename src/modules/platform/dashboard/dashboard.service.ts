@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { successResponse } from '../../../shared/api/api-response';
@@ -18,7 +19,6 @@ export class DashboardService {
   ) {}
 
   async overview(user: JwtPayload) {
-    const tenantId = this.tenantScope.requireTenantId();
     const now = new Date();
     const todayStart = this.getDayStart(now);
     const onlineThreshold = new Date(now.getTime() - ONLINE_WINDOW_MS);
@@ -27,40 +27,34 @@ export class DashboardService {
     const [currentUser, todayVisits, onlineVisits, trendVisits, recentVisitRows] =
       await this.prisma.$transaction([
         this.prisma.user.findFirst({
-          where: {
-            id: user.sub,
-            tenantId
-          }
+          where: this.buildUserWhere({ id: user.sub })
         }),
         this.prisma.dashboardVisit.findMany({
-          where: {
-            tenantId,
+          where: this.buildDashboardVisitWhere({
             visitedAt: {
               gte: todayStart
             }
-          },
+          }),
           select: {
             visitorId: true
           }
         }),
         this.prisma.dashboardVisit.findMany({
-          where: {
-            tenantId,
+          where: this.buildDashboardVisitWhere({
             visitedAt: {
               gte: onlineThreshold
             }
-          },
+          }),
           select: {
             sessionId: true
           }
         }),
         this.prisma.dashboardVisit.findMany({
-          where: {
-            tenantId,
+          where: this.buildDashboardVisitWhere({
             visitedAt: {
               gte: trendStart
             }
-          },
+          }),
           orderBy: {
             visitedAt: 'asc'
           },
@@ -70,10 +64,9 @@ export class DashboardService {
           }
         }),
         this.prisma.dashboardVisit.findMany({
-          where: {
-            tenantId,
+          where: this.buildDashboardVisitWhere({
             userId: user.sub
-          },
+          }),
           orderBy: {
             visitedAt: 'desc'
           },
@@ -87,7 +80,7 @@ export class DashboardService {
         })
       ]);
 
-    const notices = await this.loadDashboardNotices(tenantId);
+    const notices = await this.loadDashboardNotices();
 
     const recentVisitMap = new Map<
       string,
@@ -142,15 +135,14 @@ export class DashboardService {
 
   async trackVisit(user: JwtPayload, dto: TrackDashboardVisitDto) {
     const visit = await this.prisma.dashboardVisit.create({
-      data: {
-        tenantId: this.tenantScope.requireTenantId(),
+      data: this.tenantScope.buildRequiredData({
         userId: user.sub,
         visitorId: dto.visitorId,
         sessionId: dto.sessionId,
         routePath: dto.routePath,
         routeTitle: dto.routeTitle,
         routeIcon: dto.routeIcon ?? null
-      }
+      })
     });
 
     return successResponse({
@@ -159,12 +151,9 @@ export class DashboardService {
     });
   }
 
-  private async loadDashboardNotices(tenantId: string) {
+  private async loadDashboardNotices() {
     const published = await this.prisma.notice.findMany({
-      where: {
-        tenantId,
-        status: true
-      },
+      where: this.buildNoticeWhere({ status: true }),
       orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
       take: NOTICE_LIMIT
     });
@@ -174,9 +163,7 @@ export class DashboardService {
     }
 
     const latest = await this.prisma.notice.findMany({
-      where: {
-        tenantId
-      },
+      where: this.buildNoticeWhere(),
       orderBy: {
         createdAt: 'desc'
       },
@@ -184,6 +171,27 @@ export class DashboardService {
     });
 
     return latest.map(item => this.toNoticeSummary(item));
+  }
+
+  private buildUserWhere(where: Prisma.UserWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.UserWhereInput;
+  }
+
+  private buildDashboardVisitWhere(where: Prisma.DashboardVisitWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.DashboardVisitWhereInput;
+  }
+
+  private buildNoticeWhere(where: Prisma.NoticeWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.NoticeWhereInput;
   }
 
   private buildTrend(

@@ -63,15 +63,14 @@ export class NoticesService {
   async create(dto: CreateNoticeDto) {
     const isPublished = dto.status ?? NOTICE_STATUS_DRAFT;
     const notice = await this.prisma.notice.create({
-      data: {
-        tenantId: this.tenantScope.resolveRequiredTenantValue(),
+      data: this.tenantScope.buildRequiredData({
         title: dto.title,
         content: dto.content,
         type: dto.type,
         status: isPublished,
         publisher: dto.publisher ?? null,
         publishedAt: this.resolvePublishedAt(dto.publishedAt, isPublished)
-      }
+      })
     });
 
     return successResponse(this.toNoticeResponse(notice));
