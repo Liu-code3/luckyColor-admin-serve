@@ -1,4 +1,5 @@
 export const SUPER_ADMIN_ROLE_CODE = 'super_admin';
+export const TENANT_ADMIN_ROLE_CODE = 'tenant_admin';
 
 export const ROLE_DATA_SCOPE_ALL = 'ALL';
 export const ROLE_DATA_SCOPE_DEPARTMENT = 'DEPARTMENT';

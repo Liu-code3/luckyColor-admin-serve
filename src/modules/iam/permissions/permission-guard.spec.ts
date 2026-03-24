@@ -1,6 +1,7 @@
 import { Reflector } from '@nestjs/core';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { TenantActorService } from '../../tenant/tenants/tenant-actor.service';
 import { PermissionGuard } from './permission-guard';
 
 describe('PermissionGuard', () => {
@@ -23,6 +24,7 @@ describe('PermissionGuard', () => {
   function createGuard(requirement?: {
     permissions: string[];
     mode: 'ANY' | 'ALL';
+    boundary?: 'ANY' | 'PLATFORM_ADMIN';
     denialCode?: number;
   }) {
     const reflector = {
@@ -33,14 +35,21 @@ describe('PermissionGuard', () => {
         findFirst: jest.fn()
       }
     };
+    const tenantActor = {
+      isPlatformAdmin: jest.fn((roleCodes: string[]) =>
+        roleCodes.includes('super_admin')
+      )
+    };
 
     return {
       guard: new PermissionGuard(
         reflector as unknown as Reflector,
-        prisma as never
+        prisma as never,
+        tenantActor as unknown as TenantActorService
       ),
       reflector,
-      prisma
+      prisma,
+      tenantActor
     };
   }
 
@@ -90,6 +99,38 @@ describe('PermissionGuard', () => {
         })
       )
     ).resolves.toBe(true);
+  });
+
+  it('blocks tenant admin from platform-only routes even when menu permission matches', async () => {
+    const { guard, prisma } = createGuard({
+      permissions: ['main_system_tenant'],
+      mode: 'ANY',
+      boundary: 'PLATFORM_ADMIN',
+      denialCode: BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED
+    });
+    prisma.user.findFirst.mockResolvedValue({
+      roles: [
+        {
+          role: {
+            code: 'tenant_admin',
+            status: true,
+            menus: [{ menu: { menuKey: 'main_system_tenant', status: true } }]
+          }
+        }
+      ]
+    });
+
+    await expect(
+      guard.canActivate(
+        createExecutionContext({
+          sub: 'user-6',
+          tenantId: 'tenant_001',
+          username: 'tenant-admin'
+        })
+      )
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED)
+    );
   });
 
   it('allows access when any configured permission matches', async () => {

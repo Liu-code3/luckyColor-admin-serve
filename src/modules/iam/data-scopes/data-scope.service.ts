@@ -8,9 +8,9 @@ import {
   ROLE_DATA_SCOPE_CUSTOM,
   ROLE_DATA_SCOPE_DEPARTMENT,
   ROLE_DATA_SCOPE_DEPARTMENT_AND_CHILDREN,
-  ROLE_DATA_SCOPE_SELF,
-  SUPER_ADMIN_ROLE_CODE
+  ROLE_DATA_SCOPE_SELF
 } from '../../../shared/constants/access.constants';
+import { TenantActorService } from '../../tenant/tenants/tenant-actor.service';
 import { DepartmentsService } from '../../system/departments/departments.service';
 import type { JwtPayload } from '../auth/jwt-payload.interface';
 import type { RoleDataScope } from '../../system/roles/roles.constants';
@@ -47,7 +47,8 @@ export interface DataScopeProfile {
 export class DataScopeService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly departmentsService: DepartmentsService
+    private readonly departmentsService: DepartmentsService,
+    private readonly tenantActor: TenantActorService
   ) {}
 
   async resolveProfile(user: JwtPayload): Promise<DataScopeProfile> {
@@ -143,7 +144,13 @@ export class DataScopeService {
       throw new BusinessException(BUSINESS_ERROR_CODES.DATA_SCOPE_DENIED);
     }
 
-    if (activeRoles.some((role) => role.code === SUPER_ADMIN_ROLE_CODE)) {
+    if (
+      this.tenantActor.isPlatformAdmin(
+        activeRoles
+          .map((role) => role.code)
+          .filter((code): code is string => Boolean(code))
+      )
+    ) {
       return {
         scope: ROLE_DATA_SCOPE_ALL,
         departmentIds: [],

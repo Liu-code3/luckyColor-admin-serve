@@ -12,14 +12,21 @@ describe('DataScopeService', () => {
     const departmentsService = {
       findDescendantDepartmentIdsByTenant: jest.fn()
     };
+    const tenantActor = {
+      isPlatformAdmin: jest.fn((roleCodes: string[]) =>
+        roleCodes.includes('super_admin')
+      )
+    };
 
     return {
       service: new DataScopeService(
         prisma as never,
-        departmentsService as never
+        departmentsService as never,
+        tenantActor as never
       ),
       prisma,
-      departmentsService
+      departmentsService,
+      tenantActor
     };
   }
 

@@ -6,6 +6,8 @@ import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
+import type { JwtPayload } from '../../iam/auth/jwt-payload.interface';
+import { TenantActorService } from '../../tenant/tenants/tenant-actor.service';
 import {
   MENU_TYPE_BUTTON
 } from '../../../shared/constants/menu.constants';
@@ -22,7 +24,8 @@ import {
 export class MenusService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly tenantScope: TenantPrismaScopeService
+    private readonly tenantScope: TenantPrismaScopeService,
+    private readonly tenantActor: TenantActorService
   ) {}
 
   async list(query: MenuListQueryDto) {
@@ -56,7 +59,14 @@ export class MenusService {
     });
   }
 
-  async tree(query: MenuTreeQueryDto) {
+  async tree(user: JwtPayload, query: MenuTreeQueryDto) {
+    if (query.view === 'platform') {
+      await this.tenantActor.assertPlatformAdmin(
+        user,
+        BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED
+      );
+    }
+
     const menus = await this.prisma.menu.findMany({
       orderBy: [{ sort: 'asc' }, { id: 'asc' }]
     });

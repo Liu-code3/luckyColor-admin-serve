@@ -63,6 +63,20 @@ describe('MenusService', () => {
     return prisma;
   }
 
+  function createTenantActorMock() {
+    return {
+      assertPlatformAdmin: jest.fn().mockResolvedValue(undefined)
+    };
+  }
+
+  function createCurrentUser() {
+    return {
+      sub: 'user-1',
+      tenantId: 'tenant_001',
+      username: 'admin'
+    };
+  }
+
   const createUniqueConstraintError = (target: string[]) =>
     new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
       code: 'P2002',
@@ -72,7 +86,11 @@ describe('MenusService', () => {
 
   it('uses created id as default sort when sort is omitted', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findFirst.mockResolvedValue(null);
     prisma.menu.findMany.mockResolvedValue([]);
 
@@ -124,7 +142,11 @@ describe('MenusService', () => {
 
   it('translates duplicate menu id conflicts into business errors', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findFirst.mockResolvedValue(null);
     prisma.menu.findMany.mockResolvedValue([]);
 
@@ -148,7 +170,11 @@ describe('MenusService', () => {
 
   it('rejects duplicate menu keys when creating menus', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findFirst.mockResolvedValue(
       createMenu({
         id: 999,
@@ -175,7 +201,11 @@ describe('MenusService', () => {
 
   it('applies status filter when querying menu list', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.count.mockResolvedValue(1);
     prisma.menu.findMany.mockResolvedValue([
       createMenu({
@@ -212,7 +242,11 @@ describe('MenusService', () => {
 
   it('rejects root button menus', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findFirst.mockResolvedValue(null);
 
     await expect(
@@ -234,7 +268,11 @@ describe('MenusService', () => {
 
   it('rejects menus under button parents', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findFirst.mockResolvedValue(null);
     prisma.menu.findMany.mockResolvedValue([
       createMenu({
@@ -267,7 +305,11 @@ describe('MenusService', () => {
 
   it('returns tenant scoped menu tree with ancestor nodes', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findMany.mockResolvedValue([
       createMenu({
         id: 1,
@@ -303,7 +345,7 @@ describe('MenusService', () => {
     ]);
     prisma.roleMenu.findMany.mockResolvedValue([{ menuId: 12 }]);
 
-    const response = await service.tree({
+    const response = await service.tree(createCurrentUser(), {
       view: 'tenant'
     });
 
@@ -329,9 +371,39 @@ describe('MenusService', () => {
     ]);
   });
 
+  it('blocks tenant admins from requesting platform menu tree view', async () => {
+    const prisma = createPrismaMock();
+    const tenantActor = {
+      assertPlatformAdmin: jest
+        .fn()
+        .mockRejectedValue(
+          new BusinessException(BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED)
+        )
+    };
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      tenantActor as never
+    );
+
+    await expect(
+      service.tree(createCurrentUser(), {
+        view: 'platform'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED)
+    );
+
+    expect(prisma.menu.findMany).not.toHaveBeenCalled();
+  });
+
   it('returns role scoped menu tree for current tenant', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findMany.mockResolvedValue([
       createMenu({
         id: 1,
@@ -359,7 +431,7 @@ describe('MenusService', () => {
       menus: [{ menuId: 5, menu: createMenu({ id: 5, parentId: 1 }) }]
     });
 
-    const response = await service.tree({
+    const response = await service.tree(createCurrentUser(), {
       roleId: 'role-1'
     });
 
@@ -385,12 +457,16 @@ describe('MenusService', () => {
 
   it('throws when role scoped tree target does not exist', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findMany.mockResolvedValue([]);
     prisma.role.findFirst.mockResolvedValue(null);
 
     await expect(
-      service.tree({
+      service.tree(createCurrentUser(), {
         roleId: 'missing-role'
       })
     ).rejects.toThrow(
@@ -400,7 +476,11 @@ describe('MenusService', () => {
 
   it('syncs menu parent and sort in batch', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findMany
       .mockResolvedValueOnce([
         createMenu({
@@ -481,7 +561,11 @@ describe('MenusService', () => {
 
   it('rejects sync when payload contains missing menus', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findMany.mockResolvedValue([
       createMenu({
         id: 1,
@@ -508,7 +592,11 @@ describe('MenusService', () => {
 
   it('rejects sync when payload contains duplicate menu ids', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
 
     await expect(
       service.sync({
@@ -532,7 +620,11 @@ describe('MenusService', () => {
 
   it('rejects sync when it creates descendant cycles', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findMany.mockResolvedValue([
       createMenu({
         id: 1,
@@ -574,7 +666,11 @@ describe('MenusService', () => {
 
   it('rejects moving a menu under its descendant', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findUnique.mockResolvedValue(
       createMenu({
         id: 1,
@@ -622,7 +718,11 @@ describe('MenusService', () => {
 
   it('cascades child menus when disabling a parent menu', async () => {
     const prisma = createPrismaMock();
-    const service = new MenusService(prisma as never, createTenantScope());
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
     prisma.menu.findUnique.mockResolvedValue(
       createMenu({
         id: 1,

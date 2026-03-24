@@ -6,8 +6,8 @@ import {
   BUSINESS_ERROR_CODES,
   type BusinessErrorCode
 } from '../../../shared/api/error-codes';
-import { SUPER_ADMIN_ROLE_CODE } from '../../../shared/constants/access.constants';
 import type { JwtPayload } from '../auth/jwt-payload.interface';
+import { TenantActorService } from '../../tenant/tenants/tenant-actor.service';
 import {
   PERMISSION_METADATA,
   type PermissionRequirement
@@ -21,7 +21,8 @@ interface RequestLike {
 export class PermissionGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly tenantActor: TenantActorService
   ) {}
 
   async canActivate(context: ExecutionContext) {
@@ -82,7 +83,21 @@ export class PermissionGuard implements CanActivate {
       throw new BusinessException(BUSINESS_ERROR_CODES.ROLE_DISABLED);
     }
 
-    if (activeRoles.some((role) => role.code === SUPER_ADMIN_ROLE_CODE)) {
+    const roleCodes = activeRoles
+      .map((role) => role.code)
+      .filter((code): code is string => Boolean(code));
+
+    if (
+      requirement.boundary === 'PLATFORM_ADMIN' &&
+      !this.tenantActor.isPlatformAdmin(roleCodes)
+    ) {
+      throw new BusinessException(
+        (requirement.denialCode as BusinessErrorCode | undefined) ??
+          BUSINESS_ERROR_CODES.PERMISSION_DENIED
+      );
+    }
+
+    if (this.tenantActor.isPlatformAdmin(roleCodes)) {
       return true;
     }
 

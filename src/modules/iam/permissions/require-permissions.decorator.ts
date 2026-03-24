@@ -9,6 +9,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionGuard } from './permission-guard';
 import {
   PERMISSION_METADATA,
+  type PermissionBoundary,
+  type PermissionMatchMode,
   type PermissionRequirement
 } from './permissions.constants';
 
@@ -26,127 +28,106 @@ function createForbiddenExamples(
     {
       name: 'roleDisabled',
       code: BUSINESS_ERROR_CODES.ROLE_DISABLED,
-      summary: '当前账号角色已失效'
+      summary: '褰撳墠璐﹀彿瑙掕壊宸插け鏁?'
     },
     {
       name: 'tenantDisabled',
       code: BUSINESS_ERROR_CODES.TENANT_DISABLED,
-      summary: '当前租户已被禁用'
+      summary: '褰撳墠绉熸埛宸茶绂佺敤'
     },
     {
       name: 'tenantExpired',
       code: BUSINESS_ERROR_CODES.TENANT_EXPIRED,
-      summary: '当前租户已过期'
+      summary: '褰撳墠绉熸埛宸茶繃鏈?'
     },
     {
       name: 'tenantAccessDenied',
       code: BUSINESS_ERROR_CODES.TENANT_ACCESS_DENIED,
-      summary: '当前账号不能访问该租户'
+      summary: '褰撳墠璐﹀彿涓嶈兘璁块棶璇ョ鎴?'
     }
   ];
 }
 
-export function RequirePermissions(...permissions: string[]) {
+function createPermissionDecorator(config: {
+  permissions: string[];
+  mode: PermissionMatchMode;
+  denialCode: number;
+  denialName: string;
+  denialSummary: string;
+  boundary?: PermissionBoundary;
+}) {
   return applyDecorators(
     ApiBearerAuth(),
     ApiUnauthorizedErrorResponse({
-      description: '登录态异常响应',
+      description: '鐧诲綍鎬佸紓甯稿搷搴?',
       examples: [
         {
           name: 'tokenExpired',
           code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-          summary: '登录已过期'
+          summary: '鐧诲綍宸茶繃鏈?'
         },
         {
           name: 'tokenInvalid',
           code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
-          summary: '登录状态无效'
+          summary: '鐧诲綍鐘舵€佹棤鏁?'
         }
       ]
     }),
     ApiForbiddenErrorResponse({
-      description: '当前账号没有访问该接口的权限',
+      description: '褰撳墠璐﹀彿娌℃湁璁块棶璇ユ帴鍙ｇ殑鏉冮檺',
       examples: createForbiddenExamples(
-        BUSINESS_ERROR_CODES.PERMISSION_DENIED,
-        'permissionDenied',
-        '当前账号没有此操作权限'
+        config.denialCode,
+        config.denialName,
+        config.denialSummary
       )
     }),
     UseGuards(JwtAuthGuard, PermissionGuard),
     SetMetadata(PERMISSION_METADATA, {
-      permissions,
-      mode: 'ANY',
-      denialCode: BUSINESS_ERROR_CODES.PERMISSION_DENIED
+      permissions: config.permissions,
+      mode: config.mode,
+      boundary: config.boundary ?? 'ANY',
+      denialCode: config.denialCode
     } satisfies PermissionRequirement)
   );
+}
+
+export function RequirePermissions(...permissions: string[]) {
+  return createPermissionDecorator({
+    permissions,
+    mode: 'ANY',
+    denialCode: BUSINESS_ERROR_CODES.PERMISSION_DENIED,
+    denialName: 'permissionDenied',
+    denialSummary: '褰撳墠璐﹀彿娌℃湁姝ゆ搷浣滄潈闄?'
+  });
 }
 
 export function RequireAllPermissions(...permissions: string[]) {
-  return applyDecorators(
-    ApiBearerAuth(),
-    ApiUnauthorizedErrorResponse({
-      description: '登录态异常响应',
-      examples: [
-        {
-          name: 'tokenExpired',
-          code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-          summary: '登录已过期'
-        },
-        {
-          name: 'tokenInvalid',
-          code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
-          summary: '登录状态无效'
-        }
-      ]
-    }),
-    ApiForbiddenErrorResponse({
-      description: '当前账号没有访问该接口的权限',
-      examples: createForbiddenExamples(
-        BUSINESS_ERROR_CODES.PERMISSION_DENIED,
-        'permissionDenied',
-        '当前账号没有此操作权限'
-      )
-    }),
-    UseGuards(JwtAuthGuard, PermissionGuard),
-    SetMetadata(PERMISSION_METADATA, {
-      permissions,
-      mode: 'ALL',
-      denialCode: BUSINESS_ERROR_CODES.PERMISSION_DENIED
-    } satisfies PermissionRequirement)
-  );
+  return createPermissionDecorator({
+    permissions,
+    mode: 'ALL',
+    denialCode: BUSINESS_ERROR_CODES.PERMISSION_DENIED,
+    denialName: 'permissionDenied',
+    denialSummary: '褰撳墠璐﹀彿娌℃湁姝ゆ搷浣滄潈闄?'
+  });
 }
 
 export function RequireMenuPermission(...permissions: string[]) {
-  return applyDecorators(
-    ApiBearerAuth(),
-    ApiUnauthorizedErrorResponse({
-      description: '登录态异常响应',
-      examples: [
-        {
-          name: 'tokenExpired',
-          code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-          summary: '登录已过期'
-        },
-        {
-          name: 'tokenInvalid',
-          code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
-          summary: '登录状态无效'
-        }
-      ]
-    }),
-    ApiForbiddenErrorResponse({
-      description: '当前账号没有访问该菜单的权限',
-      examples: createForbiddenExamples(
-        BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED,
-        'menuPermissionDenied',
-        '当前账号没有此菜单权限'
-      )
-    }),
-    UseGuards(JwtAuthGuard, PermissionGuard),
-    SetMetadata(PERMISSION_METADATA, {
-      permissions,
-      mode: 'ANY',
-      denialCode: BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED
-    } satisfies PermissionRequirement)
-  );
+  return createPermissionDecorator({
+    permissions,
+    mode: 'ANY',
+    denialCode: BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED,
+    denialName: 'menuPermissionDenied',
+    denialSummary: '褰撳墠璐﹀彿娌℃湁姝よ彍鍗曟潈闄?'
+  });
+}
+
+export function RequirePlatformMenuPermission(...permissions: string[]) {
+  return createPermissionDecorator({
+    permissions,
+    mode: 'ANY',
+    boundary: 'PLATFORM_ADMIN',
+    denialCode: BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED,
+    denialName: 'menuPermissionDenied',
+    denialSummary: '褰撳墠璐﹀彿娌℃湁骞冲彴绠＄悊渚ц彍鍗曟潈闄?'
+  });
 }

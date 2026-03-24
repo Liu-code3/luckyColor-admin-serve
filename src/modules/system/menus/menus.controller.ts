@@ -23,6 +23,8 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
+import { CurrentUser } from '../../iam/auth/current-user.decorator';
+import type { JwtPayload } from '../../iam/auth/jwt-payload.interface';
 import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateMenuDto,
@@ -206,8 +208,8 @@ export class MenusController {
     ]
   })
   @Get('tree')
-  tree(@Query() query: MenuTreeQueryDto) {
-    return this.menusService.tree(query);
+  tree(@CurrentUser() user: JwtPayload, @Query() query: MenuTreeQueryDto) {
+    return this.menusService.tree(user, query);
   }
 
   @ApiOperation({
