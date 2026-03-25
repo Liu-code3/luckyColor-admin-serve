@@ -176,6 +176,12 @@ export class RoleAssignedMenuResponseDto {
   key!: string;
 
   @ApiProperty({
+    description: '权限点编码',
+    example: 'system:root'
+  })
+  permissionCode!: string;
+
+  @ApiProperty({
     description: '是否显示',
     example: true
   })

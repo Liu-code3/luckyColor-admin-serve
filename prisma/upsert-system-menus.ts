@@ -29,6 +29,7 @@ async function main() {
         type: item.type,
         path: item.path,
         menuKey: item.menuKey,
+        permissionCode: item.permissionCode ?? item.menuKey,
         icon: item.icon,
         layout: item.layout,
         isVisible: item.isVisible,
@@ -45,6 +46,7 @@ async function main() {
         type: item.type,
         path: item.path,
         menuKey: item.menuKey,
+        permissionCode: item.permissionCode ?? item.menuKey,
         icon: item.icon,
         layout: item.layout,
         isVisible: item.isVisible,
@@ -108,12 +110,54 @@ async function main() {
   );
 
   const allRoleMenuRows = [...roleMenuRows, ...tenantCenterParentRows];
+  const affectedRoleIds = Array.from(
+    new Set(allRoleMenuRows.map((item) => item.roleId))
+  );
 
   if (allRoleMenuRows.length > 0) {
     await prisma.roleMenu.createMany({
       data: allRoleMenuRows,
       skipDuplicates: true
     });
+  }
+
+  if (affectedRoleIds.length > 0) {
+    const roleMenus = await prisma.roleMenu.findMany({
+      where: {
+        roleId: {
+          in: affectedRoleIds
+        }
+      },
+      include: {
+        menu: {
+          select: {
+            menuKey: true,
+            permissionCode: true
+          }
+        }
+      }
+    });
+
+    await prisma.rolePermission.deleteMany({
+      where: {
+        roleId: {
+          in: affectedRoleIds
+        }
+      }
+    });
+
+    const rolePermissionRows = roleMenus.map((item) => ({
+      tenantId: item.tenantId,
+      roleId: item.roleId,
+      permissionCode: item.menu.permissionCode ?? item.menu.menuKey
+    }));
+
+    if (rolePermissionRows.length > 0) {
+      await prisma.rolePermission.createMany({
+        data: rolePermissionRows,
+        skipDuplicates: true
+      });
+    }
   }
 
   console.log(

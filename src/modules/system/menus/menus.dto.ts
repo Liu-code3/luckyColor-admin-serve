@@ -138,6 +138,14 @@ export class CreateMenuDto {
   menuKey!: string;
 
   @ApiPropertyOptional({
+    description: '权限点编码，不传时默认等于 menuKey',
+    example: 'system:user:list'
+  })
+  @IsOptional()
+  @IsString()
+  permissionCode?: string;
+
+  @ApiPropertyOptional({
     description: '图标名称',
     example: 'UserOutlined'
   })
@@ -260,6 +268,14 @@ export class UpdateMenuDto {
   @IsOptional()
   @IsString()
   menuKey?: string;
+
+  @ApiPropertyOptional({
+    description: '权限点编码，不传时沿用当前值；传空字符串时会回退为当前 menuKey',
+    example: 'system:user:list'
+  })
+  @IsOptional()
+  @IsString()
+  permissionCode?: string;
 
   @ApiPropertyOptional({
     description: '图标名称',

@@ -82,6 +82,10 @@ describe('RolesService', () => {
         deleteMany: jest.fn(),
         createMany: jest.fn()
       },
+      rolePermission: {
+        deleteMany: jest.fn(),
+        createMany: jest.fn()
+      },
       roleDepartmentScope: {
         deleteMany: jest.fn(),
         createMany: jest.fn()
@@ -151,6 +155,7 @@ describe('RolesService', () => {
             type: 1,
             path: '/system',
             key: 'system:root',
+            permissionCode: 'system:root',
             isVisible: true,
             sort: 1
           },
@@ -162,6 +167,7 @@ describe('RolesService', () => {
             type: 2,
             path: '/system/notices',
             key: 'system:notice:list',
+            permissionCode: 'system:notice:list',
             isVisible: true,
             sort: 11
           }
@@ -510,6 +516,25 @@ describe('RolesService', () => {
         { roleId: 'role-1', menuId: 11, tenantId: 'tenant_001' }
       ]
     });
+    expect(prisma.rolePermission.deleteMany).toHaveBeenCalledWith({
+      where: {
+        AND: [{ roleId: 'role-1' }, { tenantId: 'tenant_001' }]
+      }
+    });
+    expect(prisma.rolePermission.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          roleId: 'role-1',
+          permissionCode: 'system:root',
+          tenantId: 'tenant_001'
+        },
+        {
+          roleId: 'role-1',
+          permissionCode: 'system:notice:list',
+          tenantId: 'tenant_001'
+        }
+      ]
+    });
     expect(response.data.menuIds).toEqual([1, 11]);
   });
 
@@ -523,6 +548,12 @@ describe('RolesService', () => {
 
     expect(prisma.menu.findMany).not.toHaveBeenCalled();
     expect(prisma.roleMenu.createMany).not.toHaveBeenCalled();
+    expect(prisma.rolePermission.deleteMany).toHaveBeenCalledWith({
+      where: {
+        AND: [{ roleId: 'role-1' }, { tenantId: 'tenant_001' }]
+      }
+    });
+    expect(prisma.rolePermission.createMany).not.toHaveBeenCalled();
     expect(response).toEqual({
       code: 200,
       msg: 'success',

@@ -223,6 +223,7 @@ export class RolesController {
           type: 1,
           path: '/system',
           key: 'system:root',
+          permissionCode: 'system:root',
           isVisible: true,
           sort: 1
         },
@@ -234,6 +235,7 @@ export class RolesController {
           type: 2,
           path: '/system/notices',
           key: 'system:notice:list',
+          permissionCode: 'system:notice:list',
           isVisible: true,
           sort: 11
         }
@@ -582,6 +584,7 @@ export class RolesController {
           type: 1,
           path: '/system',
           key: 'system:root',
+          permissionCode: 'system:root',
           isVisible: true,
           sort: 1
         },
@@ -593,6 +596,7 @@ export class RolesController {
           type: 2,
           path: '/system/notices',
           key: 'system:notice:list',
+          permissionCode: 'system:notice:list',
           isVisible: true,
           sort: 11
         }

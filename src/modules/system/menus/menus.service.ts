@@ -11,6 +11,7 @@ import { TenantActorService } from '../../tenant/tenants/tenant-actor.service';
 import {
   MENU_TYPE_BUTTON
 } from '../../../shared/constants/menu.constants';
+import { normalizePermissionCode } from '../../iam/permissions/permission-code.util';
 import {
   CreateMenuDto,
   MenuListQueryDto,
@@ -112,6 +113,10 @@ export class MenusService {
               type: dto.type,
               path: dto.path,
               menuKey: dto.menuKey,
+              permissionCode: normalizePermissionCode(
+                dto.permissionCode,
+                dto.menuKey
+              ),
               icon: dto.icon ?? '',
               layout: dto.layout ?? '',
               isVisible: dto.isVisible,
@@ -149,6 +154,9 @@ export class MenusService {
 
   async update(id: number, dto: UpdateMenuDto) {
     const existing = await this.ensureMenuExists(id);
+    const shouldSyncRolePermissions =
+      dto.permissionCode !== undefined ||
+      (dto.menuKey !== undefined && dto.menuKey !== existing.menuKey);
 
     if (dto.menuKey) {
       await this.ensureMenuKeyAvailable(dto.menuKey, id);
@@ -163,14 +171,24 @@ export class MenusService {
     }
 
     const menu = await this.prisma.$transaction(
-      async (tx) =>
-        this.updateMenuWithStatus(tx, id, {
+      async (tx) => {
+        const affectedRoleIds = shouldSyncRolePermissions
+          ? await this.findAffectedRoleIds(tx, [id])
+          : [];
+        const updated = await this.updateMenuWithStatus(tx, id, {
           parentId: dto.parentId,
           title: dto.title,
           name: dto.name,
           type: dto.type,
           path: dto.path,
           menuKey: dto.menuKey,
+          permissionCode:
+            dto.permissionCode === undefined
+              ? undefined
+              : normalizePermissionCode(
+                  dto.permissionCode,
+                  dto.menuKey ?? existing.menuKey
+                ),
           icon: dto.icon,
           layout: dto.layout,
           isVisible: dto.isVisible,
@@ -184,7 +202,14 @@ export class MenusService {
                   | Prisma.NullableJsonNullValueInput),
           sort: dto.sort,
           status: dto.status
-        }),
+        });
+
+        if (affectedRoleIds.length > 0) {
+          await this.syncRolePermissionsForRoles(tx, affectedRoleIds);
+        }
+
+        return updated;
+      },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable
       }
@@ -219,11 +244,14 @@ export class MenusService {
         }
 
         const ids = this.collectMenuIds(id, menus);
+        const affectedRoleIds = await this.findAffectedRoleIds(tx, ids);
         await tx.menu.deleteMany({
           where: {
             id: { in: ids }
           }
         });
+
+        await this.syncRolePermissionsForRoles(tx, affectedRoleIds);
       },
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable
@@ -458,6 +486,88 @@ export class MenusService {
     ) as Prisma.RoleMenuWhereInput;
   }
 
+  private buildRolePermissionWhere(where: Prisma.RolePermissionWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.RolePermissionWhereInput;
+  }
+
+  private async findAffectedRoleIds(
+    tx: Pick<Prisma.TransactionClient, 'roleMenu'>,
+    menuIds: number[]
+  ) {
+    if (menuIds.length === 0) {
+      return [];
+    }
+
+    const roleMenus = await tx.roleMenu.findMany({
+      where: this.buildRoleMenuWhere({
+        menuId: {
+          in: menuIds
+        }
+      }),
+      select: {
+        roleId: true
+      }
+    });
+
+    return Array.from(new Set(roleMenus.map((item) => item.roleId)));
+  }
+
+  private async syncRolePermissionsForRoles(
+    tx: Pick<Prisma.TransactionClient, 'roleMenu' | 'rolePermission'>,
+    roleIds: string[]
+  ) {
+    if (roleIds.length === 0) {
+      return;
+    }
+
+    const uniqueRoleIds = Array.from(new Set(roleIds));
+    const roleMenus = await tx.roleMenu.findMany({
+      where: this.buildRoleMenuWhere({
+        roleId: {
+          in: uniqueRoleIds
+        }
+      }),
+      include: {
+        menu: {
+          select: {
+            menuKey: true,
+            permissionCode: true
+          }
+        }
+      }
+    });
+
+    await tx.rolePermission.deleteMany({
+      where: this.buildRolePermissionWhere({
+        roleId: {
+          in: uniqueRoleIds
+        }
+      })
+    });
+
+    const rolePermissionRows = roleMenus.map((item) =>
+      this.tenantScope.buildRequiredData({
+        roleId: item.roleId,
+        permissionCode: normalizePermissionCode(
+          item.menu.permissionCode,
+          item.menu.menuKey
+        )
+      })
+    );
+
+    if (rolePermissionRows.length === 0) {
+      return;
+    }
+
+    await tx.rolePermission.createMany({
+      data: rolePermissionRows,
+      skipDuplicates: true
+    });
+  }
+
   private collectMenuIds(
     rootId: number,
     menus: Array<{ id: number; parentId: number | null }>
@@ -555,6 +665,10 @@ export class MenusService {
       type: menu.type,
       path: menu.path,
       key: menu.menuKey,
+      permissionCode: normalizePermissionCode(
+        menu.permissionCode,
+        menu.menuKey
+      ),
       icon: menu.icon ?? '',
       layout: menu.layout ?? '',
       isVisible: menu.isVisible,

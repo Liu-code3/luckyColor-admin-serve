@@ -10,26 +10,36 @@ describe('MenusService', () => {
       getTenantId: jest.fn().mockReturnValue(tenantId)
     } as never);
 
-  const createMenu = (overrides: Partial<Record<string, unknown>> = {}) => ({
-    id: 301,
-    parentId: null,
-    title: 'Dashboard',
-    name: 'DashboardView',
-    type: 1,
-    path: '/dashboard',
-    menuKey: 'dashboard:view',
-    icon: '',
-    layout: '',
-    isVisible: true,
-    status: true,
-    component: 'dashboard/index',
-    redirect: null,
-    meta: null,
-    sort: 301,
-    createdAt: new Date('2026-03-23T02:10:00.000Z'),
-    updatedAt: new Date('2026-03-23T02:10:00.000Z'),
-    ...overrides
-  });
+  const createMenu = (overrides: Partial<Record<string, unknown>> = {}) => {
+    const menu: Record<string, unknown> = {
+      id: 301,
+      parentId: null,
+      title: 'Dashboard',
+      name: 'DashboardView',
+      type: 1,
+      path: '/dashboard',
+      menuKey: 'dashboard:view',
+      icon: '',
+      layout: '',
+      isVisible: true,
+      status: true,
+      component: 'dashboard/index',
+      redirect: null,
+      meta: null,
+      sort: 301,
+      createdAt: new Date('2026-03-23T02:10:00.000Z'),
+      updatedAt: new Date('2026-03-23T02:10:00.000Z'),
+      ...overrides
+    };
+
+    return {
+      ...menu,
+      permissionCode:
+        typeof menu.permissionCode === 'string'
+          ? menu.permissionCode
+          : (menu.menuKey as string)
+    };
+  };
 
   function createPrismaMock() {
     const prisma = {
@@ -48,6 +58,10 @@ describe('MenusService', () => {
       },
       roleMenu: {
         findMany: jest.fn()
+      },
+      rolePermission: {
+        deleteMany: jest.fn(),
+        createMany: jest.fn()
       },
       $transaction: jest.fn()
     };
@@ -120,6 +134,7 @@ describe('MenusService', () => {
         type: 1,
         path: '/dashboard',
         menuKey: 'dashboard:view',
+        permissionCode: 'dashboard:view',
         icon: '',
         layout: '',
         isVisible: true,
@@ -795,5 +810,72 @@ describe('MenusService', () => {
       }
     });
     expect(response.data.status).toBe(false);
+  });
+
+  it('rebuilds role permissions when menu permission code changes', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
+    prisma.menu.findUnique.mockResolvedValue(
+      createMenu({
+        id: 5,
+        parentId: 1,
+        type: 2,
+        title: '鐢ㄦ埛绠＄悊',
+        name: 'UserManage',
+        path: '/system/users',
+        menuKey: 'system:user:list'
+      })
+    );
+    prisma.roleMenu.findMany
+      .mockResolvedValueOnce([{ roleId: 'role-1' }])
+      .mockResolvedValueOnce([
+        {
+          tenantId: 'tenant_001',
+          roleId: 'role-1',
+          menu: {
+            menuKey: 'system:user:list',
+            permissionCode: 'iam:user:list'
+          }
+        }
+      ]);
+    prisma.menu.update.mockResolvedValue(
+      createMenu({
+        id: 5,
+        parentId: 1,
+        type: 2,
+        title: '鐢ㄦ埛绠＄悊',
+        name: 'UserManage',
+        path: '/system/users',
+        menuKey: 'system:user:list',
+        permissionCode: 'iam:user:list'
+      })
+    );
+    prisma.rolePermission.deleteMany.mockResolvedValue({ count: 1 });
+    prisma.rolePermission.createMany.mockResolvedValue({ count: 1 });
+
+    const response = await service.update(5, {
+      permissionCode: 'iam:user:list'
+    });
+
+    expect(prisma.rolePermission.deleteMany).toHaveBeenCalledWith({
+      where: {
+        AND: [{ roleId: { in: ['role-1'] } }, { tenantId: 'tenant_001' }]
+      }
+    });
+    expect(prisma.rolePermission.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          roleId: 'role-1',
+          permissionCode: 'iam:user:list',
+          tenantId: 'tenant_001'
+        }
+      ],
+      skipDuplicates: true
+    });
+    expect(response.data.permissionCode).toBe('iam:user:list');
   });
 });

@@ -6,6 +6,7 @@ interface MenuSeedItem {
   type: number;
   path: string;
   menuKey: string;
+  permissionCode?: string;
   icon: string;
   layout: string;
   isVisible: boolean;

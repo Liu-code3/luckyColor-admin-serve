@@ -114,6 +114,7 @@ async function main() {
       type: item.type,
       path: item.path,
       menuKey: item.menuKey,
+      permissionCode: item.permissionCode ?? item.menuKey,
       icon: item.icon,
       layout: item.layout,
       isVisible: item.isVisible,
@@ -141,10 +142,21 @@ async function main() {
     roleIdByCode,
     menuSeedData.map((item) => item.id)
   );
+  const rolePermissionAssignments = buildRolePermissionAssignments(
+    roleMenuAssignments,
+    menuSeedData
+  );
 
   if (roleMenuAssignments.length > 0) {
     await prisma.roleMenu.createMany({
       data: roleMenuAssignments
+    });
+  }
+
+  if (rolePermissionAssignments.length > 0) {
+    await prisma.rolePermission.createMany({
+      data: rolePermissionAssignments,
+      skipDuplicates: true
     });
   }
 
@@ -233,6 +245,45 @@ function buildRoleMenuAssignments(
       menuId
     }))
   );
+}
+
+function buildRolePermissionAssignments(
+  roleMenuAssignments: Array<{
+    roleId: string;
+    tenantId: string;
+    menuId: number;
+  }>,
+  menus: Array<{
+    id: number;
+    menuKey: string;
+    permissionCode?: string;
+  }>
+) {
+  const permissionCodeByMenuId = new Map(
+    menus.map((menu) => [menu.id, menu.permissionCode ?? menu.menuKey])
+  );
+  const seenAssignments = new Set<string>();
+
+  return roleMenuAssignments.flatMap((assignment) => {
+    const permissionCode = permissionCodeByMenuId.get(assignment.menuId);
+
+    if (!permissionCode) {
+      return [];
+    }
+
+    const assignmentKey = `${assignment.roleId}:${permissionCode}`;
+    if (seenAssignments.has(assignmentKey)) {
+      return [];
+    }
+
+    seenAssignments.add(assignmentKey);
+
+    return {
+      roleId: assignment.roleId,
+      tenantId: assignment.tenantId,
+      permissionCode
+    };
+  });
 }
 
 function assertSubset<T extends string | number>(

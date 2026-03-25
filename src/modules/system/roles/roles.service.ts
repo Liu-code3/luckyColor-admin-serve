@@ -6,6 +6,7 @@ import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
+import { normalizePermissionCode } from '../../iam/permissions/permission-code.util';
 import {
   ROLE_DATA_SCOPE_ALL,
   ROLE_DATA_SCOPE_CUSTOM
@@ -255,6 +256,8 @@ export class RolesService {
         });
       }
 
+      await this.syncRolePermissions(tx, id, menus);
+
       return successResponse(this.toRoleMenuAssignmentResponse(role, menus));
     });
   }
@@ -308,6 +311,13 @@ export class RolesService {
       where,
       'tenantId'
     ) as Prisma.RoleMenuWhereInput;
+  }
+
+  private buildRolePermissionWhere(where: Prisma.RolePermissionWhereInput = {}) {
+    return this.tenantScope.buildRequiredWhere(
+      where,
+      'tenantId'
+    ) as Prisma.RolePermissionWhereInput;
   }
 
   private buildRoleDepartmentScopeWhere(
@@ -376,6 +386,37 @@ export class RolesService {
         )
       });
     }
+  }
+
+  private async syncRolePermissions(
+    tx: Pick<Prisma.TransactionClient, 'rolePermission'>,
+    roleId: string,
+    menus: Prisma.MenuGetPayload<Record<string, never>>[]
+  ) {
+    const permissionCodes = Array.from(
+      new Set(
+        menus.map((menu) =>
+          normalizePermissionCode(menu.permissionCode, menu.menuKey)
+        )
+      )
+    );
+
+    await tx.rolePermission.deleteMany({
+      where: this.buildRolePermissionWhere({ roleId })
+    });
+
+    if (permissionCodes.length === 0) {
+      return;
+    }
+
+    await tx.rolePermission.createMany({
+      data: permissionCodes.map((permissionCode) =>
+        this.tenantScope.buildRequiredData({
+          roleId,
+          permissionCode
+        })
+      )
+    });
   }
 
   private findRoleWithDataScope(
@@ -461,6 +502,10 @@ export class RolesService {
       type: menu.type,
       path: menu.path,
       key: menu.menuKey,
+      permissionCode: normalizePermissionCode(
+        menu.permissionCode,
+        menu.menuKey
+      ),
       isVisible: menu.isVisible,
       sort: menu.sort
     };

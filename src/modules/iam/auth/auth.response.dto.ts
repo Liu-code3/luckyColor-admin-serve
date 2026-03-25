@@ -129,6 +129,7 @@ export class AuthRouteItemResponseDto {
       hidden: false,
       order: 1,
       menuKey: 'main_system',
+      permissionCode: 'main_system',
       type: 1,
       layout: 'default',
       keepAlive: true

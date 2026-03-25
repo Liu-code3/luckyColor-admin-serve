@@ -28,7 +28,11 @@ describe('AuthService', () => {
     sort: 4,
     createdAt: new Date('2026-03-22T14:30:00.000Z'),
     updatedAt: new Date('2026-03-22T14:30:00.000Z'),
-    ...overrides
+    ...overrides,
+    permissionCode:
+      (overrides.permissionCode as string | undefined) ??
+      (overrides.menuKey as string | undefined) ??
+      'main_system'
   });
 
   const createRole = (overrides: Partial<Record<string, unknown>> = {}) => ({
@@ -571,6 +575,7 @@ describe('AuthService', () => {
             hidden: false,
             order: 4,
             menuKey: 'main_system',
+            permissionCode: 'main_system',
             type: 1,
             keepAlive: false
           },
@@ -586,6 +591,7 @@ describe('AuthService', () => {
                 hidden: false,
                 order: 5,
                 menuKey: 'main_system_users',
+                permissionCode: 'main_system_users',
                 type: 2,
                 keepAlive: true
               }
@@ -775,6 +781,7 @@ describe('AuthService', () => {
           hidden: false,
           order: 4,
           menuKey: 'main_system',
+          permissionCode: 'main_system',
           type: 1
         }
       }

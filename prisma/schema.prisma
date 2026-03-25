@@ -139,6 +139,7 @@ model Menu {
   type      Int
   path      String
   menuKey   String     @map("menu_key")
+  permissionCode String? @map("permission_code")
   icon      String?
   layout    String?
   isVisible Boolean    @default(true) @map("is_visible")

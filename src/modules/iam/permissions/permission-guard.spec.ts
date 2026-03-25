@@ -161,6 +161,35 @@ describe('PermissionGuard', () => {
     ).resolves.toBe(true);
   });
 
+  it('allows access when permission comes from direct permission points', async () => {
+    const { guard, prisma } = createGuard({
+      permissions: ['tenant:package:assign'],
+      mode: 'ANY'
+    });
+    prisma.user.findFirst.mockResolvedValue({
+      roles: [
+        {
+          role: {
+            code: 'tenant_admin',
+            status: true,
+            permissions: [{ permissionCode: 'tenant:package:assign' }],
+            menus: []
+          }
+        }
+      ]
+    });
+
+    await expect(
+      guard.canActivate(
+        createExecutionContext({
+          sub: 'user-7',
+          tenantId: 'tenant_001',
+          username: 'tenant-admin'
+        })
+      )
+    ).resolves.toBe(true);
+  });
+
   it('denies access when required permissions are missing', async () => {
     const { guard, prisma } = createGuard({
       permissions: ['main_system_tenant_package'],
@@ -243,6 +272,45 @@ describe('PermissionGuard', () => {
       guard.canActivate(
         createExecutionContext({
           sub: 'user-5',
+          tenantId: 'tenant_001',
+          username: 'tenant-admin'
+        })
+      )
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.PERMISSION_DENIED)
+    );
+  });
+
+  it('does not grant disabled menu permissions even when mirrored in role permissions', async () => {
+    const { guard, prisma } = createGuard({
+      permissions: ['main_system_menu'],
+      mode: 'ANY'
+    });
+    prisma.user.findFirst.mockResolvedValue({
+      roles: [
+        {
+          role: {
+            code: 'tenant_admin',
+            status: true,
+            permissions: [{ permissionCode: 'main_system_menu' }],
+            menus: [
+              {
+                menu: {
+                  menuKey: 'main_system_menu',
+                  permissionCode: 'main_system_menu',
+                  status: false
+                }
+              }
+            ]
+          }
+        }
+      ]
+    });
+
+    await expect(
+      guard.canActivate(
+        createExecutionContext({
+          sub: 'user-7',
           tenantId: 'tenant_001',
           username: 'tenant-admin'
         })

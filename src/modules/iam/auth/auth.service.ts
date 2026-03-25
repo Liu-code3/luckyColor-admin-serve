@@ -6,6 +6,7 @@ import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { AppConfigService } from '../../../shared/config/app-config.service';
 import { MENU_TYPE_BUTTON } from '../../../shared/constants/menu.constants';
+import { resolvePermissionCode } from '../permissions/permission-code.util';
 import { AuthLoginService } from './auth-login.service';
 import { AuthButtonPermissionQueryDto, LoginDto } from './auth.dto';
 import type { JwtPayload } from './jwt-payload.interface';
@@ -155,10 +156,10 @@ export class AuthService {
         roleCodes: roles.map((item) => item.code),
         menuCodeList: menus
           .filter((item) => item.type !== MENU_TYPE_BUTTON)
-          .map((item) => item.menuKey),
+          .map((item) => resolvePermissionCode(item)),
         buttonCodeList: menus
           .filter((item) => item.type === MENU_TYPE_BUTTON)
-          .map((item) => item.menuKey)
+          .map((item) => resolvePermissionCode(item))
       },
       roles: roles.map((item) => ({
         id: item.id,
@@ -369,6 +370,7 @@ export class AuthService {
       hidden: !menu.isVisible,
       order: menu.sort,
       menuKey: menu.menuKey,
+      permissionCode: resolvePermissionCode(menu),
       type: menu.type,
       layout: menu.layout || undefined,
       ...((menu.meta as Record<string, unknown> | null) ?? {})

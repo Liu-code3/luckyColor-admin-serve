@@ -8,6 +8,7 @@ import {
 } from '../../../shared/api/error-codes';
 import type { JwtPayload } from '../auth/jwt-payload.interface';
 import { TenantActorService } from '../../tenant/tenants/tenant-actor.service';
+import { collectGrantedPermissionCodes } from './permission-point.util';
 import {
   PERMISSION_METADATA,
   type PermissionRequirement
@@ -54,11 +55,17 @@ export class PermissionGuard implements CanActivate {
               select: {
                 code: true,
                 status: true,
+                permissions: {
+                  select: {
+                    permissionCode: true
+                  }
+                },
                 menus: {
                   select: {
                     menu: {
                       select: {
                         menuKey: true,
+                        permissionCode: true,
                         status: true
                       }
                     }
@@ -101,14 +108,7 @@ export class PermissionGuard implements CanActivate {
       return true;
     }
 
-    const permissionSet = new Set(
-      activeRoles.flatMap((role) =>
-        role.menus
-          .filter((item) => item.menu.status)
-          .map((item) => item.menu.menuKey)
-          .filter(Boolean)
-      )
-    );
+    const permissionSet = collectGrantedPermissionCodes(activeRoles);
 
     const hasPermission =
       requirement.mode === 'ALL'

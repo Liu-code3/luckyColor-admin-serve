@@ -43,10 +43,16 @@ export class MenuItemResponseDto {
   path!: string;
 
   @ApiProperty({
-    description: '权限标识',
+    description: '菜单路由标识',
     example: 'system:user:list'
   })
   key!: string;
+
+  @ApiProperty({
+    description: '权限点编码',
+    example: 'system:user:list'
+  })
+  permissionCode!: string;
 
   @ApiPropertyOptional({
     description: '图标名称',
