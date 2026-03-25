@@ -21,7 +21,11 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
+import { SYSTEM_PERMISSION_POINTS } from '../../iam/permissions/permission-point-codes';
+import {
+  RequireMenuPermission,
+  RequirePermissions
+} from '../../iam/permissions/require-permissions.decorator';
 import {
   ConfigListQueryDto,
   CreateConfigDto,
@@ -180,6 +184,7 @@ export class ConfigsController {
     action: '创建配置',
     targets: [{ source: 'body', key: 'configKey', label: 'configKey' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.config.create)
   @Post()
   create(@Body() dto: CreateConfigDto) {
     return this.configsService.create(dto);
@@ -202,6 +207,7 @@ export class ConfigsController {
     module: '系统配置',
     action: '刷新配置缓存'
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.config.refreshCache)
   @Post('refresh-cache')
   refreshCache() {
     return this.configsService.refreshCache();
@@ -270,6 +276,7 @@ export class ConfigsController {
       { source: 'body', key: 'configKey', label: 'configKey' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.config.update)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateConfigDto) {
     return this.configsService.update(id, dto);
@@ -307,6 +314,7 @@ export class ConfigsController {
     action: '删除配置',
     targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.config.delete)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.configsService.remove(id);

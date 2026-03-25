@@ -22,7 +22,11 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
+import { SYSTEM_PERMISSION_POINTS } from '../../iam/permissions/permission-point-codes';
+import {
+  RequireMenuPermission,
+  RequirePermissions
+} from '../../iam/permissions/require-permissions.decorator';
 import {
   AssignRoleDataScopeDto,
   AssignRoleMenusDto,
@@ -323,6 +327,7 @@ export class RolesController {
     action: '创建角色',
     targets: [{ source: 'body', key: 'code', label: 'code' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.role.create)
   @Post()
   create(@Body() dto: CreateRoleDto) {
     return this.rolesService.create(dto);
@@ -406,6 +411,7 @@ export class RolesController {
       { source: 'body', key: 'code', label: 'code' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.role.update)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateRoleDto) {
     return this.rolesService.update(id, dto);
@@ -466,6 +472,7 @@ export class RolesController {
       { source: 'body', key: 'status', label: 'status' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.role.status)
   @Patch(':id/status')
   updateStatus(@Param('id') id: string, @Body() dto: UpdateRoleStatusDto) {
     return this.rolesService.updateStatus(id, dto);
@@ -548,6 +555,7 @@ export class RolesController {
       { source: 'body', key: 'dataScope', label: 'dataScope' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.role.dataScope)
   @Put(':id/data-scope')
   assignDataScope(
     @Param('id') id: string,
@@ -635,6 +643,7 @@ export class RolesController {
       { source: 'body', key: 'menuIds', label: 'menuIds' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.role.assignMenu)
   @Put(':id/menus')
   assignMenus(@Param('id') id: string, @Body() dto: AssignRoleMenusDto) {
     return this.rolesService.assignMenus(id, dto);
@@ -672,6 +681,7 @@ export class RolesController {
     action: '删除角色',
     targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.role.delete)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.rolesService.remove(id);

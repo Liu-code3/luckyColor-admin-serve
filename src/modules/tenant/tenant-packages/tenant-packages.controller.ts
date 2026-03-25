@@ -21,7 +21,11 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequirePlatformMenuPermission } from '../../iam/permissions/require-permissions.decorator';
+import { TENANT_PERMISSION_POINTS } from '../../iam/permissions/permission-point-codes';
+import {
+  RequirePermissions,
+  RequirePlatformMenuPermission
+} from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateTenantPackageDto,
   TenantPackageListQueryDto,
@@ -181,6 +185,7 @@ export class TenantPackagesController {
       }
     ]
   })
+  @RequirePermissions(TENANT_PERMISSION_POINTS.package.create)
   @Post()
   create(@Body() dto: CreateTenantPackageDto) {
     return this.tenantPackagesService.create(dto);
@@ -305,6 +310,7 @@ export class TenantPackagesController {
       }
     ]
   })
+  @RequirePermissions(TENANT_PERMISSION_POINTS.package.update)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateTenantPackageDto) {
     return this.tenantPackagesService.update(id, dto);
@@ -343,6 +349,7 @@ export class TenantPackagesController {
       }
     ]
   })
+  @RequirePermissions(TENANT_PERMISSION_POINTS.package.delete)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.tenantPackagesService.remove(id);

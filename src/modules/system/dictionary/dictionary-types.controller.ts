@@ -21,7 +21,11 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
+import { SYSTEM_PERMISSION_POINTS } from '../../iam/permissions/permission-point-codes';
+import {
+  RequireMenuPermission,
+  RequirePermissions
+} from '../../iam/permissions/require-permissions.decorator';
 import { SystemLog } from '../system-logs/system-log.decorator';
 import {
   CreateDictionaryTypeDto,
@@ -205,6 +209,7 @@ export class DictionaryTypesController {
     action: '创建字典类型',
     targets: [{ source: 'body', key: 'dictValue', label: 'dictValue' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.dictionaryType.create)
   @Post()
   create(@Body() dto: CreateDictionaryTypeDto) {
     return this.dictionaryTypesService.createType(dto);
@@ -279,6 +284,7 @@ export class DictionaryTypesController {
       { source: 'body', key: 'dictValue', label: 'dictValue' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.dictionaryType.update)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateDictionaryTypeDto) {
     return this.dictionaryTypesService.updateType(id, dto);
@@ -316,6 +322,7 @@ export class DictionaryTypesController {
     action: '删除字典类型',
     targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.dictionaryType.delete)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.dictionaryTypesService.removeType(id);

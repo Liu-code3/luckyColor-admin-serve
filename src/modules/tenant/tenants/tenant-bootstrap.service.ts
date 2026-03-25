@@ -12,6 +12,7 @@ import {
   buildDefaultTenantDepartments,
   buildDefaultTenantDictionaries,
   DEFAULT_TENANT_ROLE_MENU_KEYS,
+  DEFAULT_TENANT_ROLE_PERMISSION_CODES,
   DEFAULT_TENANT_ROLE_TEMPLATES
 } from './tenant-bootstrap.templates';
 
@@ -143,10 +144,29 @@ export class TenantBootstrapService {
           menuId
         }))
       );
+      const rolePermissionRows = roles.flatMap((role) => {
+        const permissionCodes =
+          DEFAULT_TENANT_ROLE_PERMISSION_CODES[
+            role.code as keyof typeof DEFAULT_TENANT_ROLE_PERMISSION_CODES
+          ] ?? [];
+
+        return permissionCodes.map((permissionCode: string) => ({
+          tenantId: tenant.id,
+          roleId: role.id,
+          permissionCode
+        }));
+      });
 
       if (roleMenuRows.length > 0) {
         await tx.roleMenu.createMany({
           data: roleMenuRows
+        });
+      }
+
+      if (rolePermissionRows.length > 0) {
+        await tx.rolePermission.createMany({
+          data: rolePermissionRows,
+          skipDuplicates: true
         });
       }
 
@@ -188,6 +208,9 @@ export class TenantBootstrapService {
             menuIds: Array.from(
               new Set(roleMenuRows.map((item) => item.menuId))
             ).sort((left, right) => left - right),
+            permissionCodes: Array.from(
+              new Set(rolePermissionRows.map((item) => item.permissionCode))
+            ).sort(),
             dictionaryIds: dictionaries.map((item) => item.id)
           }
         },

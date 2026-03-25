@@ -24,7 +24,11 @@ import {
 } from '../../../shared/swagger/swagger-response';
 import { CurrentUser } from '../../iam/auth/current-user.decorator';
 import type { JwtPayload } from '../../iam/auth/jwt-payload.interface';
-import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
+import { SYSTEM_PERMISSION_POINTS } from '../../iam/permissions/permission-point-codes';
+import {
+  RequireMenuPermission,
+  RequirePermissions
+} from '../../iam/permissions/require-permissions.decorator';
 import {
   AssignUserRolesDto,
   CreateUserDto,
@@ -264,6 +268,7 @@ export class UsersController {
     action: '创建用户',
     targets: [{ source: 'body', key: 'username', label: 'username' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.user.create)
   @Post()
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
@@ -321,6 +326,7 @@ export class UsersController {
       { source: 'body', key: 'username', label: 'username' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.user.update)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
     return this.usersService.update(id, dto);
@@ -379,6 +385,7 @@ export class UsersController {
       { source: 'body', key: 'status', label: 'status' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.user.status)
   @Patch(':id/status')
   updateStatus(@Param('id') id: string, @Body() dto: UpdateUserStatusDto) {
     return this.usersService.updateStatus(id, dto);
@@ -423,6 +430,7 @@ export class UsersController {
     action: '重置用户密码',
     targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.user.resetPassword)
   @Put(':id/reset-password')
   resetPassword(@Param('id') id: string, @Body() dto: ResetUserPasswordDto) {
     return this.usersService.resetPassword(id, dto);
@@ -503,6 +511,7 @@ export class UsersController {
       { source: 'body', key: 'roleIds', label: 'roleIds' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.user.assignRole)
   @Put(':id/roles')
   assignRoles(@Param('id') id: string, @Body() dto: AssignUserRolesDto) {
     return this.usersService.assignRoles(id, dto);
@@ -536,6 +545,7 @@ export class UsersController {
     action: '删除用户',
     targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.user.delete)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);

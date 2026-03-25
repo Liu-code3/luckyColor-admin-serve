@@ -21,7 +21,11 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
+import { SYSTEM_PERMISSION_POINTS } from '../../iam/permissions/permission-point-codes';
+import {
+  RequireMenuPermission,
+  RequirePermissions
+} from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateNoticeDto,
   NoticeListQueryDto,
@@ -169,6 +173,7 @@ export class NoticesController {
     action: '创建公告',
     targets: [{ source: 'body', key: 'title', label: 'title' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.notice.create)
   @Post()
   create(@Body() dto: CreateNoticeDto) {
     return this.noticesService.create(dto);
@@ -227,6 +232,7 @@ export class NoticesController {
       { source: 'body', key: 'title', label: 'title' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.notice.update)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateNoticeDto) {
     return this.noticesService.update(id, dto);
@@ -264,6 +270,7 @@ export class NoticesController {
     action: '删除公告',
     targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.notice.delete)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.noticesService.remove(id);

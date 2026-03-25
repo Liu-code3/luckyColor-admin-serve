@@ -25,7 +25,11 @@ import {
 } from '../../../shared/swagger/swagger-response';
 import { CurrentUser } from '../../iam/auth/current-user.decorator';
 import type { JwtPayload } from '../../iam/auth/jwt-payload.interface';
-import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
+import { SYSTEM_PERMISSION_POINTS } from '../../iam/permissions/permission-point-codes';
+import {
+  RequireMenuPermission,
+  RequirePermissions
+} from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateMenuDto,
   MenuListQueryDto,
@@ -322,6 +326,7 @@ export class MenusController {
     action: '创建菜单',
     targets: [{ source: 'body', key: 'title', label: 'title' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.menu.create)
   @Post()
   create(@Body() dto: CreateMenuDto) {
     return this.menusService.create(dto);
@@ -412,6 +417,7 @@ export class MenusController {
     action: '批量同步菜单树',
     targets: [{ source: 'body', key: 'menus', label: 'menus' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.menu.sync)
   @Put('sync')
   sync(@Body() dto: SyncMenusDto) {
     return this.menusService.sync(dto);
@@ -497,6 +503,7 @@ export class MenusController {
       }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.menu.update)
   @Patch(':id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateMenuDto) {
     return this.menusService.update(id, dto);
@@ -563,6 +570,7 @@ export class MenusController {
       { source: 'body', key: 'status', label: 'status' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.menu.status)
   @Patch(':id/status')
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -599,6 +607,7 @@ export class MenusController {
     action: '删除菜单',
     targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.menu.delete)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.menusService.remove(id);

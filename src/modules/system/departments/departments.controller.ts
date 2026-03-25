@@ -22,7 +22,11 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
+import { SYSTEM_PERMISSION_POINTS } from '../../iam/permissions/permission-point-codes';
+import {
+  RequireMenuPermission,
+  RequirePermissions
+} from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateDepartmentDto,
   DepartmentListQueryDto,
@@ -393,6 +397,7 @@ export class DepartmentsController {
     action: '创建部门',
     targets: [{ source: 'body', key: 'name', label: 'name' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.department.create)
   @Post()
   create(@Body() dto: CreateDepartmentDto) {
     return this.departmentsService.create(dto);
@@ -470,6 +475,7 @@ export class DepartmentsController {
       { source: 'body', key: 'name', label: 'name' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.department.update)
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -530,6 +536,7 @@ export class DepartmentsController {
       { source: 'body', key: 'status', label: 'status' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.department.status)
   @Patch(':id/status')
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -566,6 +573,7 @@ export class DepartmentsController {
     action: '删除部门',
     targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.department.delete)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.departmentsService.remove(id);

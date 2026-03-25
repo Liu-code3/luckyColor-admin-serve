@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from '../src/generated/prisma';
 import { hashPassword } from '../src/infra/security/password.util';
+import { DEFAULT_ROLE_DIRECT_PERMISSION_CODES } from '../src/modules/iam/permissions/permission-point-codes';
 import { buildSetDatabaseTimeZoneSql } from '../src/shared/time/database-timezone';
 import { departmentSeedData } from './seed-data/department.data';
 import { dictTreeData } from './seed-data/dict-tree.data';
@@ -144,7 +145,8 @@ async function main() {
   );
   const rolePermissionAssignments = buildRolePermissionAssignments(
     roleMenuAssignments,
-    menuSeedData
+    menuSeedData,
+    roleIdByCode
   );
 
   if (roleMenuAssignments.length > 0) {
@@ -257,14 +259,14 @@ function buildRolePermissionAssignments(
     id: number;
     menuKey: string;
     permissionCode?: string;
-  }>
+  }>,
+  roleIdByCode: Record<BootstrapRoleCode, string>
 ) {
   const permissionCodeByMenuId = new Map(
     menus.map((menu) => [menu.id, menu.permissionCode ?? menu.menuKey])
   );
   const seenAssignments = new Set<string>();
-
-  return roleMenuAssignments.flatMap((assignment) => {
+  const menuPermissionRows = roleMenuAssignments.flatMap((assignment) => {
     const permissionCode = permissionCodeByMenuId.get(assignment.menuId);
 
     if (!permissionCode) {
@@ -284,6 +286,30 @@ function buildRolePermissionAssignments(
       permissionCode
     };
   });
+  const directPermissionRows = (
+    Object.entries(DEFAULT_ROLE_DIRECT_PERMISSION_CODES) as Array<
+      [BootstrapRoleCode, readonly string[]]
+    >
+  ).flatMap(([roleCode, permissionCodes]) =>
+    permissionCodes.flatMap((permissionCode) => {
+      const roleId = roleIdByCode[roleCode];
+      const assignmentKey = `${roleId}:${permissionCode}`;
+
+      if (seenAssignments.has(assignmentKey)) {
+        return [];
+      }
+
+      seenAssignments.add(assignmentKey);
+
+      return {
+        roleId,
+        tenantId: DEFAULT_TENANT_ID,
+        permissionCode
+      };
+    })
+  );
+
+  return [...menuPermissionRows, ...directPermissionRows];
 }
 
 function assertSubset<T extends string | number>(

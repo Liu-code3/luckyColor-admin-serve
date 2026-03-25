@@ -12,7 +12,11 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
+import { SYSTEM_PERMISSION_POINTS } from '../../iam/permissions/permission-point-codes';
+import {
+  RequireMenuPermission,
+  RequirePermissions
+} from '../../iam/permissions/require-permissions.decorator';
 import { SystemLog } from '../system-logs/system-log.decorator';
 import {
   DictionaryItemListQueryDto,
@@ -296,6 +300,7 @@ export class DictionaryItemsController {
       { source: 'body', key: 'status', label: 'status' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.dictionaryItem.status)
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
@@ -365,6 +370,7 @@ export class DictionaryItemsController {
       { source: 'body', key: 'sortCode', label: 'sortCode' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.dictionaryItem.sort)
   @Patch(':id/sort')
   updateSort(@Param('id') id: string, @Body() dto: DictionaryItemSortDto) {
     return this.dictionaryItemsService.updateSort(id, dto);

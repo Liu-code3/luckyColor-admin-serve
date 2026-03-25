@@ -20,7 +20,11 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequirePlatformMenuPermission } from '../../iam/permissions/require-permissions.decorator';
+import { TENANT_PERMISSION_POINTS } from '../../iam/permissions/permission-point-codes';
+import {
+  RequirePermissions,
+  RequirePlatformMenuPermission
+} from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateTenantDto,
   TenantListQueryDto,
@@ -237,6 +241,7 @@ export class TenantsController {
       }
     ]
   })
+  @RequirePermissions(TENANT_PERMISSION_POINTS.tenant.create)
   @Post()
   create(@Body() dto: CreateTenantDto) {
     return this.tenantsService.create(dto);
@@ -324,6 +329,7 @@ export class TenantsController {
       }
     ]
   })
+  @RequirePermissions(TENANT_PERMISSION_POINTS.tenant.update)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateTenantDto) {
     return this.tenantsService.update(id, dto);

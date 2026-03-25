@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient } from '../src/generated/prisma';
+import { DEFAULT_ROLE_DIRECT_PERMISSION_CODES } from '../src/modules/iam/permissions/permission-point-codes';
 import { buildSetDatabaseTimeZoneSql } from '../src/shared/time/database-timezone';
 import { menuSeedData } from './seed-data/menu.data';
 
@@ -151,10 +152,22 @@ async function main() {
       roleId: item.roleId,
       permissionCode: item.menu.permissionCode ?? item.menu.menuKey
     }));
+    const directPermissionRows = roles.flatMap((role) => {
+      const permissionCodes =
+        DEFAULT_ROLE_DIRECT_PERMISSION_CODES[
+          role.code as keyof typeof DEFAULT_ROLE_DIRECT_PERMISSION_CODES
+        ] ?? [];
 
-    if (rolePermissionRows.length > 0) {
+      return permissionCodes.map((permissionCode: string) => ({
+        tenantId: role.tenantId,
+        roleId: role.id,
+        permissionCode
+      }));
+    });
+
+    if (rolePermissionRows.length > 0 || directPermissionRows.length > 0) {
       await prisma.rolePermission.createMany({
-        data: rolePermissionRows,
+        data: [...rolePermissionRows, ...directPermissionRows],
         skipDuplicates: true
       });
     }

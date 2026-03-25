@@ -2,6 +2,7 @@ import {
   ROLE_DATA_SCOPE_CUSTOM,
   ROLE_DATA_SCOPE_SELF
 } from '../../../shared/constants/access.constants';
+import { DEFAULT_ROLE_DIRECT_PERMISSION_CODES } from '../../iam/permissions/permission-point-codes';
 
 export const DEFAULT_TENANT_ROLE_TEMPLATES = [
   {
@@ -40,6 +41,11 @@ export const DEFAULT_TENANT_ROLE_MENU_KEYS = {
     'main_analysis_technology',
     'icomponent_dict'
   ]
+} as const satisfies Record<string, readonly string[]>;
+
+export const DEFAULT_TENANT_ROLE_PERMISSION_CODES = {
+  tenant_admin: [...DEFAULT_ROLE_DIRECT_PERMISSION_CODES.tenant_admin],
+  tenant_member: []
 } as const satisfies Record<string, readonly string[]>;
 
 export const DEFAULT_TENANT_DICTIONARY_SEEDS = [

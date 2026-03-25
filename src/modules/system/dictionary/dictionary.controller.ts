@@ -21,7 +21,11 @@ import {
   ApiServerErrorResponse,
   ApiSuccessResponse
 } from '../../../shared/swagger/swagger-response';
-import { RequireMenuPermission } from '../../iam/permissions/require-permissions.decorator';
+import { SYSTEM_PERMISSION_POINTS } from '../../iam/permissions/permission-point-codes';
+import {
+  RequireMenuPermission,
+  RequirePermissions
+} from '../../iam/permissions/require-permissions.decorator';
 import {
   CreateDictionaryDto,
   DictionaryPageQueryDto,
@@ -286,6 +290,7 @@ export class DictionaryController {
     action: '创建字典',
     targets: [{ source: 'body', key: 'dictLabel', label: 'dictLabel' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.dictionary.create)
   @Post()
   create(@Body() dto: CreateDictionaryDto) {
     return this.dictionaryService.create(dto);
@@ -308,6 +313,7 @@ export class DictionaryController {
     module: '字典管理',
     action: '刷新字典缓存'
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.dictionary.refreshCache)
   @Post('refresh-cache')
   refreshCache() {
     return this.dictionaryService.refreshCache();
@@ -367,6 +373,7 @@ export class DictionaryController {
       { source: 'body', key: 'dictLabel', label: 'dictLabel' }
     ]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.dictionary.update)
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateDictionaryDto) {
     return this.dictionaryService.update(id, dto);
@@ -400,6 +407,7 @@ export class DictionaryController {
     action: '删除字典',
     targets: [{ source: 'param', key: 'id', label: 'id' }]
   })
+  @RequirePermissions(SYSTEM_PERMISSION_POINTS.dictionary.delete)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.dictionaryService.remove(id);

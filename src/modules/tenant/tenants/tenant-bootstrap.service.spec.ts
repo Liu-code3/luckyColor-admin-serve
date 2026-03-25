@@ -1,5 +1,6 @@
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { DEFAULT_TENANT_ROLE_PERMISSION_CODES } from './tenant-bootstrap.templates';
 import { TenantAuditService } from './tenant-audit.service';
 import { TenantBootstrapService } from './tenant-bootstrap.service';
 
@@ -30,6 +31,9 @@ describe('TenantBootstrapService', () => {
         create: jest.fn()
       },
       roleMenu: {
+        createMany: jest.fn()
+      },
+      rolePermission: {
         createMany: jest.fn()
       },
       roleDepartmentScope: {
@@ -149,6 +153,9 @@ describe('TenantBootstrapService', () => {
     });
     prisma.userRole.create.mockResolvedValue({ tenantId: 'tenant_acme' });
     prisma.roleMenu.createMany.mockResolvedValue({ count: 15 });
+    prisma.rolePermission.createMany.mockResolvedValue({
+      count: DEFAULT_TENANT_ROLE_PERMISSION_CODES.tenant_admin.length
+    });
     prisma.roleDepartmentScope.createMany.mockResolvedValue({ count: 2 });
     prisma.dictionary.createMany.mockResolvedValue({ count: 4 });
 
@@ -265,6 +272,16 @@ describe('TenantBootstrapService', () => {
         { tenantId: 'tenant_acme', roleId: 'role-member', menuId: 3 },
         { tenantId: 'tenant_acme', roleId: 'role-member', menuId: 11 }
       ]
+    });
+    expect(prisma.rolePermission.createMany).toHaveBeenCalledWith({
+      data: DEFAULT_TENANT_ROLE_PERMISSION_CODES.tenant_admin.map(
+        (permissionCode) => ({
+          tenantId: 'tenant_acme',
+          roleId: 'role-admin',
+          permissionCode
+        })
+      ),
+      skipDuplicates: true
     });
     expect(prisma.roleDepartmentScope.createMany).toHaveBeenCalledWith({
       data: [
