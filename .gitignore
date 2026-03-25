@@ -4,3 +4,6 @@ dist
 *.log
 src/generated
 .idea/
+docs
+dist-check
+dist-tsc-check
