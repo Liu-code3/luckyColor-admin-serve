@@ -1,20 +1,36 @@
 export const noticeSeedData = [
   {
     tenantId: 'tenant_001',
-    title: '租户开通指引',
-    content: '租户创建完成后，请先配置管理员账号、部门与角色权限。',
+    title: 'Tenant Onboarding Guide',
+    content:
+      'Finish role, menu, and department initialization before inviting members.',
     type: 'system',
     status: true,
-    publisher: '系统管理员',
-    publishedAt: new Date('2026-03-22T08:00:00.000Z')
+    publishScope: 'TENANT_ALL',
+    targetDepartmentIds: null,
+    targetRoleCodes: null,
+    isPinned: true,
+    publisher: 'System Admin',
+    scheduledPublishAt: null,
+    publishedAt: new Date('2026-03-22T08:00:00.000Z'),
+    eventKey: 'tenant.onboarding.notice',
+    eventPayload: '{"source":"seed"}'
   },
   {
     tenantId: 'tenant_001',
-    title: '版本更新提醒',
-    content: '本周将上线多租户配置中心，请提前关注菜单与权限变更。',
+    title: 'Release Update Reminder',
+    content:
+      'The multi-tenant config center will be rolled out this week. Please review permissions in advance.',
     type: 'release',
     status: false,
-    publisher: '产品团队',
-    publishedAt: null
+    publishScope: 'ROLE',
+    targetDepartmentIds: null,
+    targetRoleCodes: '|tenant_admin|',
+    isPinned: false,
+    publisher: 'Product Team',
+    scheduledPublishAt: new Date('2026-03-28T08:00:00.000Z'),
+    publishedAt: null,
+    eventKey: 'release.reminder',
+    eventPayload: '{"channel":"dashboard"}'
   }
 ];
