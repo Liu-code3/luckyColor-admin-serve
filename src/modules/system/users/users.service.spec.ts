@@ -767,4 +767,159 @@ describe('UsersService', () => {
 
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
+
+  it('exports scoped users as csv', async () => {
+    const prisma = createPrismaMock();
+    const dataScopeService = createDataScopeServiceMock();
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      dataScopeService
+    );
+    dataScopeService.buildUserWhere = jest.fn().mockResolvedValue({
+      AND: [{ username: { contains: 'admin' } }, { id: 'user-1' }]
+    });
+    prisma.user.findMany.mockResolvedValue([
+      createUser({
+        departmentId: 100,
+        department: {
+          id: 100,
+          name: '总部',
+          code: 'headquarters'
+        }
+      })
+    ]);
+
+    const result = await service.exportCsv(
+      {
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      },
+      {
+        page: 1,
+        size: 10,
+        keyword: 'admin'
+      }
+    );
+
+    expect(dataScopeService.buildUserWhere).toHaveBeenCalledWith(
+      {
+        sub: 'user-1',
+        tenantId: 'tenant_001',
+        username: 'admin'
+      },
+      {
+        OR: [
+          { username: { contains: 'admin' } },
+          { nickname: { contains: 'admin' } },
+          { phone: { contains: 'admin' } },
+          { email: { contains: 'admin' } }
+        ]
+      }
+    );
+    expect(prisma.user.findMany).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          {
+            AND: [{ username: { contains: 'admin' } }, { id: 'user-1' }]
+          },
+          { tenantId: 'tenant_001' }
+        ]
+      },
+      include: {
+        department: true
+      },
+      orderBy: [{ createdAt: 'desc' }]
+    });
+
+    const csv = result.content.toString('utf8');
+    expect(result.filename).toMatch(/^users-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(csv).toContain(
+      'id,tenantId,username,nickname,phone,email,avatar,status,departmentId,departmentCode,departmentName,lastLoginAt,createdAt,updatedAt'
+    );
+    expect(csv).toContain('user-1,tenant_001,admin');
+    expect(csv).toContain(',headquarters,总部,');
+  });
+
+  it('imports users from csv and aggregates row failures', async () => {
+    const prisma = createPrismaMock();
+    const service = new UsersService(
+      prisma as never,
+      createTenantScope(),
+      {
+        hash: jest.fn()
+      } as never,
+      createDataScopeServiceMock()
+    );
+    prisma.department.findFirst.mockResolvedValue({
+      id: 100,
+      tenantId: 'tenant_001',
+      name: '总部',
+      code: 'headquarters'
+    });
+    const createSpy = jest.spyOn(service, 'create');
+    createSpy
+      .mockResolvedValueOnce({
+        code: 200,
+        msg: 'success',
+        data: createUser({ username: 'alice' })
+      } as never)
+      .mockRejectedValueOnce(
+        new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS)
+      );
+
+    const response = await service.importCsv({
+      originalname: 'users.csv',
+      buffer: Buffer.from(
+        [
+          'username,password,nickname,status,departmentCode',
+          'alice,123456,Alice,true,headquarters',
+          'bob,654321,Bob,false,headquarters'
+        ].join('\n'),
+        'utf8'
+      )
+    });
+
+    expect(createSpy).toHaveBeenNthCalledWith(1, {
+      username: 'alice',
+      password: '123456',
+      nickname: 'Alice',
+      phone: null,
+      email: null,
+      avatar: null,
+      status: true,
+      departmentId: 100
+    });
+    expect(createSpy).toHaveBeenNthCalledWith(2, {
+      username: 'bob',
+      password: '654321',
+      nickname: 'Bob',
+      phone: null,
+      email: null,
+      avatar: null,
+      status: false,
+      departmentId: 100
+    });
+    expect(response).toEqual({
+      code: 200,
+      msg: 'success',
+      data: {
+        fileName: 'users.csv',
+        totalCount: 2,
+        successCount: 1,
+        failureCount: 1,
+        failureList: [
+          {
+            rowNumber: 3,
+            username: 'bob',
+            reason: '数据已存在，请勿重复创建'
+          }
+        ]
+      }
+    });
+  });
 });

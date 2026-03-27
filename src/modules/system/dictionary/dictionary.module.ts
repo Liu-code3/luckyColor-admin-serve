@@ -9,9 +9,9 @@ import { DictionaryTypesService } from './dictionary-types.service';
 
 @Module({
   controllers: [
-    DictionaryController,
     DictionaryTypesController,
-    DictionaryItemsController
+    DictionaryItemsController,
+    DictionaryController
   ],
   providers: [
     DictionaryService,

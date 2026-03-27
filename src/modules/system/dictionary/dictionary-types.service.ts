@@ -5,6 +5,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { resolveSortOrder } from '../../../shared/api/list-query.util';
 import {
   createDictionaryId,
   type CreateDictionaryDto,
@@ -62,18 +63,23 @@ export class DictionaryTypesService {
       filters.push({ category });
     }
 
+    if (query.status !== undefined) {
+      filters.push({ status: query.status });
+    }
+
     const where =
       filters.length === 0
         ? this.buildWhere()
         : this.buildWhere(
             filters.length === 1 ? filters[0] : { AND: filters }
           );
+    const orderBy = this.buildListOrderBy(query);
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.dictionary.count({ where }),
       this.prisma.dictionary.findMany({
         where,
-        orderBy: [{ sortCode: 'asc' }, { name: 'asc' }],
+        orderBy,
         skip: (current - 1) * size,
         take: size
       })
@@ -259,6 +265,32 @@ export class DictionaryTypesService {
       updateTime: dto.updateTime,
       updateUser: dto.updateUser
     };
+  }
+
+  private buildListOrderBy(
+    query: DictionaryTypeListQueryDto
+  ): Prisma.DictionaryOrderByWithRelationInput[] {
+    if (!query.sortBy) {
+      return [{ sortCode: 'asc' }, { name: 'asc' }];
+    }
+
+    const sortOrder = resolveSortOrder(query.sortOrder);
+
+    switch (query.sortBy) {
+      case 'name':
+        return [{ name: sortOrder }, { sortCode: 'asc' }];
+      case 'dictValue':
+        return [{ dictValue: sortOrder }, { sortCode: 'asc' }];
+      case 'category':
+        return [{ category: sortOrder }, { sortCode: 'asc' }];
+      case 'status':
+        return [{ status: sortOrder }, { sortCode: 'asc' }];
+      case 'updatedAt':
+        return [{ updatedAt: sortOrder }, { sortCode: 'asc' }];
+      case 'sortCode':
+      default:
+        return [{ sortCode: sortOrder }, { name: 'asc' }];
+    }
   }
 
   private toTypeResponse(row: Dictionary) {

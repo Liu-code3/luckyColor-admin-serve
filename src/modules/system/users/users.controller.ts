@@ -6,16 +6,24 @@ import {
   Param,
   Patch,
   Post,
+  Res,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
   Put,
   Query
 } from '@nestjs/common';
 import {
   ApiBody,
+  ApiConsumes,
+  ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiProduces,
   ApiQuery,
   ApiTags
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
   ApiErrorResponse,
@@ -35,9 +43,11 @@ import {
   ResetUserPasswordDto,
   UpdateUserDto,
   UpdateUserStatusDto,
+  UserImportBodyDto,
   UserListQueryDto
 } from './users.dto';
 import {
+  UserImportResultResponseDto,
   UserItemResponseDto,
   UserPageResponseDto,
   UserRoleAssignmentResponseDto
@@ -151,6 +161,149 @@ export class UsersController {
   @Get()
   list(@CurrentUser() user: JwtPayload, @Query() query: UserListQueryDto) {
     return this.usersService.list(user, query);
+  }
+
+  @ApiOperation({
+    summary: '导出用户',
+    description: '按当前筛选条件导出用户 CSV，自动继承当前登录态的数据权限范围。'
+  })
+  @ApiQuery({
+    name: 'keyword',
+    required: false,
+    example: 'admin',
+    description: '用户名、昵称、手机号或邮箱关键字'
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    example: true,
+    description: '用户状态，true 为启用，false 为停用'
+  })
+  @ApiQuery({
+    name: 'departmentId',
+    required: false,
+    example: 100,
+    description: '所属部门 ID'
+  })
+  @ApiQuery({
+    name: 'createdAtStart',
+    required: false,
+    example: '2026-03-01T00:00:00.000Z',
+    description: '创建时间开始'
+  })
+  @ApiQuery({
+    name: 'createdAtEnd',
+    required: false,
+    example: '2026-03-31T23:59:59.999Z',
+    description: '创建时间结束'
+  })
+  @ApiProduces('text/csv')
+  @ApiOkResponse({
+    description: '用户导出 CSV 文件',
+    content: {
+      'text/csv': {
+        schema: {
+          type: 'string',
+          format: 'binary'
+        }
+      }
+    }
+  })
+  @ApiErrorResponse({
+    status: 400,
+    description: '当前数据权限配置暂不支持该导出场景',
+    examples: [
+      {
+        name: 'dataScopeConfigInvalid',
+        code: BUSINESS_ERROR_CODES.DATA_SCOPE_CONFIG_INVALID
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 403,
+    description: '当前账号没有导出该数据的权限',
+    examples: [
+      {
+        name: 'dataScopeDenied',
+        code: BUSINESS_ERROR_CODES.DATA_SCOPE_DENIED
+      }
+    ]
+  })
+  @SystemLog({
+    module: '用户管理',
+    action: '导出用户',
+    targets: [
+      { source: 'query', key: 'keyword', label: 'keyword' },
+      { source: 'query', key: 'departmentId', label: 'departmentId' }
+    ]
+  })
+  @Get('export')
+  async exportCsv(
+    @CurrentUser() user: JwtPayload,
+    @Query() query: UserListQueryDto,
+    @Res({ passthrough: true }) response: {
+      setHeader: (name: string, value: string) => void;
+    }
+  ) {
+    const file = await this.usersService.exportCsv(user, query);
+    response.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    response.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${encodeURIComponent(file.filename)}"`
+    );
+
+    return new StreamableFile(file.content);
+  }
+
+  @ApiOperation({
+    summary: '批量导入用户',
+    description:
+      '上传 UTF-8 编码的 CSV 文件批量导入用户，表头至少需要包含 username、password，可选列包括 nickname、phone、email、avatar、status、departmentCode。'
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UserImportBodyDto })
+  @ApiSuccessResponse({
+    type: UserImportResultResponseDto,
+    description: '用户导入结果',
+    dataExample: {
+      fileName: 'users.csv',
+      totalCount: 2,
+      successCount: 1,
+      failureCount: 1,
+      failureList: [
+        {
+          rowNumber: 3,
+          username: 'alice',
+          reason: '数据已存在，请勿重复创建'
+        }
+      ]
+    }
+  })
+  @ApiErrorResponse({
+    status: 400,
+    description: '导入文件缺失、为空或格式不正确',
+    examples: [
+      {
+        name: 'fileUploadFailed',
+        code: BUSINESS_ERROR_CODES.FILE_UPLOAD_FAILED
+      }
+    ]
+  })
+  @SystemLog({
+    module: '用户管理',
+    action: '批量导入用户'
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  @Post('import')
+  importCsv(
+    @Body() _body: UserImportBodyDto,
+    @UploadedFile()
+    file?: {
+      originalname: string;
+      buffer: Buffer;
+    }
+  ) {
+    return this.usersService.importCsv(file);
   }
 
   @ApiOperation({
@@ -383,7 +536,12 @@ export class UsersController {
     targets: [
       { source: 'param', key: 'id', label: 'id' },
       { source: 'body', key: 'status', label: 'status' }
-    ]
+    ],
+    sensitive: {
+      source: 'body',
+      key: 'status',
+      equals: false
+    }
   })
   @RequirePermissions(SYSTEM_PERMISSION_POINTS.user.status)
   @Patch(':id/status')
@@ -428,7 +586,8 @@ export class UsersController {
   @SystemLog({
     module: '用户管理',
     action: '重置用户密码',
-    targets: [{ source: 'param', key: 'id', label: 'id' }]
+    targets: [{ source: 'param', key: 'id', label: 'id' }],
+    sensitive: true
   })
   @RequirePermissions(SYSTEM_PERMISSION_POINTS.user.resetPassword)
   @Put(':id/reset-password')
@@ -543,7 +702,8 @@ export class UsersController {
   @SystemLog({
     module: '用户管理',
     action: '删除用户',
-    targets: [{ source: 'param', key: 'id', label: 'id' }]
+    targets: [{ source: 'param', key: 'id', label: 'id' }],
+    sensitive: true
   })
   @RequirePermissions(SYSTEM_PERMISSION_POINTS.user.delete)
   @Delete(':id')

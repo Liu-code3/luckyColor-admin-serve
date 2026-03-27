@@ -470,7 +470,12 @@ export class RolesController {
     targets: [
       { source: 'param', key: 'id', label: 'id' },
       { source: 'body', key: 'status', label: 'status' }
-    ]
+    ],
+    sensitive: {
+      source: 'body',
+      key: 'status',
+      equals: false
+    }
   })
   @RequirePermissions(SYSTEM_PERMISSION_POINTS.role.status)
   @Patch(':id/status')
@@ -679,7 +684,8 @@ export class RolesController {
   @SystemLog({
     module: '角色管理',
     action: '删除角色',
-    targets: [{ source: 'param', key: 'id', label: 'id' }]
+    targets: [{ source: 'param', key: 'id', label: 'id' }],
+    sensitive: true
   })
   @RequirePermissions(SYSTEM_PERMISSION_POINTS.role.delete)
   @Delete(':id')

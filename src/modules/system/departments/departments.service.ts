@@ -5,6 +5,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { resolveSortOrder } from '../../../shared/api/list-query.util';
 import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
 import {
   CreateDepartmentDto,
@@ -37,12 +38,13 @@ export class DepartmentsService {
         : undefined,
       status: query.status
     });
+    const orderBy = this.buildDepartmentListOrderBy(query);
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.department.count({ where }),
       this.prisma.department.findMany({
         where,
-        orderBy: [{ sort: 'asc' }, { id: 'asc' }],
+        orderBy,
         skip: (current - 1) * size,
         take: size
       })
@@ -109,6 +111,7 @@ export class DepartmentsService {
           ]
         : undefined
     });
+    const orderBy = this.buildDepartmentUserListOrderBy(query);
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.user.count({ where }),
@@ -117,7 +120,7 @@ export class DepartmentsService {
         include: {
           department: true
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip: (current - 1) * size,
         take: size
       })
@@ -304,6 +307,58 @@ export class DepartmentsService {
       where,
       'tenantId'
     ) as Prisma.UserWhereInput;
+  }
+
+  private buildDepartmentListOrderBy(
+    query: DepartmentListQueryDto
+  ): Prisma.DepartmentOrderByWithRelationInput[] {
+    if (!query.sortBy) {
+      return [{ sort: 'asc' }, { id: 'asc' }];
+    }
+
+    const sortOrder = resolveSortOrder(query.sortOrder);
+
+    switch (query.sortBy) {
+      case 'id':
+        return [{ id: sortOrder }];
+      case 'name':
+        return [{ name: sortOrder }, { sort: 'asc' }, { id: 'asc' }];
+      case 'code':
+        return [{ code: sortOrder }, { sort: 'asc' }, { id: 'asc' }];
+      case 'status':
+        return [{ status: sortOrder }, { sort: 'asc' }, { id: 'asc' }];
+      case 'createdAt':
+        return [{ createdAt: sortOrder }, { sort: 'asc' }, { id: 'asc' }];
+      case 'updatedAt':
+        return [{ updatedAt: sortOrder }, { sort: 'asc' }, { id: 'asc' }];
+      case 'sort':
+      default:
+        return [{ sort: sortOrder }, { id: 'asc' }];
+    }
+  }
+
+  private buildDepartmentUserListOrderBy(
+    query: DepartmentUsersQueryDto
+  ): Prisma.UserOrderByWithRelationInput[] {
+    if (!query.sortBy) {
+      return [{ createdAt: 'desc' }];
+    }
+
+    const sortOrder = resolveSortOrder(query.sortOrder);
+
+    switch (query.sortBy) {
+      case 'username':
+        return [{ username: sortOrder }, { createdAt: 'desc' }];
+      case 'nickname':
+        return [{ nickname: sortOrder }, { createdAt: 'desc' }];
+      case 'status':
+        return [{ status: sortOrder }, { createdAt: 'desc' }];
+      case 'updatedAt':
+        return [{ updatedAt: sortOrder }, { createdAt: 'desc' }];
+      case 'createdAt':
+      default:
+        return [{ createdAt: sortOrder }];
+    }
   }
 
   private async validateDepartmentHierarchy(

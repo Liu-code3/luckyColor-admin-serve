@@ -13,6 +13,7 @@ import type { JwtPayload } from '../../iam/auth/jwt-payload.interface';
 import {
   SYSTEM_LOG_METADATA,
   SystemLogOptions,
+  SystemLogSensitiveRule,
   SystemLogTarget
 } from './system-log.decorator';
 import { SystemLogsService } from './system-logs.service';
@@ -165,11 +166,15 @@ export class SystemLogInterceptor implements NestInterceptor {
       .map((target) => this.formatTarget(target, request))
       .filter((item): item is string => !!item);
 
-    if (!details.length) {
-      return options.action;
+    const content = details.length
+      ? `${options.action}: ${details.join(', ')}`
+      : options.action;
+
+    if (!this.isSensitiveOperation(request, options)) {
+      return content;
     }
 
-    return `${options.action}: ${details.join(', ')}`;
+    return `[SENSITIVE] ${content}`;
   }
 
   private formatTarget(target: SystemLogTarget, request: RequestLike) {
@@ -197,6 +202,38 @@ export class SystemLogInterceptor implements NestInterceptor {
       default:
         return undefined;
     }
+  }
+
+  private isSensitiveOperation(
+    request: RequestLike,
+    options: SystemLogOptions
+  ) {
+    if (!options.sensitive) {
+      return false;
+    }
+
+    if (options.sensitive === true) {
+      return true;
+    }
+
+    return this.matchesSensitiveRule(request, options.sensitive);
+  }
+
+  private matchesSensitiveRule(
+    request: RequestLike,
+    rule: SystemLogSensitiveRule
+  ) {
+    const sourceValue = this.getSourceValue(request, rule);
+
+    if (sourceValue === undefined || sourceValue === null) {
+      return false;
+    }
+
+    if (rule.equals === undefined) {
+      return Boolean(sourceValue);
+    }
+
+    return sourceValue === rule.equals;
   }
 
   private stringifyValue(value: unknown) {

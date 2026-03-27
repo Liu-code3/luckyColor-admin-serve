@@ -405,7 +405,8 @@ export class DictionaryController {
   @SystemLog({
     module: '字典管理',
     action: '删除字典',
-    targets: [{ source: 'param', key: 'id', label: 'id' }]
+    targets: [{ source: 'param', key: 'id', label: 'id' }],
+    sensitive: true
   })
   @RequirePermissions(SYSTEM_PERMISSION_POINTS.dictionary.delete)
   @Delete(':id')

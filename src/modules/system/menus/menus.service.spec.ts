@@ -214,6 +214,42 @@ describe('MenusService', () => {
     expect(prisma.menu.create).not.toHaveBeenCalled();
   });
 
+  it('rejects duplicate permission codes when creating menus', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
+    prisma.menu.findFirst.mockResolvedValue(null);
+    prisma.menu.findMany
+      .mockResolvedValueOnce([
+        createMenu({
+          id: 999,
+          menuKey: 'system:user:list',
+          permissionCode: 'iam:user:list'
+        })
+      ])
+      .mockResolvedValueOnce([]);
+
+    await expect(
+      service.create({
+        title: 'User Export',
+        name: 'UserExport',
+        type: 3,
+        path: '',
+        menuKey: 'system:user:export',
+        permissionCode: 'iam:user:list',
+        isVisible: true,
+        component: ''
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS)
+    );
+
+    expect(prisma.menu.create).not.toHaveBeenCalled();
+  });
+
   it('applies status filter when querying menu list', async () => {
     const prisma = createPrismaMock();
     const service = new MenusService(
@@ -263,6 +299,7 @@ describe('MenusService', () => {
       createTenantActorMock() as never
     );
     prisma.menu.findFirst.mockResolvedValue(null);
+    prisma.menu.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
 
     await expect(
       service.create({
@@ -830,6 +867,7 @@ describe('MenusService', () => {
         menuKey: 'system:user:list'
       })
     );
+    prisma.menu.findMany.mockResolvedValue([]);
     prisma.roleMenu.findMany
       .mockResolvedValueOnce([{ roleId: 'role-1' }])
       .mockResolvedValueOnce([
@@ -877,5 +915,47 @@ describe('MenusService', () => {
       skipDuplicates: true
     });
     expect(response.data.permissionCode).toBe('iam:user:list');
+  });
+
+  it('rejects updating menu permission code to a duplicated value', async () => {
+    const prisma = createPrismaMock();
+    const service = new MenusService(
+      prisma as never,
+      createTenantScope(),
+      createTenantActorMock() as never
+    );
+    prisma.menu.findUnique.mockResolvedValue(
+      createMenu({
+        id: 5,
+        parentId: 1,
+        type: 2,
+        title: '用户管理',
+        name: 'UserManage',
+        path: '/system/users',
+        menuKey: 'system:user:list'
+      })
+    );
+    prisma.menu.findMany.mockResolvedValue([
+      createMenu({
+        id: 11,
+        parentId: 1,
+        type: 3,
+        title: '导出用户',
+        name: 'UserExport',
+        path: '',
+        menuKey: 'system:user:export',
+        permissionCode: 'iam:user:list'
+      })
+    ]);
+
+    await expect(
+      service.update(5, {
+        permissionCode: 'iam:user:list'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS)
+    );
+
+    expect(prisma.menu.update).not.toHaveBeenCalled();
   });
 });

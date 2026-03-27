@@ -5,6 +5,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { resolveSortOrder } from '../../../shared/api/list-query.util';
 import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
 import { normalizePermissionCode } from '../../iam/permissions/permission-code.util';
 import {
@@ -66,6 +67,7 @@ export class RolesService {
           ? filters[0]
           : { AND: filters }
     );
+    const orderBy = this.buildListOrderBy(query);
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.role.count({ where }),
@@ -78,7 +80,7 @@ export class RolesService {
             }
           }
         },
-        orderBy: [{ sort: 'asc' }, { createdAt: 'desc' }],
+        orderBy,
         skip: (current - 1) * size,
         take: size
       })
@@ -467,6 +469,30 @@ export class RolesService {
     }>;
   }) {
     return role.dataScopeDepartments.map((item) => item.departmentId);
+  }
+
+  private buildListOrderBy(query: RoleListQueryDto): Prisma.RoleOrderByWithRelationInput[] {
+    if (!query.sortBy) {
+      return [{ sort: 'asc' }, { createdAt: 'desc' }];
+    }
+
+    const sortOrder = resolveSortOrder(query.sortOrder);
+
+    switch (query.sortBy) {
+      case 'name':
+        return [{ name: sortOrder }, { sort: 'asc' }, { createdAt: 'desc' }];
+      case 'code':
+        return [{ code: sortOrder }, { sort: 'asc' }, { createdAt: 'desc' }];
+      case 'status':
+        return [{ status: sortOrder }, { sort: 'asc' }, { createdAt: 'desc' }];
+      case 'updatedAt':
+        return [{ updatedAt: sortOrder }, { sort: 'asc' }, { createdAt: 'desc' }];
+      case 'createdAt':
+        return [{ createdAt: sortOrder }, { sort: 'asc' }];
+      case 'sort':
+      default:
+        return [{ sort: sortOrder }, { createdAt: 'desc' }];
+    }
   }
 
   private toRoleResponse(

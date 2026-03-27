@@ -5,7 +5,11 @@ import { PasswordService } from '../../../infra/security/password.service';
 import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-scope.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
-import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import {
+  BUSINESS_ERROR_CODES,
+  BUSINESS_ERROR_MESSAGE_MAP
+} from '../../../shared/api/error-codes';
+import { resolveSortOrder } from '../../../shared/api/list-query.util';
 import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
 import type { JwtPayload } from '../../iam/auth/jwt-payload.interface';
 import { DataScopeService } from '../../iam/data-scopes/data-scope.service';
@@ -24,6 +28,17 @@ type UserWithDepartment = Prisma.UserGetPayload<{
   };
 }>;
 
+type UserImportRow = {
+  username: string;
+  password: string;
+  nickname?: string;
+  phone?: string | null;
+  email?: string | null;
+  avatar?: string | null;
+  status?: boolean;
+  departmentCode?: string | null;
+};
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -36,12 +51,8 @@ export class UsersService {
   async list(user: JwtPayload, query: UserListQueryDto) {
     const current = query.page || 1;
     const size = query.size || 10;
-    const keyword = query.keyword?.trim();
-    const scopedWhere = await this.dataScopeService.buildUserWhere(
-      user,
-      this.buildUserListWhere(query, keyword)
-    );
-    const where = this.buildUserWhere(scopedWhere);
+    const where = await this.buildScopedListWhere(user, query);
+    const orderBy = this.buildListOrderBy(query);
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.user.count({ where }),
@@ -50,7 +61,7 @@ export class UsersService {
         include: {
           department: true
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip: (current - 1) * size,
         take: size
       })
@@ -61,6 +72,119 @@ export class UsersService {
       current,
       size,
       records: records.map((item) => this.toUserResponse(item))
+    });
+  }
+
+  async exportCsv(user: JwtPayload, query: UserListQueryDto) {
+    const where = await this.buildScopedListWhere(user, query);
+    const orderBy = this.buildListOrderBy(query);
+    const records = await this.prisma.user.findMany({
+      where,
+      include: {
+        department: true
+      },
+      orderBy
+    });
+
+    const rows = [
+      [
+        'id',
+        'tenantId',
+        'username',
+        'nickname',
+        'phone',
+        'email',
+        'avatar',
+        'status',
+        'departmentId',
+        'departmentCode',
+        'departmentName',
+        'lastLoginAt',
+        'createdAt',
+        'updatedAt'
+      ],
+      ...records.map((item) => [
+        item.id,
+        item.tenantId,
+        item.username,
+        item.nickname ?? '',
+        item.phone ?? '',
+        item.email ?? '',
+        item.avatar ?? '',
+        String(item.status),
+        item.departmentId === null ? '' : String(item.departmentId),
+        item.department?.code ?? '',
+        item.department?.name ?? '',
+        item.lastLoginAt?.toISOString() ?? '',
+        item.createdAt.toISOString(),
+        item.updatedAt.toISOString()
+      ])
+    ];
+    const content = `${rows.map((row) => row.map((item) => this.escapeCsvValue(item)).join(',')).join('\n')}\n`;
+    const dateStamp = new Date().toISOString().slice(0, 10);
+
+    return {
+      filename: `users-${dateStamp}.csv`,
+      content: Buffer.from(content, 'utf8')
+    };
+  }
+
+  async importCsv(file: { originalname: string; buffer: Buffer } | undefined) {
+    if (!file?.buffer?.length) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.FILE_UPLOAD_FAILED);
+    }
+
+    const rows = this.parseCsv(file.buffer.toString('utf8'));
+
+    if (rows.length <= 1) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.FILE_UPLOAD_FAILED);
+    }
+
+    const headers = rows[0].map((item) => item.trim().toLowerCase());
+    const requiredHeaders = ['username', 'password'];
+
+    if (requiredHeaders.some((item) => !headers.includes(item))) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.FILE_UPLOAD_FAILED);
+    }
+
+    const dataRows = rows
+      .slice(1)
+      .map((row, index) => ({
+        row,
+        rowNumber: index + 2
+      }))
+      .filter(({ row }) => row.some((item) => item.trim().length > 0));
+
+    const failureList: Array<{
+      rowNumber: number;
+      username: string | null;
+      reason: string;
+    }> = [];
+    let successCount = 0;
+
+    for (const item of dataRows) {
+      const record = this.mapImportRow(headers, item.row);
+      const username = record.username?.trim() || null;
+
+      try {
+        const dto = await this.toCreateUserDto(record);
+        await this.create(dto);
+        successCount += 1;
+      } catch (error) {
+        failureList.push({
+          rowNumber: item.rowNumber,
+          username,
+          reason: this.resolveImportErrorReason(error)
+        });
+      }
+    }
+
+    return successResponse({
+      fileName: file.originalname,
+      totalCount: dataRows.length,
+      successCount,
+      failureCount: failureList.length,
+      failureList
     });
   }
 
@@ -438,6 +562,65 @@ export class UsersService {
     return department;
   }
 
+  private buildListOrderBy(query: UserListQueryDto): Prisma.UserOrderByWithRelationInput[] {
+    const sortOrder = resolveSortOrder(query.sortOrder);
+
+    switch (query.sortBy) {
+      case 'username':
+        return [{ username: sortOrder }, { createdAt: 'desc' }];
+      case 'nickname':
+        return [{ nickname: sortOrder }, { createdAt: 'desc' }];
+      case 'status':
+        return [{ status: sortOrder }, { createdAt: 'desc' }];
+      case 'updatedAt':
+        return [{ updatedAt: sortOrder }, { createdAt: 'desc' }];
+      case 'createdAt':
+      default:
+        return [{ createdAt: sortOrder }];
+    }
+  }
+
+  private async buildScopedListWhere(
+    user: JwtPayload,
+    query: UserListQueryDto
+  ) {
+    const keyword = query.keyword?.trim();
+    const scopedWhere = await this.dataScopeService.buildUserWhere(
+      user,
+      this.buildUserListWhere(query, keyword)
+    );
+
+    return this.buildUserWhere(scopedWhere);
+  }
+
+  private async resolveDepartmentIdByCode(departmentCode?: string | null) {
+    if (departmentCode === undefined) {
+      return undefined;
+    }
+
+    if (departmentCode === null) {
+      return null;
+    }
+
+    const normalizedCode = departmentCode.trim();
+
+    if (!normalizedCode) {
+      return null;
+    }
+
+    const department = await this.prisma.department.findFirst({
+      where: this.buildDepartmentWhere({
+        code: normalizedCode
+      })
+    });
+
+    if (!department) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DEPARTMENT_NOT_FOUND);
+    }
+
+    return department.id;
+  }
+
   private normalizeOptionalString(value?: string | null) {
     if (value === undefined) {
       return undefined;
@@ -449,6 +632,129 @@ export class UsersService {
 
     const trimmed = value.trim();
     return trimmed ? trimmed : null;
+  }
+
+  private parseCsv(content: string) {
+    const normalizedContent = content.replace(/^\uFEFF/, '');
+    const rows: string[][] = [];
+    let currentRow: string[] = [];
+    let currentField = '';
+    let inQuotes = false;
+
+    for (let index = 0; index < normalizedContent.length; index += 1) {
+      const char = normalizedContent[index];
+      const nextChar = normalizedContent[index + 1];
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          currentField += '"';
+          index += 1;
+          continue;
+        }
+
+        inQuotes = !inQuotes;
+        continue;
+      }
+
+      if (char === ',' && !inQuotes) {
+        currentRow.push(currentField);
+        currentField = '';
+        continue;
+      }
+
+      if ((char === '\n' || char === '\r') && !inQuotes) {
+        if (char === '\r' && nextChar === '\n') {
+          index += 1;
+        }
+
+        currentRow.push(currentField);
+        rows.push(currentRow);
+        currentRow = [];
+        currentField = '';
+        continue;
+      }
+
+      currentField += char;
+    }
+
+    if (currentField.length > 0 || currentRow.length > 0) {
+      currentRow.push(currentField);
+      rows.push(currentRow);
+    }
+
+    return rows;
+  }
+
+  private mapImportRow(headers: string[], row: string[]): UserImportRow {
+    const record = headers.reduce<Record<string, string>>((result, header, index) => {
+      result[header] = row[index]?.trim() ?? '';
+      return result;
+    }, {});
+
+    return {
+      username: record.username ?? '',
+      password: record.password ?? '',
+      nickname: record.nickname || undefined,
+      phone: record.phone ? record.phone : null,
+      email: record.email ? record.email : null,
+      avatar: record.avatar ? record.avatar : null,
+      status: this.parseImportStatus(record.status),
+      departmentCode: record.departmentcode ? record.departmentcode : null
+    };
+  }
+
+  private parseImportStatus(value?: string) {
+    if (!value?.trim()) {
+      return true;
+    }
+
+    const normalized = value.trim().toLowerCase();
+
+    if (['true', '1', 'yes', 'enabled'].includes(normalized)) {
+      return true;
+    }
+
+    if (['false', '0', 'no', 'disabled'].includes(normalized)) {
+      return false;
+    }
+
+    throw new BusinessException(BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID);
+  }
+
+  private async toCreateUserDto(record: UserImportRow) {
+    const username = record.username.trim();
+    const password = record.password.trim();
+
+    if (!username || !password) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID);
+    }
+
+    return {
+      username,
+      password,
+      nickname: record.nickname,
+      phone: record.phone,
+      email: record.email,
+      avatar: record.avatar,
+      status: record.status ?? true,
+      departmentId: await this.resolveDepartmentIdByCode(record.departmentCode)
+    };
+  }
+
+  private resolveImportErrorReason(error: unknown) {
+    if (error instanceof BusinessException) {
+      return BUSINESS_ERROR_MESSAGE_MAP[error.code] ?? '导入失败';
+    }
+
+    return '导入失败';
+  }
+
+  private escapeCsvValue(value: string) {
+    if (/[",\r\n]/.test(value)) {
+      return `"${value.replace(/"/g, '""')}"`;
+    }
+
+    return value;
   }
 
   private toUserResponse(user: UserWithDepartment) {

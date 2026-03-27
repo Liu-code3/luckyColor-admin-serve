@@ -213,3 +213,56 @@ export class UserRoleAssignmentResponseDto {
   })
   roles!: UserAssignedRoleResponseDto[];
 }
+
+export class UserImportFailureResponseDto {
+  @ApiProperty({
+    description: 'CSV 行号，包含表头后的真实文件行号',
+    example: 3
+  })
+  rowNumber!: number;
+
+  @ApiPropertyOptional({
+    description: '导入行中的用户名',
+    example: 'alice',
+    nullable: true
+  })
+  username?: string | null;
+
+  @ApiProperty({
+    description: '失败原因',
+    example: '数据已存在，请勿重复创建'
+  })
+  reason!: string;
+}
+
+export class UserImportResultResponseDto {
+  @ApiProperty({
+    description: '导入文件名',
+    example: 'users.csv'
+  })
+  fileName!: string;
+
+  @ApiProperty({
+    description: '有效数据行数',
+    example: 2
+  })
+  totalCount!: number;
+
+  @ApiProperty({
+    description: '导入成功数',
+    example: 1
+  })
+  successCount!: number;
+
+  @ApiProperty({
+    description: '导入失败数',
+    example: 1
+  })
+  failureCount!: number;
+
+  @ApiProperty({
+    description: '失败明细',
+    type: [UserImportFailureResponseDto]
+  })
+  failureList!: UserImportFailureResponseDto[];
+}

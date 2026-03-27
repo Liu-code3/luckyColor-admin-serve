@@ -3,12 +3,26 @@ import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Min
 } from 'class-validator';
+import {
+  LIST_SORT_ORDER_VALUES,
+  type ListSortOrder
+} from '../../../shared/api/list-query.util';
+
+const DICTIONARY_PAGE_SORT_FIELDS = [
+  'sortCode',
+  'name',
+  'dictLabel',
+  'dictValue',
+  'status',
+  'updatedAt'
+] as const;
 
 function transformBoolean(value: unknown) {
   if (value === undefined || value === null || value === '') {
@@ -62,12 +76,48 @@ export class DictionaryPageQueryDto {
   id?: string;
 
   @ApiPropertyOptional({
+    description: 'keyword for dictionary label, name, or value',
+    example: 'status'
+  })
+  @IsOptional()
+  @IsString()
+  keyword?: string;
+
+  @ApiPropertyOptional({
     description: '字典标签关键字',
     example: '状态'
   })
   @IsOptional()
   @IsString()
   searchKey?: string;
+
+  @ApiPropertyOptional({
+    description: 'status filter',
+    example: true
+  })
+  @IsOptional()
+  @Transform(({ value }) => transformBoolean(value))
+  @IsBoolean()
+  status?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'sort field',
+    enum: DICTIONARY_PAGE_SORT_FIELDS,
+    example: 'sortCode'
+  })
+  @IsOptional()
+  @IsIn(DICTIONARY_PAGE_SORT_FIELDS)
+  sortBy?: (typeof DICTIONARY_PAGE_SORT_FIELDS)[number];
+
+  @ApiPropertyOptional({
+    description: 'sort order',
+    enum: LIST_SORT_ORDER_VALUES,
+    example: 'asc',
+    default: 'asc'
+  })
+  @IsOptional()
+  @IsIn(LIST_SORT_ORDER_VALUES)
+  sortOrder?: ListSortOrder;
 }
 
 export class CreateDictionaryDto {

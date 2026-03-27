@@ -298,7 +298,12 @@ export class DictionaryItemsController {
     targets: [
       { source: 'param', key: 'id', label: 'id' },
       { source: 'body', key: 'status', label: 'status' }
-    ]
+    ],
+    sensitive: {
+      source: 'body',
+      key: 'status',
+      equals: false
+    }
   })
   @RequirePermissions(SYSTEM_PERMISSION_POINTS.dictionaryItem.status)
   @Patch(':id/status')

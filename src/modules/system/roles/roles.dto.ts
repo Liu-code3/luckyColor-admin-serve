@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayUnique,
@@ -11,7 +11,44 @@ import {
   IsString,
   Min
 } from 'class-validator';
+import {
+  LIST_SORT_ORDER_VALUES,
+  type ListSortOrder
+} from '../../../shared/api/list-query.util';
 import { ROLE_DATA_SCOPE_VALUES, type RoleDataScope } from './roles.constants';
+
+const ROLE_LIST_SORT_FIELDS = [
+  'sort',
+  'createdAt',
+  'updatedAt',
+  'name',
+  'code',
+  'status'
+] as const;
+
+function transformBoolean(value: unknown) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized === 'true') {
+      return true;
+    }
+
+    if (normalized === 'false') {
+      return false;
+    }
+  }
+
+  return value;
+}
 
 export class RoleListQueryDto {
   @ApiPropertyOptional({
@@ -45,9 +82,28 @@ export class RoleListQueryDto {
     example: true
   })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => transformBoolean(value))
   @IsBoolean()
   status?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'sort field',
+    enum: ROLE_LIST_SORT_FIELDS,
+    example: 'sort'
+  })
+  @IsOptional()
+  @IsIn(ROLE_LIST_SORT_FIELDS)
+  sortBy?: (typeof ROLE_LIST_SORT_FIELDS)[number];
+
+  @ApiPropertyOptional({
+    description: 'sort order',
+    enum: LIST_SORT_ORDER_VALUES,
+    example: 'asc',
+    default: 'asc'
+  })
+  @IsOptional()
+  @IsIn(LIST_SORT_ORDER_VALUES)
+  sortOrder?: ListSortOrder;
 }
 
 export class CreateRoleDto {

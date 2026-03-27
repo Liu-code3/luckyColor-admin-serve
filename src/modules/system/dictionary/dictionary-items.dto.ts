@@ -2,11 +2,25 @@ import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
   Min
 } from 'class-validator';
+import {
+  LIST_SORT_ORDER_VALUES,
+  type ListSortOrder
+} from '../../../shared/api/list-query.util';
+
+const DICTIONARY_ITEM_LIST_SORT_FIELDS = [
+  'sortCode',
+  'name',
+  'dictLabel',
+  'dictValue',
+  'status',
+  'updatedAt'
+] as const;
 
 function transformBoolean(value: unknown) {
   if (value === undefined || value === null || value === '') {
@@ -74,6 +88,25 @@ export class DictionaryItemListQueryDto {
   @Transform(({ value }) => transformBoolean(value))
   @IsBoolean()
   status?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'sort field',
+    enum: DICTIONARY_ITEM_LIST_SORT_FIELDS,
+    example: 'sortCode'
+  })
+  @IsOptional()
+  @IsIn(DICTIONARY_ITEM_LIST_SORT_FIELDS)
+  sortBy?: (typeof DICTIONARY_ITEM_LIST_SORT_FIELDS)[number];
+
+  @ApiPropertyOptional({
+    description: 'sort order',
+    enum: LIST_SORT_ORDER_VALUES,
+    example: 'asc',
+    default: 'asc'
+  })
+  @IsOptional()
+  @IsIn(LIST_SORT_ORDER_VALUES)
+  sortOrder?: ListSortOrder;
 }
 
 export class DictionaryItemTreeQueryDto {

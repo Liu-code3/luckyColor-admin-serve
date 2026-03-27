@@ -5,6 +5,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { resolveSortOrder } from '../../../shared/api/list-query.util';
 import { extractRequestClientInfo } from '../../../shared/http/request-client-info.util';
 import type { JwtPayload } from '../../iam/auth/jwt-payload.interface';
 import {
@@ -30,6 +31,7 @@ export class SystemLogsService {
   async list(query: SystemLogListQueryDto) {
     const current = query.page || 1;
     const size = query.size || 10;
+    const orderBy = this.buildListOrderBy(query);
     const where = this.buildWhere({
       module: query.module?.trim()
         ? {
@@ -52,7 +54,7 @@ export class SystemLogsService {
       this.prisma.systemLog.count({ where }),
       this.prisma.systemLog.findMany({
         where,
-        orderBy: [{ createdAt: 'desc' }],
+        orderBy,
         skip: (current - 1) * size,
         take: size
       })
@@ -118,6 +120,24 @@ export class SystemLogsService {
       where,
       'tenantId'
     ) as Prisma.UserWhereInput;
+  }
+
+  private buildListOrderBy(
+    query: SystemLogListQueryDto
+  ): Prisma.SystemLogOrderByWithRelationInput[] {
+    const sortOrder = resolveSortOrder(query.sortOrder);
+
+    switch (query.sortBy) {
+      case 'module':
+        return [{ module: sortOrder }, { createdAt: 'desc' }];
+      case 'operatorName':
+        return [{ operatorName: sortOrder }, { createdAt: 'desc' }];
+      case 'updatedAt':
+        return [{ updatedAt: sortOrder }, { createdAt: 'desc' }];
+      case 'createdAt':
+      default:
+        return [{ createdAt: sortOrder }];
+    }
   }
 
   private toResponse(log: {

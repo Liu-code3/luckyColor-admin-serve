@@ -7,8 +7,8 @@ import { SystemLogInterceptor } from './system-log.interceptor';
 
 class DecoratedController {
   @SystemLog({
-    module: '用户管理',
-    action: '创建用户',
+    module: '鐢ㄦ埛绠＄悊',
+    action: '鍒涘缓鐢ㄦ埛',
     targets: [{ source: 'body', key: 'username', label: 'username' }]
   })
   create() {
@@ -16,10 +16,37 @@ class DecoratedController {
   }
 
   @SystemLog({
-    module: '系统配置',
-    action: '刷新配置缓存'
+    module: '绯荤粺閰嶇疆',
+    action: '鍒锋柊閰嶇疆缂撳瓨'
   })
   refreshCache() {
+    return true;
+  }
+
+  @SystemLog({
+    module: '瑙掕壊绠＄悊',
+    action: '淇敼瑙掕壊鐘舵€?',
+    targets: [
+      { source: 'param', key: 'id', label: 'id' },
+      { source: 'body', key: 'status', label: 'status' }
+    ],
+    sensitive: {
+      source: 'body',
+      key: 'status',
+      equals: false
+    }
+  })
+  updateRoleStatus() {
+    return true;
+  }
+
+  @SystemLog({
+    module: '鐢ㄦ埛绠＄悊',
+    action: '閲嶇疆鐢ㄦ埛瀵嗙爜',
+    targets: [{ source: 'param', key: 'id', label: 'id' }],
+    sensitive: true
+  })
+  resetPassword() {
     return true;
   }
 }
@@ -103,8 +130,8 @@ describe('SystemLogInterceptor', () => {
     expect(systemLogsService.create).toHaveBeenCalledWith(
       payload,
       {
-        module: '用户管理',
-        content: '创建用户: username=alice'
+        module: '鐢ㄦ埛绠＄悊',
+        content: '鍒涘缓鐢ㄦ埛: username=alice'
       },
       request
     );
@@ -144,8 +171,113 @@ describe('SystemLogInterceptor', () => {
     expect(systemLogsService.create).toHaveBeenCalledWith(
       payload,
       {
-        module: '系统配置',
-        content: '刷新配置缓存'
+        module: '绯荤粺閰嶇疆',
+        content: '鍒锋柊閰嶇疆缂撳瓨'
+      },
+      request
+    );
+  });
+
+  it('prefixes sensitive logs when the rule matches', async () => {
+    const { interceptor, systemLogsService } = createInterceptor();
+    const controller = new DecoratedController();
+    const request = {
+      user: payload,
+      params: {
+        id: 'role-1'
+      },
+      body: {
+        status: false
+      }
+    };
+
+    await lastValueFrom(
+      interceptor.intercept(
+        createContext(
+          DecoratedController,
+          controller.updateRoleStatus,
+          request
+        ),
+        {
+          handle: () => of(true)
+        }
+      )
+    );
+
+    expect(systemLogsService.create).toHaveBeenCalledWith(
+      payload,
+      {
+        module: '瑙掕壊绠＄悊',
+        content: '[SENSITIVE] 淇敼瑙掕壊鐘舵€?: id=role-1, status=false'
+      },
+      request
+    );
+  });
+
+  it('keeps non-sensitive content when the rule does not match', async () => {
+    const { interceptor, systemLogsService } = createInterceptor();
+    const controller = new DecoratedController();
+    const request = {
+      user: payload,
+      params: {
+        id: 'role-1'
+      },
+      body: {
+        status: true
+      }
+    };
+
+    await lastValueFrom(
+      interceptor.intercept(
+        createContext(
+          DecoratedController,
+          controller.updateRoleStatus,
+          request
+        ),
+        {
+          handle: () => of(true)
+        }
+      )
+    );
+
+    expect(systemLogsService.create).toHaveBeenCalledWith(
+      payload,
+      {
+        module: '瑙掕壊绠＄悊',
+        content: '淇敼瑙掕壊鐘舵€?: id=role-1, status=true'
+      },
+      request
+    );
+  });
+
+  it('always prefixes logs for explicitly sensitive operations', async () => {
+    const { interceptor, systemLogsService } = createInterceptor();
+    const controller = new DecoratedController();
+    const request = {
+      user: payload,
+      params: {
+        id: 'user-2'
+      }
+    };
+
+    await lastValueFrom(
+      interceptor.intercept(
+        createContext(
+          DecoratedController,
+          controller.resetPassword,
+          request
+        ),
+        {
+          handle: () => of(true)
+        }
+      )
+    );
+
+    expect(systemLogsService.create).toHaveBeenCalledWith(
+      payload,
+      {
+        module: '鐢ㄦ埛绠＄悊',
+        content: '[SENSITIVE] 閲嶇疆鐢ㄦ埛瀵嗙爜: id=user-2'
       },
       request
     );

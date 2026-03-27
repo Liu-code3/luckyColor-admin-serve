@@ -70,7 +70,8 @@ describe('RolesService', () => {
         findMany: jest.fn(),
         count: jest.fn(),
         update: jest.fn(),
-        create: jest.fn()
+        create: jest.fn(),
+        delete: jest.fn()
       },
       menu: {
         findMany: jest.fn()
@@ -110,6 +111,183 @@ describe('RolesService', () => {
       clientVersion: 'test',
       meta: { target }
     });
+
+  it('returns role detail with data scope departments', async () => {
+    const prisma = createPrismaMock();
+    const service = new RolesService(prisma as never, createTenantScope());
+
+    prisma.role.findFirst.mockResolvedValue({
+      ...createRole({
+        name: '租户管理员',
+        code: 'tenant_admin',
+        dataScope: 'CUSTOM'
+      }),
+      dataScopeDepartments: [{ departmentId: 100 }]
+    });
+
+    const response = await service.detail('role-1');
+
+    expect(prisma.role.findFirst).toHaveBeenCalledWith({
+      where: {
+        AND: [{ id: 'role-1' }, { tenantId: 'tenant_001' }]
+      },
+      include: {
+        dataScopeDepartments: {
+          include: {
+            department: true
+          },
+          orderBy: {
+            departmentId: 'asc'
+          }
+        }
+      }
+    });
+    expect(response).toEqual({
+      code: 200,
+      msg: 'success',
+      data: {
+        id: 'role-1',
+        tenantId: 'tenant_001',
+        name: '租户管理员',
+        code: 'tenant_admin',
+        sort: 1,
+        status: true,
+        dataScope: 'CUSTOM',
+        dataScopeDeptIds: [100],
+        remark: null,
+        createdAt: new Date('2026-03-22T14:30:00.000Z'),
+        updatedAt: new Date('2026-03-22T14:30:00.000Z')
+      }
+    });
+  });
+
+  it('creates a role with default status and all data scope', async () => {
+    const prisma = createPrismaMock();
+    const service = new RolesService(prisma as never, createTenantScope());
+    const createdRole = createRole({
+      id: 'role-2',
+      name: '租户管理员',
+      code: 'tenant_admin',
+      sort: 0,
+      status: true,
+      dataScope: 'ALL'
+    });
+
+    prisma.role.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        ...createdRole,
+        dataScopeDepartments: []
+      });
+    prisma.role.create.mockResolvedValue(createdRole);
+    prisma.roleDepartmentScope.deleteMany.mockResolvedValue({ count: 0 });
+
+    const response = await service.create({
+      name: '租户管理员',
+      code: 'tenant_admin'
+    });
+
+    expect(prisma.role.create).toHaveBeenCalledWith({
+      data: {
+        tenantId: 'tenant_001',
+        name: '租户管理员',
+        code: 'tenant_admin',
+        sort: 0,
+        status: true,
+        dataScope: 'ALL',
+        remark: null
+      }
+    });
+    expect(prisma.roleDepartmentScope.deleteMany).toHaveBeenCalledWith({
+      where: {
+        AND: [{ roleId: 'role-2' }, { tenantId: 'tenant_001' }]
+      }
+    });
+    expect(response.data).toMatchObject({
+      id: 'role-2',
+      tenantId: 'tenant_001',
+      name: '租户管理员',
+      code: 'tenant_admin',
+      status: true,
+      dataScope: 'ALL',
+      dataScopeDeptIds: []
+    });
+  });
+
+  it('updates role fields without rewriting data scope bindings', async () => {
+    const prisma = createPrismaMock();
+    const service = new RolesService(prisma as never, createTenantScope());
+    const existingRole = {
+      ...createRole(),
+      dataScopeDepartments: [{ departmentId: 100 }]
+    };
+
+    prisma.role.findFirst
+      .mockResolvedValueOnce(existingRole)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        ...existingRole,
+        name: '平台管理员',
+        code: 'platform_admin',
+        sort: 5,
+        remark: '更新后的角色',
+        dataScopeDepartments: [{ departmentId: 100 }]
+      });
+    prisma.role.update.mockResolvedValue(
+      createRole({
+        name: '平台管理员',
+        code: 'platform_admin',
+        sort: 5,
+        remark: '更新后的角色'
+      })
+    );
+
+    const response = await service.update('role-1', {
+      name: '平台管理员',
+      code: 'platform_admin',
+      sort: 5,
+      remark: '更新后的角色'
+    });
+
+    expect(prisma.role.update).toHaveBeenCalledWith({
+      where: { id: 'role-1' },
+      data: {
+        name: '平台管理员',
+        code: 'platform_admin',
+        sort: 5,
+        status: undefined,
+        dataScope: undefined,
+        remark: '更新后的角色'
+      }
+    });
+    expect(prisma.roleDepartmentScope.deleteMany).not.toHaveBeenCalled();
+    expect(response.data).toMatchObject({
+      id: 'role-1',
+      name: '平台管理员',
+      code: 'platform_admin',
+      sort: 5,
+      dataScopeDeptIds: [100],
+      remark: '更新后的角色'
+    });
+  });
+
+  it('removes a role after existence check', async () => {
+    const prisma = createPrismaMock();
+    const service = new RolesService(prisma as never, createTenantScope());
+    prisma.role.findFirst.mockResolvedValue(createRole());
+    prisma.role.delete.mockResolvedValue(createRole());
+
+    const response = await service.remove('role-1');
+
+    expect(prisma.role.delete).toHaveBeenCalledWith({
+      where: { id: 'role-1' }
+    });
+    expect(response).toEqual({
+      code: 200,
+      msg: 'success',
+      data: true
+    });
+  });
 
   it('returns assigned menus for a role', async () => {
     const prisma = createPrismaMock();

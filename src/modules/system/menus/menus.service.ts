@@ -5,6 +5,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { resolveSortOrder } from '../../../shared/api/list-query.util';
 import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
 import type { JwtPayload } from '../../iam/auth/jwt-payload.interface';
 import { TenantActorService } from '../../tenant/tenants/tenant-actor.service';
@@ -32,21 +33,31 @@ export class MenusService {
   async list(query: MenuListQueryDto) {
     const current = query.page || 1;
     const size = query.size || 10;
+    const keyword = query.keyword?.trim();
     const title = query.title?.trim();
     const where: Prisma.MenuWhereInput = {
-      title: title
-        ? {
-            contains: title
-          }
+      OR: keyword
+        ? [
+            { title: { contains: keyword } },
+            { name: { contains: keyword } },
+            { menuKey: { contains: keyword } }
+          ]
         : undefined,
+      title:
+        !keyword && title
+          ? {
+              contains: title
+            }
+          : undefined,
       status: query.status
     };
+    const orderBy = this.buildListOrderBy(query);
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.menu.count({ where }),
       this.prisma.menu.findMany({
         where,
-        orderBy: [{ sort: 'asc' }, { id: 'asc' }],
+        orderBy,
         skip: (current - 1) * size,
         take: size
       })
@@ -58,6 +69,30 @@ export class MenusService {
       size,
       records: records.map((item) => this.toMenuResponse(item))
     });
+  }
+
+  private buildListOrderBy(query: MenuListQueryDto): Prisma.MenuOrderByWithRelationInput[] {
+    if (!query.sortBy) {
+      return [{ sort: 'asc' }, { id: 'asc' }];
+    }
+
+    const sortOrder = resolveSortOrder(query.sortOrder);
+
+    switch (query.sortBy) {
+      case 'id':
+        return [{ id: sortOrder }];
+      case 'title':
+        return [{ title: sortOrder }, { sort: 'asc' }, { id: 'asc' }];
+      case 'status':
+        return [{ status: sortOrder }, { sort: 'asc' }, { id: 'asc' }];
+      case 'createdAt':
+        return [{ createdAt: sortOrder }, { sort: 'asc' }, { id: 'asc' }];
+      case 'updatedAt':
+        return [{ updatedAt: sortOrder }, { sort: 'asc' }, { id: 'asc' }];
+      case 'sort':
+      default:
+        return [{ sort: sortOrder }, { id: 'asc' }];
+    }
   }
 
   async tree(user: JwtPayload, query: MenuTreeQueryDto) {
@@ -93,6 +128,9 @@ export class MenusService {
 
   async create(dto: CreateMenuDto) {
     await this.ensureMenuKeyAvailable(dto.menuKey);
+    await this.ensurePermissionCodeAvailable(
+      normalizePermissionCode(dto.permissionCode, dto.menuKey)
+    );
 
     try {
       const menu = await this.prisma.$transaction(
@@ -160,6 +198,13 @@ export class MenusService {
 
     if (dto.menuKey) {
       await this.ensureMenuKeyAvailable(dto.menuKey, id);
+    }
+
+    if (dto.permissionCode !== undefined) {
+      await this.ensurePermissionCodeAvailable(
+        normalizePermissionCode(dto.permissionCode, dto.menuKey ?? existing.menuKey),
+        id
+      );
     }
 
     if (dto.parentId !== undefined || dto.type !== undefined) {
@@ -379,6 +424,35 @@ export class MenusService {
     });
 
     if (menu) {
+      throw new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS);
+    }
+  }
+
+  private async ensurePermissionCodeAvailable(
+    permissionCode: string,
+    excludeId?: number
+  ) {
+    const menus = await this.prisma.menu.findMany({
+      where: excludeId
+        ? {
+            id: {
+              not: excludeId
+            }
+          }
+        : undefined,
+      select: {
+        id: true,
+        menuKey: true,
+        permissionCode: true
+      }
+    });
+
+    const duplicatedMenu = menus.find(
+      (menu) =>
+        normalizePermissionCode(menu.permissionCode, menu.menuKey) === permissionCode
+    );
+
+    if (duplicatedMenu) {
       throw new BusinessException(BUSINESS_ERROR_CODES.DATA_ALREADY_EXISTS);
     }
   }

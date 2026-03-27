@@ -30,6 +30,63 @@ describe('SystemLogsService', () => {
     return prisma;
   }
 
+  it('lists system logs with standardized sorting params', async () => {
+    const prisma = createPrismaMock();
+    const service = new SystemLogsService(prisma as never, createTenantScope());
+    prisma.systemLog.count.mockResolvedValue(1);
+    prisma.systemLog.findMany.mockResolvedValue([
+      {
+        id: 'log-1',
+        tenantId: 'tenant_001',
+        operatorUserId: 'user-1',
+        operatorName: 'admin',
+        module: '鐢ㄦ埛绠＄悊',
+        content: 'create user',
+        ipAddress: '127.0.0.1',
+        region: 'Shanghai',
+        browserVersion: 'Chrome 123.0.0.0',
+        terminalSystem: 'Windows',
+        createdAt: new Date('2026-03-23T03:30:00.000Z'),
+        updatedAt: new Date('2026-03-23T03:30:00.000Z')
+      }
+    ]);
+
+    const response = await service.list({
+      page: 1,
+      size: 10,
+      module: '鐢ㄦ埛',
+      operator: 'admin',
+      keyword: 'create',
+      sortBy: 'module',
+      sortOrder: 'asc'
+    });
+
+    expect(prisma.systemLog.findMany).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          {
+            module: {
+              contains: '鐢ㄦ埛'
+            },
+            operatorName: {
+              contains: 'admin'
+            },
+            content: {
+              contains: 'create'
+            }
+          },
+          {
+            tenantId: 'tenant_001'
+          }
+        ]
+      },
+      orderBy: [{ module: 'asc' }, { createdAt: 'desc' }],
+      skip: 0,
+      take: 10
+    });
+    expect(response.data.records).toHaveLength(1);
+  });
+
   it('creates a system log with request-derived client info', async () => {
     const prisma = createPrismaMock();
     const service = new SystemLogsService(prisma as never, createTenantScope());

@@ -320,7 +320,8 @@ export class DictionaryTypesController {
   @SystemLog({
     module: '字典类型',
     action: '删除字典类型',
-    targets: [{ source: 'param', key: 'id', label: 'id' }]
+    targets: [{ source: 'param', key: 'id', label: 'id' }],
+    sensitive: true
   })
   @RequirePermissions(SYSTEM_PERMISSION_POINTS.dictionaryType.delete)
   @Delete(':id')

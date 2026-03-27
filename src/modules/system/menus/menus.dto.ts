@@ -18,6 +18,19 @@ import {
   type MenuTreeView,
   type MenuType
 } from '../../../shared/constants/menu.constants';
+import {
+  LIST_SORT_ORDER_VALUES,
+  type ListSortOrder
+} from '../../../shared/api/list-query.util';
+
+const MENU_LIST_SORT_FIELDS = [
+  'sort',
+  'id',
+  'title',
+  'status',
+  'createdAt',
+  'updatedAt'
+] as const;
 
 function transformBoolean(value: unknown) {
   if (value === undefined || value === null || value === '') {
@@ -63,6 +76,14 @@ export class MenuListQueryDto {
   size = 10;
 
   @ApiPropertyOptional({
+    description: 'keyword for title, route name, or permission key',
+    example: 'system'
+  })
+  @IsOptional()
+  @IsString()
+  keyword?: string;
+
+  @ApiPropertyOptional({
     description: '菜单标题关键字',
     example: '系统'
   })
@@ -78,6 +99,25 @@ export class MenuListQueryDto {
   @Transform(({ value }) => transformBoolean(value))
   @IsBoolean()
   status?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'sort field',
+    enum: MENU_LIST_SORT_FIELDS,
+    example: 'sort'
+  })
+  @IsOptional()
+  @IsIn(MENU_LIST_SORT_FIELDS)
+  sortBy?: (typeof MENU_LIST_SORT_FIELDS)[number];
+
+  @ApiPropertyOptional({
+    description: 'sort order',
+    enum: LIST_SORT_ORDER_VALUES,
+    example: 'asc',
+    default: 'asc'
+  })
+  @IsOptional()
+  @IsIn(LIST_SORT_ORDER_VALUES)
+  sortOrder?: ListSortOrder;
 }
 
 export class CreateMenuDto {

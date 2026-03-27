@@ -58,7 +58,8 @@ describe('DepartmentsService', () => {
         findFirst: jest.fn(),
         findMany: jest.fn(),
         create: jest.fn(),
-        update: jest.fn()
+        update: jest.fn(),
+        deleteMany: jest.fn()
       },
       user: {
         count: jest.fn(),
@@ -84,6 +85,77 @@ describe('DepartmentsService', () => {
       clientVersion: 'test',
       meta: { target }
     });
+
+  it('returns department tree', async () => {
+    const prisma = createPrismaMock();
+    const service = new DepartmentsService(
+      prisma as never,
+      createTenantScope()
+    );
+
+    prisma.department.findMany.mockResolvedValue([
+      createDepartment({
+        id: 100,
+        parentId: null,
+        name: 'Headquarters',
+        code: 'headquarters',
+        sort: 1
+      }),
+      createDepartment({
+        id: 110,
+        parentId: 100,
+        name: 'Product',
+        code: 'product',
+        sort: 10
+      })
+    ]);
+
+    const response = await service.tree();
+
+    expect(prisma.department.findMany).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant_001'
+      },
+      orderBy: [{ sort: 'asc' }, { id: 'asc' }]
+    });
+    expect(response.data).toEqual([
+      expect.objectContaining({
+        id: 100,
+        children: [expect.objectContaining({ id: 110, pid: 100 })]
+      })
+    ]);
+  });
+
+  it('returns department detail', async () => {
+    const prisma = createPrismaMock();
+    const service = new DepartmentsService(
+      prisma as never,
+      createTenantScope()
+    );
+
+    prisma.department.findFirst.mockResolvedValue(
+      createDepartment({
+        id: 110,
+        parentId: 100,
+        name: 'Product',
+        code: 'product'
+      })
+    );
+
+    const response = await service.detail(110);
+
+    expect(prisma.department.findFirst).toHaveBeenCalledWith({
+      where: {
+        AND: [{ id: 110 }, { tenantId: 'tenant_001' }]
+      }
+    });
+    expect(response.data).toMatchObject({
+      id: 110,
+      pid: 100,
+      name: 'Product',
+      code: 'product'
+    });
+  });
 
   it('uses created id as default sort when sort is omitted', async () => {
     const prisma = createPrismaMock();
@@ -352,6 +424,67 @@ describe('DepartmentsService', () => {
     expect(response.data.status).toBe(false);
   });
 
+  it('updates department fields', async () => {
+    const prisma = createPrismaMock();
+    const service = new DepartmentsService(
+      prisma as never,
+      createTenantScope()
+    );
+
+    prisma.department.findFirst
+      .mockResolvedValueOnce(
+        createDepartment({
+          id: 110,
+          parentId: 100,
+          name: 'Product',
+          code: 'product'
+        })
+      )
+      .mockResolvedValueOnce(null);
+    prisma.department.update.mockResolvedValue(
+      createDepartment({
+        id: 110,
+        parentId: 100,
+        name: 'Product R&D',
+        code: 'product_rd',
+        leader: 'Alice',
+        sort: 20,
+        remark: 'updated'
+      })
+    );
+
+    const response = await service.update(110, {
+      name: 'Product R&D',
+      code: 'product_rd',
+      leader: 'Alice',
+      sort: 20,
+      remark: 'updated'
+    });
+
+    expect(prisma.department.update).toHaveBeenCalledWith({
+      where: { id: 110 },
+      data: {
+        parentId: undefined,
+        name: 'Product R&D',
+        code: 'product_rd',
+        leader: 'Alice',
+        phone: undefined,
+        email: undefined,
+        sort: 20,
+        status: undefined,
+        remark: 'updated'
+      }
+    });
+    expect(response.data).toMatchObject({
+      id: 110,
+      name: 'Product R&D',
+      code: 'product_rd',
+      leader: 'Alice',
+      sort: 20,
+      remark: 'updated'
+    });
+  });
+
   it('returns current and descendant department ids', async () => {
     const prisma = createPrismaMock();
     const service = new DepartmentsService(
@@ -493,10 +626,53 @@ describe('DepartmentsService', () => {
       include: {
         department: true
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }],
       skip: 0,
       take: 10
     });
     expect(response.data.records[0].department?.id).toBe(110);
+  });
+
+  it('removes department and descendants', async () => {
+    const prisma = createPrismaMock();
+    const service = new DepartmentsService(
+      prisma as never,
+      createTenantScope()
+    );
+
+    prisma.department.findMany.mockResolvedValue([
+      createDepartment({
+        id: 100,
+        parentId: null,
+        name: 'Headquarters',
+        code: 'headquarters'
+      }),
+      createDepartment({
+        id: 110,
+        parentId: 100,
+        name: 'Product',
+        code: 'product'
+      }),
+      createDepartment({
+        id: 120,
+        parentId: 110,
+        name: 'Frontend',
+        code: 'frontend'
+      })
+    ]);
+    prisma.department.deleteMany.mockResolvedValue({ count: 2 });
+
+    const response = await service.remove(110);
+
+    expect(prisma.department.deleteMany).toHaveBeenCalledWith({
+      where: {
+        AND: [{ id: { in: [110, 120] } }, { tenantId: 'tenant_001' }]
+      }
+    });
+    expect(response).toEqual({
+      code: 200,
+      msg: 'success',
+      data: true
+    });
   });
 });

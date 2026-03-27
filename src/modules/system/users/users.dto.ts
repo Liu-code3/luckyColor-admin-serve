@@ -6,12 +6,25 @@ import {
   IsBoolean,
   IsDateString,
   IsEmail,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Min
 } from 'class-validator';
+import {
+  LIST_SORT_ORDER_VALUES,
+  type ListSortOrder
+} from '../../../shared/api/list-query.util';
+
+const USER_LIST_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'username',
+  'nickname',
+  'status'
+] as const;
 
 function transformBoolean(value: unknown) {
   if (value === undefined || value === null || value === '') {
@@ -72,6 +85,25 @@ export class UserListQueryDto {
   @Transform(({ value }) => transformBoolean(value))
   @IsBoolean()
   status?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'sort field',
+    enum: USER_LIST_SORT_FIELDS,
+    example: 'createdAt'
+  })
+  @IsOptional()
+  @IsIn(USER_LIST_SORT_FIELDS)
+  sortBy?: (typeof USER_LIST_SORT_FIELDS)[number];
+
+  @ApiPropertyOptional({
+    description: 'sort order',
+    enum: LIST_SORT_ORDER_VALUES,
+    example: 'desc',
+    default: 'desc'
+  })
+  @IsOptional()
+  @IsIn(LIST_SORT_ORDER_VALUES)
+  sortOrder?: ListSortOrder;
 
   @ApiPropertyOptional({
     description: '所属部门 ID',
@@ -274,4 +306,13 @@ export class AssignUserRolesDto {
   @ArrayUnique()
   @IsString({ each: true })
   roleIds!: string[];
+}
+
+export class UserImportBodyDto {
+  @ApiProperty({
+    type: 'string',
+    format: 'binary',
+    description: '待导入的用户 CSV 文件'
+  })
+  file!: unknown;
 }

@@ -1,16 +1,74 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayUnique,
+  IsArray,
   IsBoolean,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
   Min
 } from 'class-validator';
+import {
+  LIST_SORT_ORDER_VALUES,
+  type ListSortOrder
+} from '../../../shared/api/list-query.util';
+
+const CONFIG_LIST_SORT_FIELDS = [
+  'configGroup',
+  'configKey',
+  'configName',
+  'status',
+  'updatedAt',
+  'createdAt'
+] as const;
+
+function transformBoolean(value: unknown) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized === 'true') {
+      return true;
+    }
+
+    if (normalized === 'false') {
+      return false;
+    }
+  }
+
+  return value;
+}
+
+function transformStringArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value
+      .flatMap((item) => String(item).split(','))
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return undefined;
+}
 
 export class ConfigListQueryDto {
   @ApiPropertyOptional({
-    description: 'page number',
+    description: '页码',
     example: 1,
     default: 1
   })
@@ -19,7 +77,7 @@ export class ConfigListQueryDto {
   page = 1;
 
   @ApiPropertyOptional({
-    description: 'page size',
+    description: '每页条数',
     example: 10,
     default: 10
   })
@@ -28,17 +86,67 @@ export class ConfigListQueryDto {
   size = 10;
 
   @ApiPropertyOptional({
-    description: 'keyword for config name or key',
-    example: 'locale'
+    description: '配置名称或配置键关键字',
+    example: '语言'
   })
   @IsOptional()
   @IsString()
   keyword?: string;
+
+  @ApiPropertyOptional({
+    description: '配置分组',
+    example: 'appearance'
+  })
+  @IsOptional()
+  @IsString()
+  configGroup?: string;
+
+  @ApiPropertyOptional({
+    description: '配置状态，true 为启用，false 为停用',
+    example: true
+  })
+  @IsOptional()
+  @Transform(({ value }) => transformBoolean(value))
+  @IsBoolean()
+  status?: boolean;
+
+  @ApiPropertyOptional({
+    description: '排序字段',
+    enum: CONFIG_LIST_SORT_FIELDS,
+    example: 'configKey'
+  })
+  @IsOptional()
+  @IsIn(CONFIG_LIST_SORT_FIELDS)
+  sortBy?: (typeof CONFIG_LIST_SORT_FIELDS)[number];
+
+  @ApiPropertyOptional({
+    description: '排序方向',
+    enum: LIST_SORT_ORDER_VALUES,
+    example: 'asc',
+    default: 'asc'
+  })
+  @IsOptional()
+  @IsIn(LIST_SORT_ORDER_VALUES)
+  sortOrder?: ListSortOrder;
+}
+
+export class ConfigBatchQueryDto {
+  @ApiPropertyOptional({
+    description: '配置键列表，支持逗号分隔',
+    type: [String],
+    example: ['sys.default_locale', 'sys.enable_watermark']
+  })
+  @IsOptional()
+  @Transform(({ value }) => transformStringArray(value))
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  keys?: string[];
 }
 
 export class CreateConfigDto {
   @ApiProperty({
-    description: 'config key',
+    description: '配置键',
     example: 'sys.default_locale'
   })
   @IsString()
@@ -46,7 +154,7 @@ export class CreateConfigDto {
   configKey!: string;
 
   @ApiProperty({
-    description: 'config name',
+    description: '配置名称',
     example: '默认语言'
   })
   @IsString()
@@ -54,7 +162,7 @@ export class CreateConfigDto {
   configName!: string;
 
   @ApiProperty({
-    description: 'config value',
+    description: '配置值',
     example: 'zh-CN'
   })
   @IsString()
@@ -62,7 +170,16 @@ export class CreateConfigDto {
   configValue!: string;
 
   @ApiPropertyOptional({
-    description: 'value type',
+    description: '配置分组',
+    example: 'appearance',
+    default: 'default'
+  })
+  @IsOptional()
+  @IsString()
+  configGroup?: string;
+
+  @ApiPropertyOptional({
+    description: '值类型',
     example: 'string',
     default: 'string'
   })
@@ -71,18 +188,38 @@ export class CreateConfigDto {
   valueType?: string;
 
   @ApiPropertyOptional({
-    description: 'status, true for enabled and false for disabled',
+    description: '是否内置配置',
+    example: false,
+    default: false
+  })
+  @IsOptional()
+  @Transform(({ value }) => transformBoolean(value))
+  @IsBoolean()
+  isBuiltIn?: boolean;
+
+  @ApiPropertyOptional({
+    description: '是否敏感配置',
+    example: false,
+    default: false
+  })
+  @IsOptional()
+  @Transform(({ value }) => transformBoolean(value))
+  @IsBoolean()
+  isSensitive?: boolean;
+
+  @ApiPropertyOptional({
+    description: '状态，true 为启用，false 为停用',
     example: true,
     default: true
   })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => transformBoolean(value))
   @IsBoolean()
   status?: boolean;
 
   @ApiPropertyOptional({
-    description: 'remark',
-    example: '系统默认国际化语言'
+    description: '备注',
+    example: '系统默认语言'
   })
   @IsOptional()
   @IsString()
@@ -91,7 +228,7 @@ export class CreateConfigDto {
 
 export class UpdateConfigDto {
   @ApiPropertyOptional({
-    description: 'config key',
+    description: '配置键',
     example: 'sys.default_locale'
   })
   @IsOptional()
@@ -99,7 +236,7 @@ export class UpdateConfigDto {
   configKey?: string;
 
   @ApiPropertyOptional({
-    description: 'config name',
+    description: '配置名称',
     example: '默认语言'
   })
   @IsOptional()
@@ -107,7 +244,7 @@ export class UpdateConfigDto {
   configName?: string;
 
   @ApiPropertyOptional({
-    description: 'config value',
+    description: '配置值',
     example: 'en-US'
   })
   @IsOptional()
@@ -115,7 +252,15 @@ export class UpdateConfigDto {
   configValue?: string;
 
   @ApiPropertyOptional({
-    description: 'value type',
+    description: '配置分组',
+    example: 'appearance'
+  })
+  @IsOptional()
+  @IsString()
+  configGroup?: string;
+
+  @ApiPropertyOptional({
+    description: '值类型',
     example: 'string'
   })
   @IsOptional()
@@ -123,17 +268,35 @@ export class UpdateConfigDto {
   valueType?: string;
 
   @ApiPropertyOptional({
-    description: 'status, true for enabled and false for disabled',
+    description: '是否内置配置',
+    example: false
+  })
+  @IsOptional()
+  @Transform(({ value }) => transformBoolean(value))
+  @IsBoolean()
+  isBuiltIn?: boolean;
+
+  @ApiPropertyOptional({
+    description: '是否敏感配置',
+    example: false
+  })
+  @IsOptional()
+  @Transform(({ value }) => transformBoolean(value))
+  @IsBoolean()
+  isSensitive?: boolean;
+
+  @ApiPropertyOptional({
+    description: '状态，true 为启用，false 为停用',
     example: true
   })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => transformBoolean(value))
   @IsBoolean()
   status?: boolean;
 
   @ApiPropertyOptional({
-    description: 'remark',
-    example: '更新后的系统默认语言'
+    description: '备注',
+    example: '已更新语言配置'
   })
   @IsOptional()
   @IsString()

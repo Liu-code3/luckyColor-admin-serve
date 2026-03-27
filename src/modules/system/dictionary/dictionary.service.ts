@@ -5,6 +5,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { sortCollection, type ListSortOrder } from '../../../shared/api/list-query.util';
 import {
   CreateDictionaryDto,
   DictionaryPageQueryDto,
@@ -55,22 +56,32 @@ export class DictionaryService {
     const current = query.page || 1;
     const size = query.size || 10;
     const id = query.id?.trim() || '';
-    const searchKey = query.searchKey?.trim() || '';
+    const keyword = query.keyword?.trim() || query.searchKey?.trim() || '';
     const tree = await this.dictionaryCacheService.getTree();
 
     let recordsAll = this.sortByCode(this.treeToData(tree));
 
-    if (!id && searchKey) {
-      recordsAll = this.filterDataByKey(searchKey, tree);
+    if (!id && keyword) {
+      recordsAll = this.filterDataByKey(keyword, tree);
     }
 
-    if (id && !searchKey) {
+    if (id && !keyword) {
       recordsAll = this.getFlattenedRecordsById(id, tree);
     }
 
-    if (id && searchKey) {
-      recordsAll = this.filterDataById(id, searchKey, tree);
+    if (id && keyword) {
+      recordsAll = this.filterDataById(id, keyword, tree);
     }
+
+    if (query.status !== undefined) {
+      recordsAll = recordsAll.filter((item) => item.status === query.status);
+    }
+
+    recordsAll = this.sortPageRecords(
+      recordsAll,
+      query.sortBy,
+      query.sortOrder
+    );
 
     const records = recordsAll.slice((current - 1) * size, current * size);
 
@@ -334,12 +345,59 @@ export class DictionaryService {
     });
   }
 
+  private sortPageRecords(
+    records: DictionaryNode[],
+    sortBy?: DictionaryPageQueryDto['sortBy'],
+    sortOrder?: ListSortOrder
+  ) {
+    switch (sortBy) {
+      case 'name':
+        return sortCollection(
+          records,
+          (item) => item.name,
+          sortOrder,
+          (left, right) => left.sortCode - right.sortCode
+        );
+      case 'dictLabel':
+        return sortCollection(
+          records,
+          (item) => item.dictLabel,
+          sortOrder,
+          (left, right) => left.sortCode - right.sortCode
+        );
+      case 'dictValue':
+        return sortCollection(
+          records,
+          (item) => item.dictValue,
+          sortOrder,
+          (left, right) => left.sortCode - right.sortCode
+        );
+      case 'status':
+        return sortCollection(
+          records,
+          (item) => item.status,
+          sortOrder,
+          (left, right) => left.sortCode - right.sortCode
+        );
+      case 'updatedAt':
+        return sortCollection(
+          records,
+          (item) => item.updatedAt,
+          sortOrder,
+          (left, right) => left.sortCode - right.sortCode
+        );
+      case 'sortCode':
+      default:
+        return sortOrder === 'desc' ? [...this.sortByCode(records)].reverse() : this.sortByCode(records);
+    }
+  }
+
   private filterDataByKey(searchKey: string, list: DictionaryNode[]) {
     const dataArr: DictionaryNode[] = [];
 
     const walk = (nodes: DictionaryNode[]) => {
       nodes.forEach((item) => {
-        if (item.dictLabel.includes(searchKey)) {
+        if (this.matchesKeyword(item, searchKey)) {
           const clone = { ...item };
           delete clone.children;
           dataArr.push(clone);
@@ -394,14 +452,14 @@ export class DictionaryService {
     const walk = (nodes: DictionaryNode[]) => {
       nodes.forEach((item) => {
         if (item.id === id) {
-          if (item.dictLabel.includes(searchKey)) {
+          if (this.matchesKeyword(item, searchKey)) {
             const clone = { ...item };
             delete clone.children;
             dataArr.push(clone);
           }
 
           item.children?.forEach((child) => {
-            if (child.dictLabel.includes(searchKey)) {
+            if (this.matchesKeyword(child, searchKey)) {
               const clone = { ...child };
               delete clone.children;
               dataArr.push(clone);
@@ -418,5 +476,13 @@ export class DictionaryService {
 
     walk(list);
     return dataArr;
+  }
+
+  private matchesKeyword(node: DictionaryNode, keyword: string) {
+    return (
+      node.name.includes(keyword) ||
+      node.dictLabel.includes(keyword) ||
+      node.dictValue.includes(keyword)
+    );
   }
 }

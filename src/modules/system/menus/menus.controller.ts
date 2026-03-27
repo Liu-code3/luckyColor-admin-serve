@@ -568,7 +568,12 @@ export class MenusController {
     targets: [
       { source: 'param', key: 'id', label: 'id' },
       { source: 'body', key: 'status', label: 'status' }
-    ]
+    ],
+    sensitive: {
+      source: 'body',
+      key: 'status',
+      equals: false
+    }
   })
   @RequirePermissions(SYSTEM_PERMISSION_POINTS.menu.status)
   @Patch(':id/status')
@@ -605,7 +610,8 @@ export class MenusController {
   @SystemLog({
     module: '菜单管理',
     action: '删除菜单',
-    targets: [{ source: 'param', key: 'id', label: 'id' }]
+    targets: [{ source: 'param', key: 'id', label: 'id' }],
+    sensitive: true
   })
   @RequirePermissions(SYSTEM_PERMISSION_POINTS.menu.delete)
   @Delete(':id')

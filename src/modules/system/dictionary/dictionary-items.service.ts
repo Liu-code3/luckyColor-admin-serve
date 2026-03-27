@@ -5,6 +5,7 @@ import { TenantPrismaScopeService } from '../../../infra/tenancy/tenant-prisma-s
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { sortCollection, type ListSortOrder } from '../../../shared/api/list-query.util';
 import {
   createDictionaryId,
   type CreateDictionaryDto,
@@ -43,11 +44,15 @@ export class DictionaryItemsService {
 
   async list(query: DictionaryItemListQueryDto) {
     const tree = await this.dictionaryCacheService.getTree();
-    const scopedRows = this.filterTreeByType(
-      query.typeId,
-      tree,
-      query.status,
-      query.keyword
+    const scopedRows = this.sortListRecords(
+      this.filterTreeByType(
+        query.typeId,
+        tree,
+        query.status,
+        query.keyword
+      ),
+      query.sortBy,
+      query.sortOrder
     );
     const current = query.page || 1;
     const size = query.size || 10;
@@ -326,6 +331,58 @@ export class DictionaryItemsService {
           children
         };
       });
+  }
+
+  private sortListRecords(
+    records: DictionaryNode[],
+    sortBy?: DictionaryItemListQueryDto['sortBy'],
+    sortOrder?: ListSortOrder
+  ) {
+    switch (sortBy) {
+      case 'name':
+        return sortCollection(
+          records,
+          (item) => item.name,
+          sortOrder,
+          (left, right) => left.sortCode - right.sortCode
+        );
+      case 'dictLabel':
+        return sortCollection(
+          records,
+          (item) => item.dictLabel,
+          sortOrder,
+          (left, right) => left.sortCode - right.sortCode
+        );
+      case 'dictValue':
+        return sortCollection(
+          records,
+          (item) => item.dictValue,
+          sortOrder,
+          (left, right) => left.sortCode - right.sortCode
+        );
+      case 'status':
+        return sortCollection(
+          records,
+          (item) => item.status,
+          sortOrder,
+          (left, right) => left.sortCode - right.sortCode
+        );
+      case 'updatedAt':
+        return sortCollection(
+          records,
+          (item) => item.updatedAt,
+          sortOrder,
+          (left, right) => left.sortCode - right.sortCode
+        );
+      case 'sortCode':
+      default:
+        return sortCollection(
+          records,
+          (item) => item.sortCode,
+          sortOrder ?? 'asc',
+          (left, right) => left.name.localeCompare(right.name, 'zh-CN')
+        );
+    }
   }
 
   private toItemResponse(row: Dictionary) {

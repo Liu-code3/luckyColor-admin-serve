@@ -1,6 +1,17 @@
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, Min } from 'class-validator';
+import { IsIn, IsOptional, IsString, Min } from 'class-validator';
+import {
+  LIST_SORT_ORDER_VALUES,
+  type ListSortOrder
+} from '../../../shared/api/list-query.util';
+
+const SYSTEM_LOG_LIST_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'module',
+  'operatorName'
+] as const;
 
 export class SystemLogListQueryDto {
   @ApiPropertyOptional({
@@ -44,6 +55,25 @@ export class SystemLogListQueryDto {
   @IsOptional()
   @IsString()
   keyword?: string;
+
+  @ApiPropertyOptional({
+    description: 'sort field',
+    enum: SYSTEM_LOG_LIST_SORT_FIELDS,
+    example: 'createdAt'
+  })
+  @IsOptional()
+  @IsIn(SYSTEM_LOG_LIST_SORT_FIELDS)
+  sortBy?: (typeof SYSTEM_LOG_LIST_SORT_FIELDS)[number];
+
+  @ApiPropertyOptional({
+    description: 'sort order',
+    enum: LIST_SORT_ORDER_VALUES,
+    example: 'desc',
+    default: 'desc'
+  })
+  @IsOptional()
+  @IsIn(LIST_SORT_ORDER_VALUES)
+  sortOrder?: ListSortOrder;
 }
 
 export class CreateSystemLogDto {

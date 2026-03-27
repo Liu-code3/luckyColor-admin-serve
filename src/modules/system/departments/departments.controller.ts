@@ -534,7 +534,12 @@ export class DepartmentsController {
     targets: [
       { source: 'param', key: 'id', label: 'id' },
       { source: 'body', key: 'status', label: 'status' }
-    ]
+    ],
+    sensitive: {
+      source: 'body',
+      key: 'status',
+      equals: false
+    }
   })
   @RequirePermissions(SYSTEM_PERMISSION_POINTS.department.status)
   @Patch(':id/status')
@@ -571,7 +576,8 @@ export class DepartmentsController {
   @SystemLog({
     module: '部门管理',
     action: '删除部门',
-    targets: [{ source: 'param', key: 'id', label: 'id' }]
+    targets: [{ source: 'param', key: 'id', label: 'id' }],
+    sensitive: true
   })
   @RequirePermissions(SYSTEM_PERMISSION_POINTS.department.delete)
   @Delete(':id')

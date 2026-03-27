@@ -345,6 +345,24 @@ describe('DictionaryService', () => {
     });
   });
 
+  it('refreshes dictionary cache explicitly', async () => {
+    const { service, dictionaryCacheService } = createService();
+    dictionaryCacheService.refreshCache.mockResolvedValue({
+      cacheKey: 'system:dictionaries:tree:tenant_001',
+      count: 3,
+      refreshedAt: '2026-03-25T06:00:00.000Z'
+    });
+
+    const response = await service.refreshCache();
+
+    expect(dictionaryCacheService.refreshCache).toHaveBeenCalled();
+    expect(response.data).toEqual({
+      cacheKey: 'system:dictionaries:tree:tenant_001',
+      count: 3,
+      refreshedAt: '2026-03-25T06:00:00.000Z'
+    });
+  });
+
   it('refreshes cache after removing dictionary nodes', async () => {
     const { service, prisma, dictionaryItemsService, dictionaryCacheService } =
       createService();

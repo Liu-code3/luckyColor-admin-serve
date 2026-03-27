@@ -3,11 +3,34 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsEmail,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
   Min
 } from 'class-validator';
+import {
+  LIST_SORT_ORDER_VALUES,
+  type ListSortOrder
+} from '../../../shared/api/list-query.util';
+
+const DEPARTMENT_LIST_SORT_FIELDS = [
+  'sort',
+  'id',
+  'name',
+  'code',
+  'status',
+  'createdAt',
+  'updatedAt'
+] as const;
+
+const DEPARTMENT_USER_LIST_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'username',
+  'nickname',
+  'status'
+] as const;
 
 function transformBoolean(value: unknown) {
   if (value === undefined || value === null || value === '') {
@@ -68,6 +91,25 @@ export class DepartmentListQueryDto {
   @Transform(({ value }) => transformBoolean(value))
   @IsBoolean()
   status?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'sort field',
+    enum: DEPARTMENT_LIST_SORT_FIELDS,
+    example: 'sort'
+  })
+  @IsOptional()
+  @IsIn(DEPARTMENT_LIST_SORT_FIELDS)
+  sortBy?: (typeof DEPARTMENT_LIST_SORT_FIELDS)[number];
+
+  @ApiPropertyOptional({
+    description: 'sort order',
+    enum: LIST_SORT_ORDER_VALUES,
+    example: 'asc',
+    default: 'asc'
+  })
+  @IsOptional()
+  @IsIn(LIST_SORT_ORDER_VALUES)
+  sortOrder?: ListSortOrder;
 }
 
 export class DepartmentUsersQueryDto {
@@ -105,6 +147,25 @@ export class DepartmentUsersQueryDto {
   @Transform(({ value }) => transformBoolean(value))
   @IsBoolean()
   status?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'sort field',
+    enum: DEPARTMENT_USER_LIST_SORT_FIELDS,
+    example: 'createdAt'
+  })
+  @IsOptional()
+  @IsIn(DEPARTMENT_USER_LIST_SORT_FIELDS)
+  sortBy?: (typeof DEPARTMENT_USER_LIST_SORT_FIELDS)[number];
+
+  @ApiPropertyOptional({
+    description: 'sort order',
+    enum: LIST_SORT_ORDER_VALUES,
+    example: 'desc',
+    default: 'desc'
+  })
+  @IsOptional()
+  @IsIn(LIST_SORT_ORDER_VALUES)
+  sortOrder?: ListSortOrder;
 
   @ApiPropertyOptional({
     description: '是否包含子部门用户，true 为包含，false 为仅当前部门',
