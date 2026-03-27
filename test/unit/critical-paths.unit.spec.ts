@@ -25,9 +25,13 @@ describe('Critical path regression suite', () => {
       const appConfig = {
         jwtExpiresIn: '2h'
       };
+      const authCaptcha = {
+        consumeLoginCaptchaToken: jest.fn().mockResolvedValue(undefined)
+      };
       const securityAudit = {
         recordLoginSuccess: jest.fn().mockResolvedValue(undefined),
-        recordLoginFailure: jest.fn().mockResolvedValue(undefined)
+        recordLoginFailure: jest.fn().mockResolvedValue(undefined),
+        recordLogout: jest.fn().mockResolvedValue(undefined)
       };
       const passwordService = {
         isHash: jest.fn().mockReturnValue(true),
@@ -45,17 +49,19 @@ describe('Critical path regression suite', () => {
           prisma as never,
           jwtService as never,
           appConfig as never,
+          authCaptcha as never,
           authLogin as never,
           securityAudit as never
         ),
         prisma,
         jwtService,
+        authCaptcha,
         securityAudit
       };
     }
 
     it('completes tenant-scoped login and records the success audit trail', async () => {
-      const { service, prisma, jwtService, securityAudit } = createAuthService();
+      const { service, prisma, jwtService, authCaptcha, securityAudit } = createAuthService();
       prisma.user.findFirst.mockResolvedValue({
         id: 'user-1',
         tenantId: 'tenant_001',
@@ -102,7 +108,8 @@ describe('Critical path regression suite', () => {
       const response = await service.login(
         {
           username: 'admin',
-          password: '123456'
+          password: '123456',
+          captchaToken: 'captcha-token'
         },
         {
           method: 'POST',
@@ -116,6 +123,7 @@ describe('Critical path regression suite', () => {
         tenantId: 'tenant_001',
         username: 'admin'
       });
+      expect(authCaptcha.consumeLoginCaptchaToken).toHaveBeenCalledWith('captcha-token');
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: 'user-1' },
         data: { lastLoginAt: expect.any(Date) }
