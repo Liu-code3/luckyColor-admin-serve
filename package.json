@@ -3,6 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "type": "commonjs",
+  "description": "LuckyColor 多租户后台管理系统后端服务，基于 NestJS、Prisma、MySQL 与 Redis。",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Liu-code3/luckyColor-admin-serve.git"
+  },
+  "homepage": "https://github.com/Liu-code3/luckyColor-admin-serve#readme",
+  "bugs": {
+    "url": "https://github.com/Liu-code3/luckyColor-admin-serve/issues"
+  },
   "scripts": {
     "dev": "nest start --watch",
     "start": "node dist/main.js",
