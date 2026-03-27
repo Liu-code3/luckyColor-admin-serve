@@ -5,6 +5,7 @@ import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { resolveSortOrder } from '../../../shared/api/list-query.util';
 import { rethrowUniqueConstraintAsBusinessException } from '../../../shared/api/prisma-exception.util';
 import {
   CreateTenantPackageDto,
@@ -31,12 +32,13 @@ export class TenantPackagesService {
           }
         : {})
     };
+    const orderBy = this.buildListOrderBy(query);
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.tenantPackage.count({ where }),
       this.prisma.tenantPackage.findMany({
         where,
-        orderBy: [{ createdAt: 'desc' }],
+        orderBy,
         skip: (current - 1) * size,
         take: size
       })
@@ -152,6 +154,32 @@ export class TenantPackagesService {
     }
 
     return `pkg_${randomUUID().replace(/-/g, '').slice(0, 12)}`;
+  }
+
+  private buildListOrderBy(
+    query: TenantPackageListQueryDto
+  ): Prisma.TenantPackageOrderByWithRelationInput[] {
+    const sortOrder = resolveSortOrder(query.sortOrder);
+
+    switch (query.sortBy) {
+      case 'name':
+        return [{ name: sortOrder }, { createdAt: 'desc' }];
+      case 'code':
+        return [{ code: sortOrder }, { createdAt: 'desc' }];
+      case 'status':
+        return [{ status: sortOrder }, { createdAt: 'desc' }];
+      case 'maxUsers':
+        return [{ maxUsers: sortOrder }, { createdAt: 'desc' }];
+      case 'maxRoles':
+        return [{ maxRoles: sortOrder }, { createdAt: 'desc' }];
+      case 'maxMenus':
+        return [{ maxMenus: sortOrder }, { createdAt: 'desc' }];
+      case 'updatedAt':
+        return [{ updatedAt: sortOrder }, { createdAt: 'desc' }];
+      case 'createdAt':
+      default:
+        return [{ createdAt: sortOrder }];
+    }
   }
 
   private toPackageResponse(

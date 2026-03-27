@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsObject,
@@ -9,6 +10,21 @@ import {
   IsString,
   Min
 } from 'class-validator';
+import {
+  LIST_SORT_ORDER_VALUES,
+  type ListSortOrder
+} from '../../../shared/api/list-query.util';
+
+const TENANT_PACKAGE_LIST_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'name',
+  'code',
+  'status',
+  'maxUsers',
+  'maxRoles',
+  'maxMenus'
+] as const;
 
 export class TenantPackageListQueryDto {
   @ApiPropertyOptional({
@@ -45,6 +61,25 @@ export class TenantPackageListQueryDto {
   @Type(() => Boolean)
   @IsBoolean()
   status?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'sort field',
+    enum: TENANT_PACKAGE_LIST_SORT_FIELDS,
+    example: 'createdAt'
+  })
+  @IsOptional()
+  @IsIn(TENANT_PACKAGE_LIST_SORT_FIELDS)
+  sortBy?: (typeof TENANT_PACKAGE_LIST_SORT_FIELDS)[number];
+
+  @ApiPropertyOptional({
+    description: 'sort order',
+    enum: LIST_SORT_ORDER_VALUES,
+    example: 'desc',
+    default: 'desc'
+  })
+  @IsOptional()
+  @IsIn(LIST_SORT_ORDER_VALUES)
+  sortOrder?: ListSortOrder;
 }
 
 export class CreateTenantPackageDto {

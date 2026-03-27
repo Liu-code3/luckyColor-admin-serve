@@ -35,6 +35,7 @@ import {
   TenantPackageItemResponseDto,
   TenantPackagePageResponseDto
 } from './tenant-packages.response.dto';
+import { SystemLog } from '../../system/system-logs/system-log.decorator';
 import { TenantPackagesService } from './tenant-packages.service';
 
 @ApiTags('租户中心 / 租户套餐')
@@ -348,6 +349,12 @@ export class TenantPackagesController {
         code: BUSINESS_ERROR_CODES.TENANT_PACKAGE_IN_USE
       }
     ]
+  })
+  @SystemLog({
+    module: '绉熸埛濂楅',
+    action: '鍒犻櫎绉熸埛濂楅',
+    targets: [{ source: 'param', key: 'id', label: 'id' }],
+    sensitive: true
   })
   @RequirePermissions(TENANT_PERMISSION_POINTS.package.delete)
   @Delete(':id')

@@ -10,6 +10,19 @@ import {
   Min
 } from 'class-validator';
 import { TENANT_STATUS_VALUES, type TenantStatus } from './tenant.constants';
+import {
+  LIST_SORT_ORDER_VALUES,
+  type ListSortOrder
+} from '../../../shared/api/list-query.util';
+
+const TENANT_LIST_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'name',
+  'code',
+  'status',
+  'expiresAt'
+] as const;
 
 export class TenantListQueryDto {
   @ApiPropertyOptional({
@@ -46,6 +59,25 @@ export class TenantListQueryDto {
   @IsOptional()
   @IsIn(TENANT_STATUS_VALUES)
   status?: TenantStatus;
+
+  @ApiPropertyOptional({
+    description: 'sort field',
+    enum: TENANT_LIST_SORT_FIELDS,
+    example: 'createdAt'
+  })
+  @IsOptional()
+  @IsIn(TENANT_LIST_SORT_FIELDS)
+  sortBy?: (typeof TENANT_LIST_SORT_FIELDS)[number];
+
+  @ApiPropertyOptional({
+    description: 'sort order',
+    enum: LIST_SORT_ORDER_VALUES,
+    example: 'desc',
+    default: 'desc'
+  })
+  @IsOptional()
+  @IsIn(LIST_SORT_ORDER_VALUES)
+  sortOrder?: ListSortOrder;
 }
 
 export class CreateTenantDto {

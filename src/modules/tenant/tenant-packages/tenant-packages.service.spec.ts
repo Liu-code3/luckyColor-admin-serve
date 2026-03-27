@@ -4,7 +4,7 @@ import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 
 describe('TenantPackagesService', () => {
   function createPrismaMock() {
-    return {
+    const prisma = {
       $transaction: jest.fn(),
       tenantPackage: {
         count: jest.fn(),
@@ -18,7 +18,61 @@ describe('TenantPackagesService', () => {
         count: jest.fn()
       }
     };
+
+    prisma.$transaction.mockImplementation(async (input: unknown) => {
+      if (Array.isArray(input)) {
+        return Promise.all(input);
+      }
+
+      return (input as (tx: typeof prisma) => Promise<unknown>)(prisma);
+    });
+
+    return prisma;
   }
+
+  it('lists tenant packages with standardized sorting params', async () => {
+    const prisma = createPrismaMock();
+    const service = new TenantPackagesService(prisma as never);
+    prisma.tenantPackage.count.mockResolvedValue(1);
+    prisma.tenantPackage.findMany.mockResolvedValue([
+      {
+        id: 'pkg_basic',
+        code: 'basic',
+        name: 'Basic',
+        status: true,
+        maxUsers: 50,
+        maxRoles: 20,
+        maxMenus: 100,
+        featureFlags: null,
+        remark: null,
+        createdAt: new Date('2026-03-22T14:30:00.000Z'),
+        updatedAt: new Date('2026-03-22T14:30:00.000Z')
+      }
+    ]);
+
+    const response = await service.list({
+      page: 1,
+      size: 10,
+      keyword: 'basic',
+      status: true,
+      sortBy: 'name',
+      sortOrder: 'asc'
+    });
+
+    expect(prisma.tenantPackage.findMany).toHaveBeenCalledWith({
+      where: {
+        status: true,
+        OR: [
+          { name: { contains: 'basic' } },
+          { code: { contains: 'basic' } }
+        ]
+      },
+      orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
+      skip: 0,
+      take: 10
+    });
+    expect(response.data.records).toHaveLength(1);
+  });
 
   it('creates tenant package with generated id when id is omitted', async () => {
     const prisma = createPrismaMock();

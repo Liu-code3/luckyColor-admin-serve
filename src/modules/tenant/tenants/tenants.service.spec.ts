@@ -30,6 +30,8 @@ describe('TenantsService', () => {
   function createPrismaMock() {
     const prisma = {
       tenant: {
+        count: jest.fn(),
+        findMany: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn()
       },
@@ -39,13 +41,53 @@ describe('TenantsService', () => {
       $transaction: jest.fn()
     };
 
-    prisma.$transaction.mockImplementation(
-      async (callback: (tx: typeof prisma) => Promise<unknown>) =>
-        callback(prisma)
-    );
+    prisma.$transaction.mockImplementation(async (input: unknown) => {
+      if (Array.isArray(input)) {
+        return Promise.all(input);
+      }
+
+      return (input as (tx: typeof prisma) => Promise<unknown>)(prisma);
+    });
 
     return prisma;
   }
+
+  it('lists tenants with standardized sorting params', async () => {
+    const prisma = createPrismaMock();
+    const service = new TenantsService(
+      prisma as never,
+      { initializeTenant: jest.fn() } as never,
+      { recordMany: jest.fn() } as never
+    );
+    prisma.tenant.count.mockResolvedValue(1);
+    prisma.tenant.findMany.mockResolvedValue([createTenant()]);
+
+    const response = await service.list({
+      page: 1,
+      size: 10,
+      keyword: 'default',
+      status: 'ACTIVE',
+      sortBy: 'name',
+      sortOrder: 'asc'
+    });
+
+    expect(prisma.tenant.findMany).toHaveBeenCalledWith({
+      where: {
+        status: 'ACTIVE',
+        OR: [
+          { name: { contains: 'default' } },
+          { code: { contains: 'default' } }
+        ]
+      },
+      include: {
+        tenantPackage: true
+      },
+      orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
+      skip: 0,
+      take: 10
+    });
+    expect(response.data.records).toHaveLength(1);
+  });
 
   it('updates tenant and records structured audit entries for changed fields', async () => {
     const prisma = createPrismaMock();

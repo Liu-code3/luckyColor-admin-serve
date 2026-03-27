@@ -44,11 +44,19 @@ describe('Tenant isolation regression', () => {
       {
         jwtExpiresIn: '2h'
       } as unknown as AppConfigService,
+      {
+        consumeLoginCaptchaToken: jest.fn().mockResolvedValue(undefined)
+      } as never,
       new AuthLoginService(
         prisma as never,
         createTenantScope('tenant_002'),
         passwordService as unknown as PasswordService
-      ) as never
+      ) as never,
+      {
+        recordLoginSuccess: jest.fn().mockResolvedValue(undefined),
+        recordLoginFailure: jest.fn().mockResolvedValue(undefined),
+        recordLogout: jest.fn().mockResolvedValue(undefined)
+      } as never
     );
 
     const response = await service.login({

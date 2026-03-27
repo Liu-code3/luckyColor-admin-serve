@@ -4,6 +4,7 @@ import { PrismaService } from '../../../infra/database/prisma/prisma.service';
 import { successResponse } from '../../../shared/api/api-response';
 import { BusinessException } from '../../../shared/api/business.exception';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
+import { resolveSortOrder } from '../../../shared/api/list-query.util';
 import { TenantAuditService } from './tenant-audit.service';
 import { TenantBootstrapService } from './tenant-bootstrap.service';
 import { CreateTenantDto, TenantListQueryDto, UpdateTenantDto } from './tenants.dto';
@@ -31,6 +32,7 @@ export class TenantsService {
           }
         : {})
     };
+    const orderBy = this.buildListOrderBy(query);
 
     const [total, records] = await this.prisma.$transaction([
       this.prisma.tenant.count({ where }),
@@ -39,7 +41,7 @@ export class TenantsService {
         include: {
           tenantPackage: true
         },
-        orderBy: [{ createdAt: 'desc' }],
+        orderBy,
         skip: (current - 1) * size,
         take: size
       })
@@ -167,6 +169,28 @@ export class TenantsService {
     }
 
     return tenantPackage;
+  }
+
+  private buildListOrderBy(
+    query: TenantListQueryDto
+  ): Prisma.TenantOrderByWithRelationInput[] {
+    const sortOrder = resolveSortOrder(query.sortOrder);
+
+    switch (query.sortBy) {
+      case 'name':
+        return [{ name: sortOrder }, { createdAt: 'desc' }];
+      case 'code':
+        return [{ code: sortOrder }, { createdAt: 'desc' }];
+      case 'status':
+        return [{ status: sortOrder }, { createdAt: 'desc' }];
+      case 'expiresAt':
+        return [{ expiresAt: sortOrder }, { createdAt: 'desc' }];
+      case 'updatedAt':
+        return [{ updatedAt: sortOrder }, { createdAt: 'desc' }];
+      case 'createdAt':
+      default:
+        return [{ createdAt: sortOrder }];
+    }
   }
 
   private buildAuditEntries(
