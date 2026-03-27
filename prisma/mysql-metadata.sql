@@ -64,6 +64,24 @@ ALTER TABLE `system_logs`
   MODIFY COLUMN `created_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at',
   MODIFY COLUMN `updated_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'updated at';
 
+ALTER TABLE `security_audit_logs`
+  COMMENT = 'security audit logs',
+  MODIFY COLUMN `id` VARCHAR(191) NOT NULL COMMENT 'security audit log id',
+  MODIFY COLUMN `tenant_id` VARCHAR(191) NULL COMMENT 'tenant id',
+  MODIFY COLUMN `user_id` VARCHAR(191) NULL COMMENT 'user id',
+  MODIFY COLUMN `username` VARCHAR(191) NULL COMMENT 'username',
+  MODIFY COLUMN `event_type` VARCHAR(191) NOT NULL COMMENT 'audit event type',
+  MODIFY COLUMN `outcome` VARCHAR(191) NOT NULL COMMENT 'audit outcome',
+  MODIFY COLUMN `reason_code` INTEGER NULL COMMENT 'business reason code',
+  MODIFY COLUMN `reason_message` VARCHAR(191) NULL COMMENT 'business reason message',
+  MODIFY COLUMN `request_method` VARCHAR(191) NULL COMMENT 'request method',
+  MODIFY COLUMN `request_path` VARCHAR(191) NULL COMMENT 'request path',
+  MODIFY COLUMN `ip_address` VARCHAR(191) NOT NULL COMMENT 'ip address',
+  MODIFY COLUMN `browser_version` VARCHAR(191) NOT NULL COMMENT 'browser version',
+  MODIFY COLUMN `terminal_system` VARCHAR(191) NOT NULL COMMENT 'terminal system',
+  MODIFY COLUMN `detail` JSON NULL COMMENT 'audit detail',
+  MODIFY COLUMN `created_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at';
+
 ALTER TABLE `users`
   COMMENT = 'system users',
   MODIFY COLUMN `id` VARCHAR(191) NOT NULL COMMENT 'user id',
@@ -187,7 +205,10 @@ ALTER TABLE `system_configs`
   MODIFY COLUMN `config_key` VARCHAR(191) NOT NULL COMMENT 'config key',
   MODIFY COLUMN `config_name` VARCHAR(191) NOT NULL COMMENT 'config name',
   MODIFY COLUMN `config_value` VARCHAR(191) NOT NULL COMMENT 'config value',
+  MODIFY COLUMN `config_group` VARCHAR(191) NOT NULL DEFAULT 'default' COMMENT 'config group',
   MODIFY COLUMN `value_type` VARCHAR(191) NOT NULL DEFAULT 'string' COMMENT 'value type',
+  MODIFY COLUMN `is_built_in` BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'built-in config flag',
+  MODIFY COLUMN `is_sensitive` BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'sensitive config flag',
   MODIFY COLUMN `status` BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'config status',
   MODIFY COLUMN `remark` VARCHAR(191) NULL COMMENT 'remark',
   MODIFY COLUMN `created_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at',
@@ -201,7 +222,80 @@ ALTER TABLE `notices`
   MODIFY COLUMN `content` VARCHAR(191) NOT NULL COMMENT 'notice content',
   MODIFY COLUMN `type` VARCHAR(191) NOT NULL COMMENT 'notice type',
   MODIFY COLUMN `status` BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'publish status',
+  MODIFY COLUMN `publish_scope` VARCHAR(191) NOT NULL DEFAULT 'TENANT_ALL' COMMENT 'notice publish scope',
+  MODIFY COLUMN `target_department_ids` TEXT NULL COMMENT 'notice target department ids',
+  MODIFY COLUMN `target_role_codes` TEXT NULL COMMENT 'notice target role codes',
+  MODIFY COLUMN `is_pinned` BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'notice pinned flag',
   MODIFY COLUMN `publisher` VARCHAR(191) NULL COMMENT 'publisher',
+  MODIFY COLUMN `scheduled_publish_at` TIMESTAMP(3) NULL COMMENT 'scheduled publish at',
   MODIFY COLUMN `published_at` TIMESTAMP(3) NULL COMMENT 'published at',
+  MODIFY COLUMN `event_key` VARCHAR(191) NULL COMMENT 'event key',
+  MODIFY COLUMN `event_payload` TEXT NULL COMMENT 'event payload',
+  MODIFY COLUMN `created_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at',
+  MODIFY COLUMN `updated_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'updated at';
+
+ALTER TABLE `i18n_resources`
+  COMMENT = 'i18n resources',
+  MODIFY COLUMN `id` VARCHAR(191) NOT NULL COMMENT 'resource id',
+  MODIFY COLUMN `language_code` VARCHAR(191) NOT NULL COMMENT 'language code',
+  MODIFY COLUMN `module` VARCHAR(191) NOT NULL COMMENT 'resource module',
+  MODIFY COLUMN `resource_group` VARCHAR(191) NOT NULL COMMENT 'resource group',
+  MODIFY COLUMN `resource_key` VARCHAR(191) NOT NULL COMMENT 'resource key',
+  MODIFY COLUMN `resource_value` TEXT NOT NULL COMMENT 'resource value',
+  MODIFY COLUMN `version` INTEGER NOT NULL DEFAULT 1 COMMENT 'resource version',
+  MODIFY COLUMN `status` BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'resource status',
+  MODIFY COLUMN `created_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at',
+  MODIFY COLUMN `updated_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'updated at';
+
+ALTER TABLE `user_preferences`
+  COMMENT = 'user preferences',
+  MODIFY COLUMN `id` VARCHAR(191) NOT NULL COMMENT 'preference id',
+  MODIFY COLUMN `tenant_id` VARCHAR(191) NOT NULL COMMENT 'tenant id',
+  MODIFY COLUMN `user_id` VARCHAR(191) NOT NULL COMMENT 'user id',
+  MODIFY COLUMN `layout` VARCHAR(191) NOT NULL DEFAULT 'side' COMMENT 'layout mode',
+  MODIFY COLUMN `theme` VARCHAR(191) NOT NULL DEFAULT 'default' COMMENT 'theme name',
+  MODIFY COLUMN `dark_mode` BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'dark mode flag',
+  MODIFY COLUMN `fullscreen` BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'fullscreen flag',
+  MODIFY COLUMN `tab_preferences` JSON NULL COMMENT 'tab preferences',
+  MODIFY COLUMN `created_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at',
+  MODIFY COLUMN `updated_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'updated at';
+
+ALTER TABLE `watermark_configs`
+  COMMENT = 'watermark configs',
+  MODIFY COLUMN `id` VARCHAR(191) NOT NULL COMMENT 'watermark config id',
+  MODIFY COLUMN `tenant_id` VARCHAR(191) NULL COMMENT 'tenant id, null for system-level config',
+  MODIFY COLUMN `content` VARCHAR(191) NULL COMMENT 'watermark content',
+  MODIFY COLUMN `opacity` DOUBLE NULL COMMENT 'watermark opacity',
+  MODIFY COLUMN `color` VARCHAR(191) NULL COMMENT 'watermark color',
+  MODIFY COLUMN `font_size` INTEGER NULL COMMENT 'watermark font size',
+  MODIFY COLUMN `rotation` INTEGER NULL COMMENT 'watermark rotation angle',
+  MODIFY COLUMN `status` BOOLEAN NULL COMMENT 'watermark enabled status',
+  MODIFY COLUMN `created_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at',
+  MODIFY COLUMN `updated_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'updated at';
+
+ALTER TABLE `codegen_tables`
+  COMMENT = 'code generator table metadata',
+  MODIFY COLUMN `id` VARCHAR(191) NOT NULL COMMENT 'codegen table id',
+  MODIFY COLUMN `table_name` VARCHAR(191) NOT NULL COMMENT 'database table name',
+  MODIFY COLUMN `table_comment` VARCHAR(191) NULL COMMENT 'database table comment',
+  MODIFY COLUMN `module_name` VARCHAR(191) NOT NULL COMMENT 'module name',
+  MODIFY COLUMN `business_name` VARCHAR(191) NULL COMMENT 'business name',
+  MODIFY COLUMN `class_name` VARCHAR(191) NULL COMMENT 'class name',
+  MODIFY COLUMN `primary_key` VARCHAR(191) NULL COMMENT 'primary key column name',
+  MODIFY COLUMN `created_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at',
+  MODIFY COLUMN `updated_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'updated at';
+
+ALTER TABLE `codegen_columns`
+  COMMENT = 'code generator column metadata',
+  MODIFY COLUMN `id` VARCHAR(191) NOT NULL COMMENT 'codegen column id',
+  MODIFY COLUMN `table_id` VARCHAR(191) NOT NULL COMMENT 'linked codegen table id',
+  MODIFY COLUMN `column_name` VARCHAR(191) NOT NULL COMMENT 'database column name',
+  MODIFY COLUMN `property_name` VARCHAR(191) NOT NULL COMMENT 'generated property name',
+  MODIFY COLUMN `column_comment` VARCHAR(191) NULL COMMENT 'column comment',
+  MODIFY COLUMN `ts_type` VARCHAR(191) NOT NULL DEFAULT 'string' COMMENT 'typescript type',
+  MODIFY COLUMN `form_type` VARCHAR(191) NOT NULL DEFAULT 'input' COMMENT 'form widget type',
+  MODIFY COLUMN `query_type` VARCHAR(191) NOT NULL DEFAULT 'none' COMMENT 'query type',
+  MODIFY COLUMN `list_visible` BOOLEAN NOT NULL DEFAULT TRUE COMMENT 'whether shown in list',
+  MODIFY COLUMN `sort` INTEGER NOT NULL DEFAULT 0 COMMENT 'column order',
   MODIFY COLUMN `created_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'created at',
   MODIFY COLUMN `updated_at` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT 'updated at';

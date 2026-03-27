@@ -1,6 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsArray, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches
+} from 'class-validator';
 
 export class LoginDto {
   @ApiProperty({
@@ -18,6 +24,36 @@ export class LoginDto {
   @IsString()
   @IsNotEmpty()
   password!: string;
+
+  @ApiPropertyOptional({
+    description: '验证码校验成功后换取的一次性登录令牌',
+    example: 'cap_01JQ8J6K4SZQ7X6MEY9R2QG3TN'
+  })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  captchaToken?: string;
+}
+
+export class VerifyLoginCaptchaDto {
+  @ApiProperty({
+    description: '验证码题目 ID',
+    example: 'cpt_01JQ8J4S9P4X1N5P4D2M8E7T0A'
+  })
+  @IsString()
+  @IsNotEmpty()
+  captchaId!: string;
+
+  @ApiProperty({
+    description: '算术题计算结果',
+    example: '13'
+  })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^-?\d+$/, {
+    message: 'answer must be an integer string'
+  })
+  answer!: string;
 }
 
 export class AuthButtonPermissionQueryDto {

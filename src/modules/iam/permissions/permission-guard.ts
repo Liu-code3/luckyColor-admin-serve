@@ -6,6 +6,7 @@ import {
   BUSINESS_ERROR_CODES,
   type BusinessErrorCode
 } from '../../../shared/api/error-codes';
+import { SecurityAuditService } from '../security-audit/security-audit.service';
 import type { JwtPayload } from '../auth/jwt-payload.interface';
 import { TenantActorService } from '../../tenant/tenants/tenant-actor.service';
 import { collectGrantedPermissionCodes } from './permission-point.util';
@@ -16,6 +17,13 @@ import {
 
 interface RequestLike {
   user?: JwtPayload;
+  method?: string;
+  url?: string;
+  headers?: Record<string, string | string[] | undefined>;
+  ip?: string;
+  socket?: {
+    remoteAddress?: string;
+  };
 }
 
 @Injectable()
@@ -23,7 +31,8 @@ export class PermissionGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly prisma: PrismaService,
-    private readonly tenantActor: TenantActorService
+    private readonly tenantActor: TenantActorService,
+    private readonly securityAudit: SecurityAuditService
   ) {}
 
   async canActivate(context: ExecutionContext) {
@@ -98,9 +107,23 @@ export class PermissionGuard implements CanActivate {
       requirement.boundary === 'PLATFORM_ADMIN' &&
       !this.tenantActor.isPlatformAdmin(roleCodes)
     ) {
-      throw new BusinessException(
+      const denialCode =
         (requirement.denialCode as BusinessErrorCode | undefined) ??
-          BUSINESS_ERROR_CODES.PERMISSION_DENIED
+        BUSINESS_ERROR_CODES.PERMISSION_DENIED;
+      await this.securityAudit.recordPermissionDenied({
+        user: {
+          tenantId: user.tenantId,
+          userId: user.sub,
+          username: user.username
+        },
+        reasonCode: denialCode,
+        permissions: requirement.permissions,
+        mode: requirement.mode,
+        boundary: requirement.boundary,
+        request
+      });
+      throw new BusinessException(
+        denialCode
       );
     }
 
@@ -116,9 +139,23 @@ export class PermissionGuard implements CanActivate {
         : requirement.permissions.some((item) => permissionSet.has(item));
 
     if (!hasPermission) {
-      throw new BusinessException(
+      const denialCode =
         (requirement.denialCode as BusinessErrorCode | undefined) ??
-          BUSINESS_ERROR_CODES.PERMISSION_DENIED
+        BUSINESS_ERROR_CODES.PERMISSION_DENIED;
+      await this.securityAudit.recordPermissionDenied({
+        user: {
+          tenantId: user.tenantId,
+          userId: user.sub,
+          username: user.username
+        },
+        reasonCode: denialCode,
+        permissions: requirement.permissions,
+        mode: requirement.mode,
+        boundary: requirement.boundary,
+        request
+      });
+      throw new BusinessException(
+        denialCode
       );
     }
 

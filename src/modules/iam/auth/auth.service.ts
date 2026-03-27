@@ -7,6 +7,8 @@ import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import { AppConfigService } from '../../../shared/config/app-config.service';
 import { MENU_TYPE_BUTTON } from '../../../shared/constants/menu.constants';
 import { resolvePermissionCode } from '../permissions/permission-code.util';
+import { SecurityAuditService } from '../security-audit/security-audit.service';
+import { AuthCaptchaService } from './auth-captcha.service';
 import { AuthLoginService } from './auth-login.service';
 import { AuthButtonPermissionQueryDto, LoginDto } from './auth.dto';
 import type { JwtPayload } from './jwt-payload.interface';
@@ -54,26 +56,93 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly appConfig: AppConfigService,
-    private readonly authLogin: AuthLoginService
+    private readonly authCaptcha: AuthCaptchaService,
+    private readonly authLogin: AuthLoginService,
+    private readonly securityAudit: SecurityAuditService
   ) {}
 
-  async login(dto: LoginDto) {
-    const user = await this.authLogin.authenticate(dto);
-    const accessSnapshot = this.toAccessSnapshot(user);
+  async login(
+    dto: LoginDto,
+    request?: {
+      method?: string;
+      url?: string;
+      headers?: Record<string, string | string[] | undefined>;
+      ip?: string;
+      socket?: {
+        remoteAddress?: string;
+      };
+    }
+  ) {
+    try {
+      await this.authCaptcha.consumeLoginCaptchaToken(dto.captchaToken);
+      const user = await this.authLogin.authenticate(dto);
+      const accessSnapshot = this.toAccessSnapshot(user);
 
-    const payload: JwtPayload = {
-      sub: user.id,
-      tenantId: user.tenantId,
-      username: user.username
-    };
-    const accessToken = await this.jwtService.signAsync(payload);
+      const payload: JwtPayload = {
+        sub: user.id,
+        tenantId: user.tenantId,
+        username: user.username
+      };
+      const accessToken = await this.jwtService.signAsync(payload);
 
-    return successResponse({
-      accessToken,
-      tokenType: 'Bearer',
-      expiresIn: this.appConfig.jwtExpiresIn,
-      user: accessSnapshot.user
-    });
+      await this.securityAudit.recordLoginSuccess(
+        {
+          tenantId: user.tenantId,
+          userId: user.id,
+          username: user.username
+        },
+        request
+      );
+
+      return successResponse({
+        accessToken,
+        tokenType: 'Bearer',
+        expiresIn: this.appConfig.jwtExpiresIn,
+        user: accessSnapshot.user
+      });
+    } catch (error) {
+      await this.securityAudit.recordLoginFailure({
+        username: dto.username,
+        reasonCode: error instanceof BusinessException ? error.code : undefined,
+        request
+      });
+      throw error;
+    }
+  }
+
+  async createLoginCaptchaChallenge() {
+    return successResponse(await this.authCaptcha.createLoginCaptchaChallenge());
+  }
+
+  async verifyLoginCaptcha(dto: {
+    captchaId: string;
+    answer: string;
+  }) {
+    return successResponse(await this.authCaptcha.verifyLoginCaptcha(dto));
+  }
+
+  async logout(
+    payload: JwtPayload,
+    request?: {
+      method?: string;
+      url?: string;
+      headers?: Record<string, string | string[] | undefined>;
+      ip?: string;
+      socket?: {
+        remoteAddress?: string;
+      };
+    }
+  ) {
+    await this.securityAudit.recordLogout(
+      {
+        tenantId: payload.tenantId,
+        userId: payload.sub,
+        username: payload.username
+      },
+      request
+    );
+
+    return successResponse(true);
   }
 
   async getProfile(payload: JwtPayload) {

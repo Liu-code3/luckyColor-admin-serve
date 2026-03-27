@@ -38,6 +38,14 @@ export class AppConfigService {
     return this.getOrThrow('REDIS_URL');
   }
 
+  get swaggerEnabled() {
+    return this.getOrThrow('SWAGGER_ENABLED');
+  }
+
+  get loginCaptchaEnabled() {
+    return this.getOrThrow('LOGIN_CAPTCHA_ENABLED');
+  }
+
   get tenantEnabled() {
     return this.getOrThrow('TENANT_ENABLED');
   }
@@ -52,6 +60,14 @@ export class AppConfigService {
 
   get defaultTenantId() {
     return this.configService.get<string>('DEFAULT_TENANT_ID') ?? null;
+  }
+
+  get defaultAdminUsername() {
+    return this.getOrThrow('DEFAULT_ADMIN_USERNAME');
+  }
+
+  get defaultAdminPassword() {
+    return this.getOrThrow('DEFAULT_ADMIN_PASSWORD');
   }
 
   private getOrThrow<Key extends keyof AppEnvironmentVariables>(key: Key) {

@@ -15,6 +15,17 @@ export class TenantContextMiddleware implements NestMiddleware {
   ) {}
 
   async use(request: TenantRequestLike, _response: unknown, next: () => void) {
+    if (!this.appConfig.tenantEnabled) {
+      request.tenantContext = {
+        tenantId: null,
+        source: 'none'
+      };
+
+      return this.tenantContext.run(request.tenantContext, async () => {
+        next();
+      });
+    }
+
     const rawTenantId = request.header(this.appConfig.tenantHeader);
     const headerTenantId = rawTenantId?.trim() || null;
     const domainTenantId = headerTenantId

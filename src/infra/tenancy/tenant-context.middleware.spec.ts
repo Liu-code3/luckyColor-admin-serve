@@ -6,6 +6,7 @@ describe('TenantContextMiddleware', () => {
   function createMiddleware(overrides?: {
     defaultTenantId?: string | null;
     tenantDomainSuffix?: string | null;
+    tenantEnabled?: boolean;
   }) {
     const tenantContext = {
       run: jest
@@ -20,6 +21,7 @@ describe('TenantContextMiddleware', () => {
       })
     };
     const appConfig = {
+      tenantEnabled: overrides?.tenantEnabled ?? true,
       tenantHeader: 'x-tenant-id',
       tenantDomainSuffix: overrides?.tenantDomainSuffix ?? null,
       defaultTenantId: overrides?.defaultTenantId ?? null
@@ -80,6 +82,39 @@ describe('TenantContextMiddleware', () => {
     expect(tenantAccess.assertActiveTenant).toHaveBeenCalledWith(
       'tenant_header'
     );
+  });
+
+  it('skips tenant resolution entirely when multi-tenant is disabled', async () => {
+    const { middleware, tenantContext, tenantAccess } = createMiddleware({
+      tenantEnabled: false,
+      defaultTenantId: 'tenant_default',
+      tenantDomainSuffix: 'example.com'
+    });
+    const request = createRequest(
+      {
+        'x-tenant-id': 'tenant_header',
+        host: 'acme.example.com'
+      },
+      'acme.example.com'
+    );
+    const next = jest.fn();
+
+    await middleware.use(request, {}, next);
+
+    expect(request.tenantContext).toEqual({
+      tenantId: null,
+      source: 'none'
+    });
+    expect(tenantContext.run).toHaveBeenCalledWith(
+      {
+        tenantId: null,
+        source: 'none'
+      },
+      expect.any(Function)
+    );
+    expect(tenantAccess.findByCode).not.toHaveBeenCalled();
+    expect(tenantAccess.assertActiveTenant).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalled();
   });
 
   it('resolves tenant from domain suffix when header is absent', async () => {

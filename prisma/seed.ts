@@ -4,6 +4,7 @@ import { DEFAULT_ROLE_DIRECT_PERMISSION_CODES } from '../src/modules/iam/permiss
 import { buildSetDatabaseTimeZoneSql } from '../src/shared/time/database-timezone';
 import { departmentSeedData } from './seed-data/department.data';
 import { dictTreeData } from './seed-data/dict-tree.data';
+import { i18nResourceSeedData } from './seed-data/i18n-resource.data';
 import { menuSeedData } from './seed-data/menu.data';
 import { noticeSeedData } from './seed-data/notice.data';
 import { roleSeedData } from './seed-data/role.data';
@@ -41,8 +42,10 @@ async function main() {
   await prisma.rolePermission.deleteMany();
   await prisma.roleMenu.deleteMany();
   await prisma.userRole.deleteMany();
+  await prisma.securityAuditLog.deleteMany();
   await prisma.tenantAuditLog.deleteMany();
   await prisma.notice.deleteMany();
+  await prisma.i18nResource.deleteMany();
   await prisma.systemConfig.deleteMany();
   await prisma.department.deleteMany();
   await prisma.role.deleteMany();
@@ -104,6 +107,10 @@ async function main() {
 
   await prisma.notice.createMany({
     data: noticeSeedData
+  });
+
+  await prisma.i18nResource.createMany({
+    data: i18nResourceSeedData
   });
 
   await prisma.menu.createMany({

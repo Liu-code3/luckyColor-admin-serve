@@ -79,6 +79,16 @@ describe('AuthService', () => {
     const configService = {
       jwtExpiresIn: '2h'
     };
+    const authCaptcha = {
+      createLoginCaptchaChallenge: jest.fn(),
+      verifyLoginCaptcha: jest.fn(),
+      consumeLoginCaptchaToken: jest.fn().mockResolvedValue(undefined)
+    };
+    const securityAudit = {
+      recordLoginSuccess: jest.fn().mockResolvedValue(undefined),
+      recordLoginFailure: jest.fn().mockResolvedValue(undefined),
+      recordLogout: jest.fn().mockResolvedValue(undefined)
+    };
     const passwordService = {
       isHash: jest.fn().mockReturnValue(true),
       hash: jest.fn().mockResolvedValue('hashed-password'),
@@ -94,19 +104,31 @@ describe('AuthService', () => {
       prisma as never,
       jwtService as never,
       configService as never,
-      authLogin as never
+      authCaptcha as never,
+      authLogin as never,
+      securityAudit as never
     );
 
     return {
       service,
+      authCaptcha,
       prisma,
       jwtService,
-      passwordService
+      passwordService,
+      securityAudit
     };
   }
 
   it('returns permission summary in login response', async () => {
-    const { service, prisma, jwtService, passwordService } = createService();
+    const {
+      service,
+      authCaptcha,
+      prisma,
+      jwtService,
+      passwordService,
+      securityAudit
+    } =
+      createService();
     prisma.user.findFirst.mockResolvedValue(
       createUser({
         roles: [
@@ -176,6 +198,16 @@ describe('AuthService', () => {
       tenantId: 'tenant_001',
       username: 'admin'
     });
+    expect(authCaptcha.consumeLoginCaptchaToken).toHaveBeenCalledWith(undefined);
+    expect(securityAudit.recordLoginSuccess).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant_001',
+        userId: 'user-1',
+        username: 'admin'
+      },
+      undefined
+    );
+    expect(securityAudit.recordLoginFailure).not.toHaveBeenCalled();
     expect(passwordService.verify).toHaveBeenCalledWith('123456', '123456');
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: {
@@ -328,7 +360,15 @@ describe('AuthService', () => {
   });
 
   it('rejects login when account is disabled', async () => {
-    const { service, prisma, passwordService, jwtService } = createService();
+    const {
+      service,
+      authCaptcha,
+      prisma,
+      passwordService,
+      jwtService,
+      securityAudit
+    } =
+      createService();
     prisma.user.findFirst.mockResolvedValue(
       createUser({
         status: false
@@ -344,6 +384,12 @@ describe('AuthService', () => {
       new BusinessException(BUSINESS_ERROR_CODES.AUTH_ACCOUNT_DISABLED)
     );
 
+    expect(securityAudit.recordLoginFailure).toHaveBeenCalledWith({
+      username: 'admin',
+      reasonCode: BUSINESS_ERROR_CODES.AUTH_ACCOUNT_DISABLED,
+      request: undefined
+    });
+    expect(authCaptcha.consumeLoginCaptchaToken).toHaveBeenCalledWith(undefined);
     expect(passwordService.verify).not.toHaveBeenCalled();
     expect(prisma.user.update).not.toHaveBeenCalled();
     expect(jwtService.signAsync).not.toHaveBeenCalled();
@@ -603,7 +649,8 @@ describe('AuthService', () => {
   });
 
   it('rejects login when password verification fails', async () => {
-    const { service, prisma, passwordService } = createService();
+    const { service, authCaptcha, prisma, passwordService, securityAudit } =
+      createService();
     prisma.user.findFirst.mockResolvedValue(createUser());
     passwordService.verify.mockResolvedValue(false);
 
@@ -620,10 +667,24 @@ describe('AuthService', () => {
       '123456',
       'wrong-password'
     );
+    expect(authCaptcha.consumeLoginCaptchaToken).toHaveBeenCalledWith(undefined);
+    expect(securityAudit.recordLoginFailure).toHaveBeenCalledWith({
+      username: 'admin',
+      reasonCode: BUSINESS_ERROR_CODES.AUTH_LOGIN_FAILED,
+      request: undefined
+    });
   });
 
   it('upgrades legacy plaintext password to hash after successful login', async () => {
-    const { service, prisma, passwordService, jwtService } = createService();
+    const {
+      service,
+      authCaptcha,
+      prisma,
+      passwordService,
+      jwtService,
+      securityAudit
+    } =
+      createService();
     prisma.user.findFirst.mockResolvedValue(createUser());
     prisma.user.update.mockResolvedValue({
       id: 'user-1'
@@ -638,6 +699,7 @@ describe('AuthService', () => {
 
     expect(passwordService.verify).not.toHaveBeenCalled();
     expect(passwordService.hash).toHaveBeenCalledWith('123456');
+    expect(authCaptcha.consumeLoginCaptchaToken).toHaveBeenCalledWith(undefined);
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: {
         id: 'user-1'
@@ -652,7 +714,68 @@ describe('AuthService', () => {
       tenantId: 'tenant_001',
       username: 'admin'
     });
+    expect(securityAudit.recordLoginSuccess).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant_001',
+        userId: 'user-1',
+        username: 'admin'
+      },
+      undefined
+    );
     expect(response.code).toBe(200);
+  });
+
+  it('rejects login when captcha token verification fails', async () => {
+    const { service, authCaptcha, prisma, passwordService, securityAudit } =
+      createService();
+    authCaptcha.consumeLoginCaptchaToken.mockRejectedValue(
+      new BusinessException(BUSINESS_ERROR_CODES.AUTH_CAPTCHA_TOKEN_INVALID)
+    );
+
+    await expect(
+      service.login({
+        username: 'admin',
+        password: '123456',
+        captchaToken: 'expired-token'
+      })
+    ).rejects.toThrow(
+      new BusinessException(BUSINESS_ERROR_CODES.AUTH_CAPTCHA_TOKEN_INVALID)
+    );
+
+    expect(authCaptcha.consumeLoginCaptchaToken).toHaveBeenCalledWith(
+      'expired-token'
+    );
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
+    expect(passwordService.verify).not.toHaveBeenCalled();
+    expect(securityAudit.recordLoginFailure).toHaveBeenCalledWith({
+      username: 'admin',
+      reasonCode: BUSINESS_ERROR_CODES.AUTH_CAPTCHA_TOKEN_INVALID,
+      request: undefined
+    });
+  });
+
+  it('records logout audit entry for current user', async () => {
+    const { service, securityAudit } = createService();
+
+    const response = await service.logout({
+      sub: 'user-1',
+      tenantId: 'tenant_001',
+      username: 'admin'
+    });
+
+    expect(securityAudit.recordLogout).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant_001',
+        userId: 'user-1',
+        username: 'admin'
+      },
+      undefined
+    );
+    expect(response).toEqual({
+      code: 200,
+      msg: 'success',
+      data: true
+    });
   });
 
   it('filters disabled menus from access snapshot and button permissions', async () => {

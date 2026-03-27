@@ -8,7 +8,11 @@ describe('unit sample', () => {
     });
 
     expect(result.PORT).toBe(3001);
+    expect(result.SWAGGER_ENABLED).toBe(true);
+    expect(result.LOGIN_CAPTCHA_ENABLED).toBe(false);
     expect(result.TENANT_ENABLED).toBe(true);
     expect(result.TENANT_HEADER).toBe('x-tenant-id');
+    expect(result.DEFAULT_ADMIN_USERNAME).toBe('admin');
+    expect(result.DEFAULT_ADMIN_PASSWORD).toBe('123456');
   });
 });

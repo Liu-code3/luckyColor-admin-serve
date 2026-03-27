@@ -40,16 +40,21 @@ describe('PermissionGuard', () => {
         roleCodes.includes('super_admin')
       )
     };
+    const securityAudit = {
+      recordPermissionDenied: jest.fn().mockResolvedValue(undefined)
+    };
 
     return {
       guard: new PermissionGuard(
         reflector as unknown as Reflector,
         prisma as never,
-        tenantActor as unknown as TenantActorService
+        tenantActor as unknown as TenantActorService,
+        securityAudit as never
       ),
       reflector,
       prisma,
-      tenantActor
+      tenantActor,
+      securityAudit
     };
   }
 
@@ -102,7 +107,7 @@ describe('PermissionGuard', () => {
   });
 
   it('blocks tenant admin from platform-only routes even when menu permission matches', async () => {
-    const { guard, prisma } = createGuard({
+    const { guard, prisma, securityAudit } = createGuard({
       permissions: ['main_system_tenant'],
       mode: 'ANY',
       boundary: 'PLATFORM_ADMIN',
@@ -131,6 +136,24 @@ describe('PermissionGuard', () => {
     ).rejects.toThrow(
       new BusinessException(BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED)
     );
+    expect(securityAudit.recordPermissionDenied).toHaveBeenCalledWith({
+      user: {
+        tenantId: 'tenant_001',
+        userId: 'user-6',
+        username: 'tenant-admin'
+      },
+      reasonCode: BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED,
+      permissions: ['main_system_tenant'],
+      mode: 'ANY',
+      boundary: 'PLATFORM_ADMIN',
+      request: expect.objectContaining({
+        user: {
+          sub: 'user-6',
+          tenantId: 'tenant_001',
+          username: 'tenant-admin'
+        }
+      })
+    });
   });
 
   it('allows access when any configured permission matches', async () => {
@@ -191,7 +214,7 @@ describe('PermissionGuard', () => {
   });
 
   it('denies access when required permissions are missing', async () => {
-    const { guard, prisma } = createGuard({
+    const { guard, prisma, securityAudit } = createGuard({
       permissions: ['main_system_tenant_package'],
       mode: 'ANY',
       denialCode: BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED
@@ -219,6 +242,24 @@ describe('PermissionGuard', () => {
     ).rejects.toThrow(
       new BusinessException(BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED)
     );
+    expect(securityAudit.recordPermissionDenied).toHaveBeenCalledWith({
+      user: {
+        tenantId: 'tenant_001',
+        userId: 'user-3',
+        username: 'tenant-admin'
+      },
+      reasonCode: BUSINESS_ERROR_CODES.MENU_PERMISSION_DENIED,
+      permissions: ['main_system_tenant_package'],
+      mode: 'ANY',
+      boundary: undefined,
+      request: expect.objectContaining({
+        user: {
+          sub: 'user-3',
+          tenantId: 'tenant_001',
+          username: 'tenant-admin'
+        }
+      })
+    });
   });
 
   it('returns role disabled when all assigned roles are invalid', async () => {

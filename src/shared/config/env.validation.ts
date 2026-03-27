@@ -5,17 +5,25 @@ export interface AppEnvironmentVariables {
   JWT_SECRET: string;
   JWT_EXPIRES_IN: string;
   REDIS_URL: string;
+  SWAGGER_ENABLED: boolean;
+  LOGIN_CAPTCHA_ENABLED: boolean;
   TENANT_ENABLED: boolean;
   TENANT_HEADER: string;
   TENANT_DOMAIN_SUFFIX?: string;
   DEFAULT_TENANT_ID?: string;
+  DEFAULT_ADMIN_USERNAME: string;
+  DEFAULT_ADMIN_PASSWORD: string;
   APP_TIME_ZONE: string;
 }
 
 const DEFAULT_PORT = 3001;
 const DEFAULT_REDIS_URL = 'redis://127.0.0.1:6379';
 const DEFAULT_JWT_EXPIRES_IN = '2h';
+const DEFAULT_SWAGGER_ENABLED = true;
+const DEFAULT_LOGIN_CAPTCHA_ENABLED = false;
 const DEFAULT_TENANT_HEADER = 'x-tenant-id';
+const DEFAULT_ADMIN_USERNAME = 'admin';
+const DEFAULT_ADMIN_PASSWORD = '123456';
 const DEFAULT_APP_TIME_ZONE = '+08:00';
 
 export function validateEnvironment(
@@ -29,6 +37,16 @@ export function validateEnvironment(
     readOptionalString(rawConfig.JWT_EXPIRES_IN) ?? DEFAULT_JWT_EXPIRES_IN;
   const redisUrl =
     readOptionalString(rawConfig.REDIS_URL) ?? DEFAULT_REDIS_URL;
+  const swaggerEnabled = readBoolean(
+    rawConfig.SWAGGER_ENABLED,
+    'SWAGGER_ENABLED',
+    DEFAULT_SWAGGER_ENABLED
+  );
+  const loginCaptchaEnabled = readBoolean(
+    rawConfig.LOGIN_CAPTCHA_ENABLED,
+    'LOGIN_CAPTCHA_ENABLED',
+    DEFAULT_LOGIN_CAPTCHA_ENABLED
+  );
   const tenantEnabled = readBoolean(
     rawConfig.TENANT_ENABLED,
     'TENANT_ENABLED',
@@ -38,11 +56,19 @@ export function validateEnvironment(
     readOptionalString(rawConfig.TENANT_HEADER) ?? DEFAULT_TENANT_HEADER;
   const tenantDomainSuffix = readOptionalString(rawConfig.TENANT_DOMAIN_SUFFIX);
   const defaultTenantId = readOptionalString(rawConfig.DEFAULT_TENANT_ID);
+  const defaultAdminUsername =
+    readOptionalString(rawConfig.DEFAULT_ADMIN_USERNAME) ??
+    DEFAULT_ADMIN_USERNAME;
+  const defaultAdminPassword =
+    readOptionalString(rawConfig.DEFAULT_ADMIN_PASSWORD) ??
+    DEFAULT_ADMIN_PASSWORD;
   const appTimeZone =
     readOptionalString(rawConfig.APP_TIME_ZONE) ?? DEFAULT_APP_TIME_ZONE;
 
   ensureValidTenantHeader(tenantHeader);
   ensureValidDomainSuffix(tenantDomainSuffix);
+  ensureValidSeedAdminUsername(defaultAdminUsername);
+  ensureValidSeedAdminPassword(defaultAdminPassword);
   ensureValidTimeZoneOffset(appTimeZone);
 
   return {
@@ -52,10 +78,14 @@ export function validateEnvironment(
     JWT_SECRET: jwtSecret,
     JWT_EXPIRES_IN: jwtExpiresIn,
     REDIS_URL: redisUrl,
+    SWAGGER_ENABLED: swaggerEnabled,
+    LOGIN_CAPTCHA_ENABLED: loginCaptchaEnabled,
     TENANT_ENABLED: tenantEnabled,
     TENANT_HEADER: tenantHeader,
     TENANT_DOMAIN_SUFFIX: tenantDomainSuffix || undefined,
     DEFAULT_TENANT_ID: defaultTenantId || undefined,
+    DEFAULT_ADMIN_USERNAME: defaultAdminUsername,
+    DEFAULT_ADMIN_PASSWORD: defaultAdminPassword,
     APP_TIME_ZONE: appTimeZone
   };
 }
@@ -145,6 +175,22 @@ function ensureValidTimeZoneOffset(timeZone: string) {
   if (!/^[+-](0\d|1[0-4]):[0-5]\d$/.test(timeZone)) {
     throw new Error(
       'Environment variable APP_TIME_ZONE must be an offset like +08:00 or -05:30.'
+    );
+  }
+}
+
+function ensureValidSeedAdminUsername(username: string) {
+  if (!/^[A-Za-z0-9._-]{3,32}$/.test(username)) {
+    throw new Error(
+      'Environment variable DEFAULT_ADMIN_USERNAME must be 3-32 characters and only include letters, numbers, dot, underscore or hyphen.'
+    );
+  }
+}
+
+function ensureValidSeedAdminPassword(password: string) {
+  if (password.length < 6 || password.length > 128) {
+    throw new Error(
+      'Environment variable DEFAULT_ADMIN_PASSWORD must be between 6 and 128 characters.'
     );
   }
 }

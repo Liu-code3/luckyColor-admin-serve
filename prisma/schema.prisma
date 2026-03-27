@@ -104,6 +104,30 @@ model SystemLog {
   @@map("system_logs")
 }
 
+model SecurityAuditLog {
+  id             String   @id @default(cuid())
+  tenantId       String?  @map("tenant_id")
+  userId         String?  @map("user_id")
+  username       String?
+  eventType      String   @map("event_type")
+  outcome        String
+  reasonCode     Int?     @map("reason_code")
+  reasonMessage  String?  @map("reason_message")
+  requestMethod  String?  @map("request_method")
+  requestPath    String?  @map("request_path")
+  ipAddress      String   @map("ip_address")
+  browserVersion String   @map("browser_version")
+  terminalSystem String   @map("terminal_system")
+  detail         Json?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(3)
+
+  @@index([eventType, createdAt])
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
+  @@index([username, createdAt])
+  @@map("security_audit_logs")
+}
+
 model User {
   id           String      @id @default(cuid())
   tenantId     String      @map("tenant_id")
@@ -128,6 +152,7 @@ model User {
   @@index([tenantId, departmentId])
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
+  @@index([tenantId, status, createdAt])
   @@map("users")
 }
 
@@ -152,7 +177,10 @@ model Menu {
   createdAt DateTime   @default(now()) @map("created_at") @db.Timestamp(3)
   updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamp(3)
 
+  @@unique([menuKey])
+  @@index([permissionCode])
   @@index([parentId])
+  @@index([parentId, sort])
   @@index([sort])
   @@map("menus")
 }
@@ -203,6 +231,7 @@ model Role {
   @@index([tenantId])
   @@index([name])
   @@index([sort])
+  @@index([tenantId, status, sort])
   @@map("roles")
 }
 
@@ -226,8 +255,11 @@ model Department {
   @@unique([tenantId, code])
   @@index([tenantId])
   @@index([parentId])
+  @@index([tenantId, parentId])
+  @@index([tenantId, parentId, sort])
   @@index([name])
   @@index([sort])
+  @@index([tenantId, status, sort])
   @@map("departments")
 }
 
@@ -291,31 +323,135 @@ model SystemConfig {
   configKey   String   @unique @map("config_key")
   configName  String   @map("config_name")
   configValue String   @map("config_value")
+  configGroup String   @default("default") @map("config_group")
   valueType   String   @default("string") @map("value_type")
+  isBuiltIn   Boolean  @default(false) @map("is_built_in")
+  isSensitive Boolean  @default(false) @map("is_sensitive")
   status      Boolean  @default(true)
   remark      String?
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(3)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamp(3)
 
   @@index([configName])
+  @@index([configGroup])
+  @@index([configGroup, configKey])
   @@map("system_configs")
 }
 
 model Notice {
-  id          String    @id @default(cuid())
-  tenantId    String    @map("tenant_id")
-  title       String
-  content     String
-  type        String
-  status      Boolean   @default(false)
-  publisher   String?
-  publishedAt DateTime? @map("published_at") @db.Timestamp(3)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(3)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamp(3)
+  id                  String    @id @default(cuid())
+  tenantId            String    @map("tenant_id")
+  title               String
+  content             String
+  type                String
+  status              Boolean   @default(false)
+  publishScope        String    @default("TENANT_ALL") @map("publish_scope")
+  targetDepartmentIds String?   @map("target_department_ids") @db.Text
+  targetRoleCodes     String?   @map("target_role_codes") @db.Text
+  isPinned            Boolean   @default(false) @map("is_pinned")
+  publisher           String?
+  scheduledPublishAt  DateTime? @map("scheduled_publish_at") @db.Timestamp(3)
+  publishedAt         DateTime? @map("published_at") @db.Timestamp(3)
+  eventKey            String?   @map("event_key")
+  eventPayload        String?   @map("event_payload") @db.Text
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamp(3)
 
   @@index([tenantId])
+  @@index([tenantId, status])
   @@index([title])
   @@index([type])
+  @@index([publishScope])
+  @@index([isPinned])
+  @@index([scheduledPublishAt])
   @@index([publishedAt])
   @@map("notices")
+}
+
+model I18nResource {
+  id            String   @id @default(cuid())
+  languageCode  String   @map("language_code")
+  module        String
+  resourceGroup String   @map("resource_group")
+  resourceKey   String   @map("resource_key")
+  resourceValue String   @map("resource_value") @db.Text
+  version       Int      @default(1)
+  status        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamp(3)
+
+  @@unique([languageCode, module, resourceGroup, resourceKey])
+  @@index([languageCode, module, status])
+  @@index([languageCode, updatedAt])
+  @@index([module, resourceKey])
+  @@map("i18n_resources")
+}
+
+model UserPreference {
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  userId         String   @map("user_id")
+  layout         String   @default("side")
+  theme          String   @default("default")
+  darkMode       Boolean  @default(false) @map("dark_mode")
+  fullscreen     Boolean  @default(false)
+  tabPreferences Json?    @map("tab_preferences")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamp(3)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId, updatedAt])
+  @@map("user_preferences")
+}
+
+model WatermarkConfig {
+  id        String   @id @default(cuid())
+  tenantId  String?  @map("tenant_id")
+  content   String?
+  opacity   Float?
+  color     String?
+  fontSize  Int?     @map("font_size")
+  rotation  Int?
+  status    Boolean?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(3)
+
+  @@index([tenantId, updatedAt])
+  @@map("watermark_configs")
+}
+
+model CodegenTable {
+  id           String          @id @default(cuid())
+  tableName    String          @unique @map("table_name")
+  tableComment String?         @map("table_comment")
+  moduleName   String          @map("module_name")
+  businessName String?         @map("business_name")
+  className    String?         @map("class_name")
+  primaryKey   String?         @map("primary_key")
+  columns      CodegenColumn[]
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamp(3)
+
+  @@index([moduleName])
+  @@map("codegen_tables")
+}
+
+model CodegenColumn {
+  id            String      @id @default(cuid())
+  tableId       String      @map("table_id")
+  columnName    String      @map("column_name")
+  propertyName  String      @map("property_name")
+  columnComment String?     @map("column_comment")
+  tsType        String      @default("string") @map("ts_type")
+  formType      String      @default("input") @map("form_type")
+  queryType     String      @default("none") @map("query_type")
+  listVisible   Boolean     @default(true) @map("list_visible")
+  sort          Int         @default(0)
+  table         CodegenTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamp(3)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamp(3)
+
+  @@unique([tableId, columnName])
+  @@index([tableId, sort])
+  @@map("codegen_columns")
 }

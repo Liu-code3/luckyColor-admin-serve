@@ -1,10 +1,14 @@
+import { loadEnvFilesIntoProcess } from '../src/shared/config/env-files';
+
+loadEnvFilesIntoProcess();
+
 export const DEFAULT_TENANT_ID = 'tenant_001' as const;
 
 export const LOCAL_ADMIN_SEED = {
   tenantId: DEFAULT_TENANT_ID,
   departmentId: 100,
-  username: 'admin',
-  password: '123456',
+  username: process.env.DEFAULT_ADMIN_USERNAME?.trim() || 'admin',
+  password: process.env.DEFAULT_ADMIN_PASSWORD?.trim() || '123456',
   nickname: '\u7cfb\u7edf\u7ba1\u7406\u5458',
   phone: '13800000000',
   email: 'admin@luckycolor.local',

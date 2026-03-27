@@ -1,6 +1,46 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MenuTreeItemResponseDto } from '../../system/menus/menus.response.dto';
 
+export class LoginCaptchaChallengeResponseDto {
+  @ApiProperty({
+    description: '验证码题目 ID',
+    example: 'cpt_01JQ8J4S9P4X1N5P4D2M8E7T0A'
+  })
+  captchaId!: string;
+
+  @ApiProperty({
+    description: '算术验证码 SVG 题面',
+    example: '<svg>...</svg>'
+  })
+  captchaSvg!: string;
+
+  @ApiProperty({
+    description: '题面提示语',
+    example: '请计算图中算式结果'
+  })
+  prompt!: string;
+
+  @ApiProperty({
+    description: '题面过期时间',
+    example: '2026-03-26T09:31:40.000Z'
+  })
+  expiresAt!: string;
+}
+
+export class VerifyLoginCaptchaResponseDto {
+  @ApiProperty({
+    description: '验证码校验通过后签发的一次性登录令牌',
+    example: 'cap_01JQ8J6K4SZQ7X6MEY9R2QG3TN'
+  })
+  captchaToken!: string;
+
+  @ApiProperty({
+    description: '登录令牌过期时间',
+    example: '2026-03-26T09:32:10.000Z'
+  })
+  expiresAt!: string;
+}
+
 export class AuthRoleItemResponseDto {
   @ApiProperty({
     description: '租户 ID',
@@ -154,8 +194,7 @@ export class AuthButtonPermissionResponseDto {
   buttonCodeList!: string[];
 
   @ApiProperty({
-    description:
-      '本次查询命中的按钮权限码列表；未传 `codes` 时等同于 `buttonCodeList`',
+    description: '本次查询命中的按钮权限码列表，未传 codes 时等同于 buttonCodeList',
     type: [String],
     example: ['system:user:create']
   })

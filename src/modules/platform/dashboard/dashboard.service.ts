@@ -80,7 +80,7 @@ export class DashboardService {
         })
       ]);
 
-    const notices = await this.loadDashboardNotices();
+    const notices = await this.loadDashboardNotices(user);
 
     const recentVisitMap = new Map<
       string,
@@ -151,26 +151,40 @@ export class DashboardService {
     });
   }
 
-  private async loadDashboardNotices() {
+  private async loadDashboardNotices(user: JwtPayload) {
+    const profile = await this.loadNoticeVisibilityProfile(user.sub);
+    const now = new Date();
+
     const published = await this.prisma.notice.findMany({
-      where: this.buildNoticeWhere({ status: true }),
-      orderBy: [{ publishedAt: 'desc' }, { createdAt: 'desc' }],
+      where: this.buildNoticeWhere({
+        AND: [
+          { status: true },
+          { publishedAt: { lte: now } },
+          this.buildNoticeVisibilityWhere(profile)
+        ]
+      }),
+      orderBy: [
+        { isPinned: 'desc' },
+        { publishedAt: 'desc' },
+        { createdAt: 'desc' }
+      ],
       take: NOTICE_LIMIT
     });
 
     if (published.length) {
-      return published.map(item => this.toNoticeSummary(item));
+      return published.map((item) => this.toNoticeSummary(item));
     }
 
     const latest = await this.prisma.notice.findMany({
-      where: this.buildNoticeWhere(),
-      orderBy: {
-        createdAt: 'desc'
-      },
+      where: this.buildNoticeWhere(this.buildNoticeVisibilityWhere(profile)),
+      orderBy: [
+        { isPinned: 'desc' },
+        { createdAt: 'desc' }
+      ],
       take: NOTICE_LIMIT
     });
 
-    return latest.map(item => this.toNoticeSummary(item));
+    return latest.map((item) => this.toNoticeSummary(item));
   }
 
   private buildUserWhere(where: Prisma.UserWhereInput = {}) {
@@ -192,6 +206,65 @@ export class DashboardService {
       where,
       'tenantId'
     ) as Prisma.NoticeWhereInput;
+  }
+
+  private async loadNoticeVisibilityProfile(userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: this.buildUserWhere({ id: userId }),
+      select: {
+        departmentId: true,
+        roles: {
+          select: {
+            role: {
+              select: {
+                code: true,
+                status: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return {
+      departmentId: user?.departmentId ?? null,
+      roleCodes:
+        user?.roles
+          ?.map((item) => item.role)
+          .filter((item) => item.status)
+          .map((item) => item.code) ?? []
+    };
+  }
+
+  private buildNoticeVisibilityWhere(profile: {
+    departmentId: number | null;
+    roleCodes: string[];
+  }): Prisma.NoticeWhereInput {
+    const or: Prisma.NoticeWhereInput[] = [
+      { publishScope: 'TENANT_ALL' }
+    ];
+
+    if (profile.departmentId !== null) {
+      or.push({
+        publishScope: 'DEPARTMENT',
+        targetDepartmentIds: {
+          contains: `|${profile.departmentId}|`
+        }
+      });
+    }
+
+    profile.roleCodes.forEach((roleCode) => {
+      or.push({
+        publishScope: 'ROLE',
+        targetRoleCodes: {
+          contains: `|${roleCode}|`
+        }
+      });
+    });
+
+    return {
+      OR: or
+    };
   }
 
   private buildTrend(
@@ -236,6 +309,7 @@ export class DashboardService {
     content: string;
     type: string;
     status: boolean;
+    isPinned?: boolean;
     publisher: string | null;
     publishedAt: Date | null;
     createdAt: Date;

@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  UseGuards
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BUSINESS_ERROR_CODES } from '../../../shared/api/error-codes';
 import {
@@ -8,15 +16,21 @@ import {
   ApiSuccessResponse,
   ApiUnauthorizedErrorResponse
 } from '../../../shared/swagger/swagger-response';
-import { AuthService } from './auth.service';
-import { AuthButtonPermissionQueryDto, LoginDto } from './auth.dto';
+import {
+  AuthButtonPermissionQueryDto,
+  LoginDto,
+  VerifyLoginCaptchaDto
+} from './auth.dto';
 import {
   AuthAccessResponseDto,
   AuthButtonPermissionResponseDto,
   AuthRouteItemResponseDto,
   AuthUserResponseDto,
-  LoginResultResponseDto
+  LoginCaptchaChallengeResponseDto,
+  LoginResultResponseDto,
+  VerifyLoginCaptchaResponseDto
 } from './auth.response.dto';
+import { AuthService } from './auth.service';
 import { CurrentUser } from './current-user.decorator';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import type { JwtPayload } from './jwt-payload.interface';
@@ -54,6 +68,29 @@ const AUTH_RUNTIME_FORBIDDEN_EXAMPLES = [
   }
 ];
 
+const AUTH_UNAUTHORIZED_EXAMPLES = [
+  {
+    name: 'tokenExpired',
+    code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
+    summary: '登录已过期'
+  },
+  {
+    name: 'tokenInvalid',
+    code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
+    summary: '登录状态无效'
+  }
+];
+
+interface RequestLike {
+  method?: string;
+  url?: string;
+  headers?: Record<string, string | string[] | undefined>;
+  ip?: string;
+  socket?: {
+    remoteAddress?: string;
+  };
+}
+
 @ApiTags('认证中心 / 登录认证')
 @ApiServerErrorResponse()
 @Controller('auth')
@@ -61,8 +98,69 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @ApiOperation({
+    summary: '获取登录算术验证码',
+    description:
+      '生成一题带有效期的算术 SVG 验证码，前端完成计算后再调用校验接口换取登录令牌。'
+  })
+  @ApiSuccessResponse({
+    type: LoginCaptchaChallengeResponseDto,
+    description: '算术验证码题面',
+    dataExample: {
+      captchaId: 'cpt_01JQ8J4S9P4X1N5P4D2M8E7T0A',
+      captchaSvg: '<svg>...</svg>',
+      prompt: '请计算图中算式结果',
+      expiresAt: '2026-03-26T09:31:40.000Z'
+    }
+  })
+  @Get('captcha/challenge')
+  getLoginCaptchaChallenge() {
+    return this.authService.createLoginCaptchaChallenge();
+  }
+
+  @ApiOperation({
+    summary: '校验登录算术验证码',
+    description:
+      '校验验证码答案，成功后返回一次性 captchaToken，登录接口需携带该令牌才能继续完成认证。'
+  })
+  @ApiBody({ type: VerifyLoginCaptchaDto })
+  @ApiSuccessResponse({
+    type: VerifyLoginCaptchaResponseDto,
+    description: '验证码校验结果',
+    dataExample: {
+      captchaToken: 'cap_01JQ8J6K4SZQ7X6MEY9R2QG3TN',
+      expiresAt: '2026-03-26T09:32:10.000Z'
+    }
+  })
+  @ApiErrorResponse({
+    status: 401,
+    description: '验证码校验失败',
+    examples: [
+      {
+        name: 'captchaInvalid',
+        code: BUSINESS_ERROR_CODES.AUTH_CAPTCHA_INVALID,
+        summary: '验证码错误或已失效'
+      }
+    ]
+  })
+  @ApiErrorResponse({
+    status: 422,
+    description: '验证码校验参数错误',
+    examples: [
+      {
+        name: 'invalidParams',
+        code: BUSINESS_ERROR_CODES.REQUEST_PARAMS_INVALID
+      }
+    ]
+  })
+  @Post('captcha/verify')
+  verifyLoginCaptcha(@Body() dto: VerifyLoginCaptchaDto) {
+    return this.authService.verifyLoginCaptcha(dto);
+  }
+
+  @ApiOperation({
     summary: '账号登录',
-    description: '使用用户名和密码登录，返回 Bearer Token 及当前用户权限摘要。'
+    description:
+      '使用用户名、密码和验证码放行令牌登录，返回 Bearer Token 及当前用户权限摘要。'
   })
   @ApiBody({ type: LoginDto })
   @ApiSuccessResponse({
@@ -90,6 +188,16 @@ export class AuthController {
         name: 'loginFailed',
         code: BUSINESS_ERROR_CODES.AUTH_LOGIN_FAILED,
         summary: '用户名或密码错误'
+      },
+      {
+        name: 'captchaRequired',
+        code: BUSINESS_ERROR_CODES.AUTH_CAPTCHA_REQUIRED,
+        summary: '请先完成验证码校验'
+      },
+      {
+        name: 'captchaTokenInvalid',
+        code: BUSINESS_ERROR_CODES.AUTH_CAPTCHA_TOKEN_INVALID,
+        summary: '登录校验已失效，请重新完成验证码'
       }
     ]
   })
@@ -108,8 +216,36 @@ export class AuthController {
     examples: AUTH_RUNTIME_FORBIDDEN_EXAMPLES
   })
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  login(@Body() dto: LoginDto, @Req() request: RequestLike) {
+    return this.authService.login(dto, request);
+  }
+
+  @ApiOperation({
+    summary: '退出登录',
+    description:
+      '当前接口用于记录退出登录安全审计事件。由于使用 Bearer Token，服务端不会维护会话状态。'
+  })
+  @ApiBearerAuth()
+  @ApiSuccessResponse({
+    description: '退出登录结果',
+    dataSchema: {
+      type: 'boolean',
+      example: true
+    },
+    dataExample: true
+  })
+  @ApiUnauthorizedErrorResponse({
+    description: '登录态异常响应',
+    examples: AUTH_UNAUTHORIZED_EXAMPLES
+  })
+  @ApiForbiddenErrorResponse({
+    description: '当前登录态不可访问',
+    examples: AUTH_RUNTIME_FORBIDDEN_EXAMPLES
+  })
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  logout(@CurrentUser() user: JwtPayload, @Req() request: RequestLike) {
+    return this.authService.logout(user, request);
   }
 
   @ApiOperation({
@@ -131,18 +267,7 @@ export class AuthController {
   })
   @ApiUnauthorizedErrorResponse({
     description: '登录态异常响应',
-    examples: [
-      {
-        name: 'tokenExpired',
-        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-        summary: '登录已过期'
-      },
-      {
-        name: 'tokenInvalid',
-        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
-        summary: '登录状态无效'
-      }
-    ]
+    examples: AUTH_UNAUTHORIZED_EXAMPLES
   })
   @ApiForbiddenErrorResponse({
     description: '当前登录态不可访问',
@@ -215,18 +340,7 @@ export class AuthController {
   })
   @ApiUnauthorizedErrorResponse({
     description: '登录态异常响应',
-    examples: [
-      {
-        name: 'tokenExpired',
-        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-        summary: '登录已过期'
-      },
-      {
-        name: 'tokenInvalid',
-        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
-        summary: '登录状态无效'
-      }
-    ]
+    examples: AUTH_UNAUTHORIZED_EXAMPLES
   })
   @ApiForbiddenErrorResponse({
     description: '当前登录态不可访问',
@@ -284,18 +398,7 @@ export class AuthController {
   })
   @ApiUnauthorizedErrorResponse({
     description: '登录态异常响应',
-    examples: [
-      {
-        name: 'tokenExpired',
-        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-        summary: '登录已过期'
-      },
-      {
-        name: 'tokenInvalid',
-        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
-        summary: '登录状态无效'
-      }
-    ]
+    examples: AUTH_UNAUTHORIZED_EXAMPLES
   })
   @ApiForbiddenErrorResponse({
     description: '当前登录态不可访问',
@@ -327,18 +430,7 @@ export class AuthController {
   })
   @ApiUnauthorizedErrorResponse({
     description: '登录态异常响应',
-    examples: [
-      {
-        name: 'tokenExpired',
-        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_EXPIRED,
-        summary: '登录已过期'
-      },
-      {
-        name: 'tokenInvalid',
-        code: BUSINESS_ERROR_CODES.AUTH_TOKEN_INVALID,
-        summary: '登录状态无效'
-      }
-    ]
+    examples: AUTH_UNAUTHORIZED_EXAMPLES
   })
   @ApiForbiddenErrorResponse({
     description: '当前登录态不可访问',
